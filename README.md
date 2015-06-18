@@ -11,7 +11,7 @@ The config folder contains an install.sh and a mqttReporter start script. The in
 
 The main folder has a default.ini with configuration parameters and the script itself.
 
-If you create a new name for default.ini, make sure to update config/mqttReporter so it calls the script with the correct configuration file.
+If you create a new name for default.ini, make sure to update config/mqttReporter so it calls the script with the correct configuration file. Also, if you place the script somewhere other than /opt/mqttReporter you need to update the start script with the correct path.
 
 # Configuration
 The configuration file contains 1 or more Sensor sections which specify the pin, the MQTT topic to report to, and whether the sensor on the pin is Pull Up or Pull Down so it can handle normally open and normally closed sensors.
