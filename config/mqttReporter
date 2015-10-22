@@ -16,7 +16,7 @@ DAEMON=$DIR/mqttReporter.py
 DAEMON_NAME=mqttReporter
  
 # Add any command line options for your daemon here
-DAEMON_OPTS="$DIR/default.ini"
+DAEMON_OPTS="$DIR/mqttReporter.ini"
  
 # This next line determines what user the script runs as.
 # Root generally not recommended but necessary if you are using the Raspberry Pi GPIO from Python.
