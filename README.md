@@ -70,9 +70,9 @@ press.
 
 Upon receipt of any message on the incoming topic, the script will publish the 
 current state of all configured polling sensors (sensors with a polling period 
-> 0) on their respective topics immediately.
+&gt; 0) on their respective topics immediately.
 
-The script is configured to respond properly to term signals (e.g. <ctrl>-c) so 
+The script is configured to respond properly to term signals (e.g. &lt;ctrl&gt;-c) so 
 it behaves nicely when run as a service (currently broken when using Dash).
 
 # Bluetooth Specifics
