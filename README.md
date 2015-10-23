@@ -13,7 +13,7 @@ scripts and commands for both upstart and systemd.
 If running on a Raspberry Pi and using the GPIO sensors it must be run as root.
 
 # Organization
-The config folder contains an install.sh as descrived above, mqttReporter start 
+The config folder contains an install.sh as described above, mqttReporter start 
 script for upstart systems (e.g raspbian wheezy), and a service file for systemd 
 type systems (e.g raspbian jessey, Ubuntu 15+). The install script will install 
 dependencies using using apt-get and pip and copy and enable the start script to 
@@ -31,7 +31,7 @@ to update the mqttReporter start script or mqttReporter.service with the correct
 path.
 
 # Configuration
-The configuration file contains 1 or more Sensor sections which specify ther 
+The configuration file contains one or more Sensor sections which specify thier 
 Type, the MQTT topic to report to, sensor specific info (e.g. pin, BT address, 
 etc.).
 
@@ -50,8 +50,12 @@ To run the script manually:
 sudo python mqttReporter mqttReporter.ini
 
 If it has been installed, run:
+
+
 sudo service mqttReporter start
+
 or
+
 sudo systemctl start mqttReporter
 
 # Behavior
@@ -61,13 +65,15 @@ configured MQTT topic.
 
 The GPIO sensor pins will report "OPEN" for active pins and "CLOSED" for 
 inactive pins. The Bluetooth scanner will report "ON" when the device is present 
-and "OFF" when it is not.
+and "OFF" when it is not. Dash will report "Pressed" when it detects the button
+press.
 
 Upon receipt of any message on the incoming topic, the script will publish the 
-current state of all configured sensors on their respective topics immediately.
+current state of all configured polling sensors (sensors with a polling period 
+> 0) on their respective topics immediately.
 
 The script is configured to respond properly to term signals (e.g. <ctrl>-c) so 
-it behaves nicely when run as a service.
+it behaves nicely when run as a service (currently broken when using Dash).
 
 # Bluetooth Specifics
 To discover the address of your Bluetooth device (e.g. a phone), put it in 
@@ -80,7 +86,7 @@ https://code.google.com/p/pybluez/source/browse/examples/simple/inquiry.py
 # Dash Button Specifics
 To discover the address of your Dash button, there is a getMac.py script in the
 config folder that will run for a short time and print the MAC address of any
-device that issues an ARP request which it is running. Run the script and then
+device that issues an ARP request while it is running. Run the script and then
 press the button and it will print that button's address.
 
 Upon receiving your Dash button, follow the configuration steps up to the point
