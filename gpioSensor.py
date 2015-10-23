@@ -7,6 +7,7 @@
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
+import sys
 import webiopi
 
 class gpioSensor:
@@ -40,4 +41,4 @@ class gpioSensor:
     def publishState(self):
         """Publishes the current state"""
 
-        self.publish(self.topic, "CLOSED" if self.state == self.gpio.LOW else "OPEN")
+        self.publish("CLOSED" if self.state == self.gpio.LOW else "OPEN", self.topic)

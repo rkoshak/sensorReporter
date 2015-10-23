@@ -16,6 +16,7 @@ import ConfigParser
 import signal
 import sys
 import time
+import traceback
 from threading import *
 
 from signalProc import *
@@ -28,11 +29,15 @@ try:
     from gpioSensor import *
 except ImportError:
     print 'GPIO is not supported on this machine'
+try:
+    from dash import *
+except ImportError:
+    print 'Dash button detection is not supported on this machine'
 
 # Globals
 logger = logging.getLogger('mqttReporter')
 mqttConn = mqttConnection()
-config = ConfigParser.ConfigParser()
+config = ConfigParser.ConfigParser(allow_no_value=True)
 sensors = []
 
 # The decorators below causes the creation of a SignalHandler attached to this function for each of the
@@ -63,8 +68,9 @@ def on_message(client, userdata, msg):
     
     logger.info("Received a request for current state, publishing")
     for s in sensors:
-        s.checkState()
-        s.publishState()
+        if s.poll > 0:
+            s.checkState()
+            s.publishState()
 
 def main():
     """Polls the sensor pins and publishes any changes"""
@@ -84,7 +90,7 @@ def main():
 
         # Kick off a poll of the sensor in a separate process
         for s in sensors:
-            if (time.time() - s.lastPoll) > s.poll:
+            if s.poll > 0 and (time.time() - s.lastPoll) > s.poll:
                 s.lastPoll = time.time()
                 Thread(target=check, args=(s,)).start()
         
@@ -144,9 +150,27 @@ def loadConfig(configFile):
                                           config.get(section, "PUD"),
                                           mqttConn.publish, logger,
                                           config.getint(section, "Poll")))
+            elif senType == "Dash":
+                devices = {}
+                i = 1
+                addr = 'Address'+str(i)
+                topic = 'Topic'+str(i)
+                while config.has_option(section, addr):
+                    devices[config.get(section, addr)] = config.get(section, topic)
+                    i += 1
+                    addr = 'Address'+str(i)
+                    topic = 'Topic'+str(i)
+                s = dash(devices, mqttConn.publish, logger, config.getint(section, "Poll"))
+                sensors.append(s)
+                Thread(target=s.checkState).start() # don't need to use cleanup-on-exit for this type
+
             else:
                 logger.error(senType + " is an unknown sensor type")
     return sensors
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
+        traceback.print_exc(file=sys.stdout)

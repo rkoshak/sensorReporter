@@ -7,6 +7,7 @@
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
+import sys
 import paho.mqtt.client as mqtt
 
 class mqttConnection(object):
@@ -31,12 +32,15 @@ class mqttConnection(object):
     def publish(self, message, pubTopic):
         """Called by others to publish a message to the publish topic"""
 
-        rval = self.client.publish(pubTopic, message)
-        if rval[0] == mqtt.MQTT_ERR_NO_CONN:
-            self.logger.error("Error publishing update: " + message +  " to " + pubTopic)
-            self.comms.reconnect() # try to reconnect again
-        else:
-            self.logger.info("Published message " + message + " to " + pubTopic)
+        try:
+            rval = self.client.publish(pubTopic, message)
+            if rval[0] == mqtt.MQTT_ERR_NO_CONN:
+                self.logger.error("Error publishing update: " + message +  " to " + pubTopic)
+                self.comms.reconnect() # try to reconnect again
+            else:
+                self.logger.info("Published message " + message + " to " + pubTopic)
+        except:
+            print "Unexpected error publishing message:", sys.exc_info()[0]
 
     def on_connect(self, client, userdata, flags, rc):
         """Called when the MQQT client successfully connects to the broker"""

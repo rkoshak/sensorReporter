@@ -9,7 +9,6 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 import bluetooth
-import paho.mqtt.client as mqtt
 
 class btSensor:
     """Represents a Bluetooth device"""
@@ -47,4 +46,4 @@ class btSensor:
     def publishState(self):
         """Publishes the current state"""
 
-        self.publish(self.topic, self.state)
+        self.publish(self.state, self.topic)
