@@ -94,8 +94,8 @@ def main():
                 s.lastPoll = time.time()
                 Thread(target=check, args=(s,)).start()
         
-        if diff < .5:
-            time.sleep(.5-diff)
+        if diff < .2:
+            time.sleep(.2-diff)
         else:
             time.sleep(0.1) # give the processor a chance if MQTT is being slow
         lastTime = time.time()
@@ -169,8 +169,4 @@ def loadConfig(configFile):
     return sensors
 
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        print "Unexpected error:", sys.exc_info()[0]
-        traceback.print_exc(file=sys.stdout)
+    main()

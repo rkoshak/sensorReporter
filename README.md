@@ -1,7 +1,7 @@
 # mqttReporter
 A python script that polls a sensor and pubishes changes in its state to MQTT. 
 It currently supports Raspberry Pi GPIO pins,Bluetooth device scanning, and
-Dash button press detection (undergoing test).
+Dash button press detection.
 
 # Dependencies
 This script depends on the paho library for MQTT, the webiopi library for GPIO,
