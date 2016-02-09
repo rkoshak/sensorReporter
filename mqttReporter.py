@@ -108,6 +108,7 @@ def configLogger(file, size, num):
     print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
     logger.setLevel(logging.DEBUG)
     fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
+    fh.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -119,7 +120,7 @@ def configMQTT(config):
     logger.info("Connecting to MQTT Broker " + config.get("MQTT", "Host"))
     mqttConn.config(logger, config.get("MQTT", "User"), 
                     config.get("MQTT", "Password"), config.get("MQTT", "Host"), 
-                    config.getint("MQTT", "Port"), config.getint("MQTT", "Keepalive"),
+                    config.getint("MQTT", "Port"), config.getfloat("MQTT", "Keepalive"),
                     config.get("MQTT", "LWT-Topic"), config.get("MQTT", "LWT-Msg"),
                     config.get("MQTT", "Topic"), on_message)
 
@@ -143,13 +144,13 @@ def loadConfig(configFile):
                 sensors.append(btSensor(config.get(section, "Address"),
                                         config.get(section, "Topic"),
                                         mqttConn.publish, logger,
-                                        config.getint(section, "Poll")))
+                                        config.getfloat(section, "Poll")))
             elif senType == "GPIO":
                 sensors.append(gpioSensor(config.getint(section, "Pin"),
                                           config.get(section, "Topic"),
                                           config.get(section, "PUD"),
                                           mqttConn.publish, logger,
-                                          config.getint(section, "Poll")))
+                                          config.getfloat(section, "Poll")))
             elif senType == "Dash":
                 devices = {}
                 i = 1
