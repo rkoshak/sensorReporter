@@ -22,7 +22,7 @@ class btSensor:
         """Finds whether the BT device is close and publishes its current state"""
 
         self.logger = logger
-        self.logger.info("----------Configuring BluetoothSensor: Address = " + address + " Item = " + item)
+        self.logger.info("----------Configuring BluetoothSensor: Address = " + address + " Topic = " + topic)
         self.address = address
         self.state = "OFF"
         self.topic = topic
