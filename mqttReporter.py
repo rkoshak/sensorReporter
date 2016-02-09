@@ -22,7 +22,7 @@ from threading import *
 from signalProc import *
 from mqttConn import mqttConnection
 try:
-    from bluetoothScanner import *
+    from bluetoothRSSIScanner import *
 except ImportError:
     print 'Bluetooth is not supported on this machine'
 try:
