@@ -1,9 +1,8 @@
 """
  Script:      bluetoothRSSIScanner.py
  Author:      Lenny Shirley <http://www.lennysh.com>
- Date:        February 9, 2016
- Purpose:     Scans for a Bluetooth device with a given address and publishes 
-   whether or not the device is present using RSSI figures.
+ Date:        February 10, 2016
+ Purpose:     Scans for a Bluetooth device with a given address and publishes whether or not the device is present using RSSI figures.
 Credit From:  https://github.com/blakeman399/Bluetooth-Proximity-Light/blob/master/https/github.com/blakeman399/Bluetooth-Proximity-Light.py
 """
 
@@ -18,14 +17,14 @@ debug = 0
 class btSensor:
     """Represents a Bluetooth device"""
 
-    def __init__(self, address, topic, publish, logger, poll):
+    def __init__(self, address, destination, publish, logger, poll):
         """Finds whether the BT device is close and publishes its current state"""
 
         self.logger = logger
-        self.logger.info("----------Configuring BluetoothSensor: Address = " + address + " Topic = " + topic)
+        self.logger.info("----------Configuring BluetoothSensor: Address = " + address + " Destination = " + destination)
         self.address = address
         self.state = "OFF"
-        self.topic = topic
+        self.destination = destination
         self.publish = publish
         self.poll = poll
 
@@ -34,8 +33,8 @@ class btSensor:
         self.far_count = 0
         self.near_count = 0
         self.rssi = None
-        self.prev1rssi = None
-        self.prev2rssi = None
+        #self.prev1rssi = None
+        #self.prev2rssi = None
 
         self.publishState()
 
@@ -72,6 +71,7 @@ class btSensor:
             return rssi
 
         except Exception, e:
+            #self.logger.error("<Bluetooth> (getRSSI) %s" % (repr(e)))
             return None
 
     def checkState(self):
@@ -81,14 +81,14 @@ class btSensor:
         self.rssi = self.getRSSI()
 		
         if debug:
-            print "Topic = %s, Current RSSI = %s, Previous RSSI = %s, RSSI before Previous = %s" % (self.topic, self.rssi, self.prev1rssi, self.prev2rssi)
+            print "Destination = %s, Current RSSI = %s" % (self.destination, self.rssi)
 
-        if self.rssi == self.prev1rssi == self.prev2rssi == None:
+        if self.rssi == None:
             self.far_count += 1
             self.near_count = 0
             if self.far_count > 10:
                 value = "OFF"
-        else:
+        elif self.rssi < 0:
             self.far_count = 0
             self.near_count += 1
             if self.near_count > 10:
@@ -98,10 +98,10 @@ class btSensor:
             self.state = value
             self.publishState()
 
-        self.prev2rssi = self.prev1rssi
-        self.prev1rssi = self.rssi
+        #self.prev2rssi = self.prev1rssi
+        #self.prev1rssi = self.rssi
 
     def publishState(self):
         """Publishes the current state"""
 
-        self.publish(self.state, self.topic)
+        self.publish(self.state, self.destination)
