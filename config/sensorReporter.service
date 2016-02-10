@@ -1,0 +1,11 @@
+[Unit]
+Description=Reports status and sensor readings over MQTT and REST
+
+[Service]
+Type=simple
+ExecStart=/opt/sensorReportersensorReporter.py /opt/mqttReporter/sensorReporter.ini
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
