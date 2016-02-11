@@ -13,16 +13,16 @@
 
 #echo "Creating soft link in /opt"
 #cd ..
-#sudo ln -s `pwd` /opt/mqttReporter
+#sudo ln -s `pwd` /opt/sensorReporter
 
 #echo "Setting config"
-#ln -s $HOSTNAME.ini /opt/mqttReporter/mqttReporter.ini
+#ln -s $HOSTNAME.ini /opt/sensorReporter/sensorReporter.ini
 
 echo "Installing start script"
 # Upstart
-#sudo cp ./config/mqttReporter /etc/init.d
-#sudo update-rc.d mqttReporter defaults
+#sudo cp ./config/sensorReporter /etc/init.d
+#sudo update-rc.d sensorReporter defaults
 
 # systemd
-sudo cp ./config/mqttReporter.service /etc/systemd/system
-sudo systemctl enable mqttReporter.service
+sudo cp ./config/sensorReporter.service /etc/systemd/system
+sudo systemctl enable sensorReporter.service
