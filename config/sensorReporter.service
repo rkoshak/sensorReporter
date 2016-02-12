@@ -3,7 +3,7 @@ Description=Reports status and sensor readings over MQTT and REST
 
 [Service]
 Type=simple
-ExecStart=/opt/sensorReportersensorReporter.py /opt/mqttReporter/sensorReporter.ini
+ExecStart=/opt/sensorReporter/sensorReporter.py /opt/sensorReporter/sensorReporter.ini
 RemainAfterExit=yes
 
 [Install]

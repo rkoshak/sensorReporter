@@ -14,6 +14,7 @@
 #echo "Creating soft link in /opt"
 #cd ..
 #sudo ln -s `pwd` /opt/sensorReporter
+#chmod a+x /opt/sensorReporter/sensorReporter.py
 
 #echo "Setting config"
 #ln -s $HOSTNAME.ini /opt/sensorReporter/sensorReporter.ini
