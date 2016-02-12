@@ -37,7 +37,7 @@ class btSensor:
         self.near_count = 0
         self.rssi = None
 
-        self.publishState())
+        self.publishState()
 
     def getPresence(self):
         """Detects whether the device is near by or not"""
