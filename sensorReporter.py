@@ -153,7 +153,7 @@ def loadConfig(configFile):
                  config.getint("Logging", "MaxSize"), 
                  config.getint("Logging", "NumFiles"))
 
-    if restSupport:
+    if restSupport and config.has_section("REST"):
         configREST(config.get("REST", "URL"))
     if mqttSupport:
         configMQTT(config)
