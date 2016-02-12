@@ -30,7 +30,7 @@ except:
     mqttSupport = False
     print 'MQTT required files not found. MQTT not supported in this script.'
 try:
-    from bluetoothRSSIScanner import *
+    from bluetoothScanner import *
     bluetoothSupport = True
 except ImportError:
     bluetoothSupport = False
