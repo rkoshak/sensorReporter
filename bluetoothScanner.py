@@ -50,7 +50,7 @@ class btSensor:
     def getRSSI(self):
         """Detects whether the device is near by or not"""
         addr = self.address
-		
+
         # Open hci socket
         hci_sock = bt.hci_open_dev()
         hci_fd = hci_sock.fileno()
@@ -89,7 +89,7 @@ class btSensor:
         if mode == "RSSI":
             value = self.state
             self.rssi = self.getRSSI()
-		
+
             if debug:
                 print "Destination = %s, Current RSSI = %s" % (self.destination, self.rssi)
 
