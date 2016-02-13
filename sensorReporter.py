@@ -3,7 +3,7 @@
 """
  Script:  sensorReporter.py
  Author:  Rich Koshak / Lenny Shirley <http://www.lennysh.com>
- Date:    February 10, 2016
+ Date:    February 13, 2016
  Purpose: Uses the REST API or MQTT to report updates to the configured sensors
 """
 
@@ -22,31 +22,31 @@ try:
     restSupport = True
 except:
     restSupport = False
-    print 'REST required files not found. REST not supported in this script.'
+    print 'REST is not supported on this machine.'
 try:
     from mqttConn import mqttConnection
     mqttSupport = True
 except:
     mqttSupport = False
-    print 'MQTT required files not found. MQTT not supported in this script.'
+    print 'MQT is not supported on this machine.'
 try:
     from bluetoothScanner import *
     bluetoothSupport = True
 except ImportError:
     bluetoothSupport = False
-    print 'Bluetooth is not supported on this machine'
+    print 'Bluetooth is not supported on this machine.'
 try:
     from gpioSensor import *
     gpioSupport = True
 except ImportError:
     gpioSupport = False
-    print 'GPIO is not supported on this machine'
+    print 'GPIO is not supported on this machine.'
 try:
     from dash import *
     dashSupport = True
 except ImportError:
     dashSupport = False
-    print 'Dash button detection is not supported on this machine'
+    print 'Dash button detection is not supported on this machine.'
 
 # Globals
 logger = logging.getLogger('sensorReporter')
@@ -60,9 +60,9 @@ sensors = []
 # The decorators below causes the creation of a SignalHandler attached to this function for each of the
 # signals we care about using the handles function above. The resultant SignalHandler is registered with
 # the signal.signal so cleanup_and_exit is called when they are received.
-#@handles(signal.SIGTERM)
-#@handles(signal.SIGHUP)
-#@handles(signal.SIGINT)
+@handles(signal.SIGTERM)
+@handles(signal.SIGHUP)
+@handles(signal.SIGINT)
 def cleanup_and_exit():
     """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
 
@@ -76,7 +76,7 @@ def cleanup_and_exit():
 
 # This decorator registers the function with the SignalHandler blocks_on so the SignalHandler knows
 # when the function is running
-#@cleanup_and_exit.blocks_on
+@cleanup_and_exit.blocks_on
 def check(s):
     """Gets the current state of the passed in sensor and publishes it"""
     s.checkState()
@@ -153,7 +153,14 @@ def loadConfig(configFile):
                  config.getint("Logging", "MaxSize"), 
                  config.getint("Logging", "NumFiles"))
 
-    if restSupport and config.has_section("REST"):
+    global restSupport
+    global mqttSupport
+    if not config.has_section("REST"):
+        restSupport = False
+    elif not config.has_section("MQTT"):
+        mqttSupport = False
+
+    if restSupport:
         configREST(config.get("REST", "URL"))
     if mqttSupport:
         configMQTT(config)
