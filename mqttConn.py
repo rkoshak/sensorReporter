@@ -13,7 +13,7 @@ import paho.mqtt.client as mqtt
 class mqttConnection(object):
     """Centralizes the MQTT logic"""
 
-    def config(self, logger, user, password, host, prt, ka, lwtTopic, lwtMsg, topic, msgProc):
+    def config(self, logger, user, password, host, prt, ka, lwtTopic, lwtMsg, topic, msgProc, tls):
         """Creates and connects the client"""
         
         self.logger = logger
@@ -21,6 +21,8 @@ class mqttConnection(object):
         self.topic = topic
 
         self.client = mqtt.Client()
+        if tls == "YES":
+            self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.msgProc
         self.client.on_disconnect = self.on_disconnect
@@ -28,6 +30,8 @@ class mqttConnection(object):
         self.client.will_set(lwtTopic, lwtMsg, 0, False)
         self.client.connect(host, port=prt, keepalive=ka)
         self.client.loop_start()
+
+        self.registered = []
 
     def publish(self, message, pubTopic):
         """Called by others to publish a message to the publish topic"""
@@ -42,6 +46,13 @@ class mqttConnection(object):
         except:
             print "Unexpected error publishing message:", sys.exc_info()[0]
 
+    def register(self, subTopic, msgHandler):
+        """Registers an actuator to receive messages"""
+        self.logger.info("Registering for messages on " + subTopic)
+        self.registered.append((subTopic, msgHandler))
+        self.client.subscribe(subTopic)
+        self.client.message_callback_add(subTopic, msgHandler)
+
     def on_connect(self, client, userdata, flags, rc):
         """Called when the MQQT client successfully connects to the broker"""
 
@@ -50,6 +61,10 @@ class mqttConnection(object):
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed
         self.client.subscribe(self.topic)
+
+        for r in self.registered:
+            self.client.subscribe(r[0])
+            # TODO, determine if the callback_add needs to be added here
 
         self.msgProc(None, None, None)
 
