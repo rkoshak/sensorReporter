@@ -108,7 +108,7 @@ class btSensor:
                 #self.logger.info("Destination " + self.destination + " not found")
                 #if self.far_count > 10:
                 #    value = "OFF"
-            elif self.rssi <= 0:
+            elif self.rssi < -1:
                 self.far_count -= 1
                 self.near_count += 1
                 if self.far_count < 0:
@@ -118,9 +118,9 @@ class btSensor:
                 #self.logger.info("Destination " + self.destination + " detected")
                 #if self.near_count > 10:
                 #    value = "ON"
-            if self.near_count > self.far_count and self.near_count > 10:
+            if self.near_count > self.far_count and self.near_count > 15:
                 value = "ON"
-            elif self.far_count > self.near_count and self.far_count > 10:
+            elif self.far_count > self.near_count and self.far_count > 3:
                 value = "OFF"
             else:
                 value = self.state
