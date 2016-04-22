@@ -23,24 +23,42 @@ try:
 except:
     restSupport = False
     print 'REST required files not found. REST not supported in this script.'
+
 try:
     from mqttConn import mqttConnection
     mqttSupport = True
 except:
     mqttSupport = False
     print 'MQTT required files not found. MQTT not supported in this script.'
+
 try:
     from bluetoothScanner import *
     bluetoothSupport = True
 except ImportError:
     bluetoothSupport = False
     print 'Bluetooth is not supported on this machine'
+
 try:
     from gpioSensor import *
     gpioSupport = True
 except ImportError:
     gpioSupport = False
     print 'GPIO is not supported on this machine'
+
+try:
+    from rpiGPIOSensor import *
+    rpiGPIOSensorSupport = True
+except ImportError:
+    rpiGPIOSensorSupport = False
+    print 'RPi.GPIO IN is not supported on this machine'
+
+try:
+    from rpiGPIOActuator import *
+    rpiGPIOActuatorSupport = True
+except ImportError:
+    rpiGPIOActuatorSupport = False
+    print 'RPi.GPIO OUT is not supported on this machine'
+
 try:
     from dash import *
     dashSupport = True
@@ -56,6 +74,7 @@ if mqttSupport:
     mqttConn = mqttConnection()
 config = ConfigParser.ConfigParser(allow_no_value=True)
 sensors = []
+actuators = []
 
 # The decorators below causes the creation of a SignalHandler attached to this function for each of the
 # signals we care about using the handles function above. The resultant SignalHandler is registered with
@@ -85,11 +104,18 @@ def on_message(client, userdata, msg):
     """Called when a message is received from the MQTT broker, send the current sensor state.
        We don't care what the message is."""
     
-    logger.info("Received a request for current state, publishing")
-    for s in sensors:
-        if s.poll > 0:
-            s.checkState()
-            s.publishState()
+    try:
+        logger.info("Received a request for current state, publishing")
+        if msg is not None:
+            print(msg.topic)
+            logger.info("Topic: " + msg.topic + " Message: " + str(msg.payload))
+        logger.info("getting states")
+        for s in sensors:
+            if s.poll > 0:
+                s.checkState()
+                s.publishState()
+    except:
+        logger.info("Unexpected error:", sys.exec_info()[0])
 
 def main():
     """Polls the sensor pins and publishes any changes"""
@@ -103,9 +129,7 @@ def main():
         s.lastPoll = time.time()
 
     logger.info("Kicking off polling threads...")
-    #lastTime = time.time()
     while True:
-        #diff = time.time() - lastTime
 
         # Kick off a poll of the sensor in a separate process
         for s in sensors:
@@ -114,7 +138,6 @@ def main():
                 Thread(target=check, args=(s,)).start()
         
         time.sleep(0.5) # give the processor a chance if REST is being slow
-        #lastTime = time.time()
 
 #------------------------------------------------------------------------------
 # Initialization
@@ -137,7 +160,7 @@ def configMQTT(config):
                     config.get("MQTT", "Password"), config.get("MQTT", "Host"), 
                     config.getint("MQTT", "Port"), config.getfloat("MQTT", "Keepalive"),
                     config.get("MQTT", "LWT-Topic"), config.get("MQTT", "LWT-Msg"),
-                    config.get("MQTT", "Topic"), on_message)
+                    config.get("MQTT", "Topic"), on_message, config.get("MQTT", "TLS"))
 
 def configREST(url):
     """Configure the REST connection"""	
@@ -169,7 +192,7 @@ def loadConfig(configFile):
                 typeConn = mqttConn
             else:
                 if senType == "Dash":
-				    msg = "Skipping 'Dash' sensors due to lack of support in the script for 'Dash'. Please see preceding error messages."
+		    msg = "Skipping 'Dash' sensors due to lack of support in the script for 'Dash'. Please see preceding error messages."
                 else:
                     msg = "Skipping sensor '%s' due to lack of support in the script for '%s'. Please see preceding error messages." % (config.get(section, "Destination"), rptType)
                 print msg
@@ -187,6 +210,12 @@ def loadConfig(configFile):
                                           config.get(section, "PUD"),
                                           typeConn.publish, logger,
                                           config.getfloat(section, "Poll")))
+            elif senType == "RPi.GPIO In" and rpiGPIOSensorSupport:
+                sensors.append(rpiGPIOSensor(config.getint(section, "Pin"),
+                                             config.get(section, "Destination"),
+                                             config.get(section, "PUD"),
+                                             typeConn.publish, logger,
+                                             config.getfloat(section, "Poll")))
             elif senType == "Dash" and dashSupport:
                 devices = {}
                 i = 1
@@ -200,11 +229,32 @@ def loadConfig(configFile):
                 s = dash(devices, typeConn.publish, logger, config.getint(section, "Poll"))
                 sensors.append(s)
                 Thread(target=s.checkState).start() # don't need to use cleanup-on-exit for this type
-
             else:
                 msg = "Either '%s' is an unknown sensor type, not supported in this script, or '%s' is not supported in this script.  Please see preceding error messages to be sure." % (senType, rptType)
                 print msg
                 logger.error(msg)
+
+        elif section.startswith("Actuator"):
+            actType = config.get(section, "Type")
+            subType = config.get(section, "SubscribeType")
+            if subType == "REST" and restSupport:
+                msg = "REST based actuators are not yet supported"
+                print msg
+                logger.error(msg)
+            elif subType == "MQTT" and mqttSupport:
+                typeConn = mqttConn
+            else:
+                msg = "Skipping actuator '%s' due to lack of support in the script for '%s'. Please see preceding error messages." % (config.get(section, "Destination"), subType)
+                print msg
+                logger.warn(msg)
+                continue
+
+            if actType == "RPi.GPIO OUT" and rpiGPIOActuatorSupport:
+                actuators.append(rpiGPIOActuator(config.getint(section, "Pin"), config.get(section, "Topic"), typeConn, config.getboolean(section, "Toggle"), logger))
+            else:
+                msg = "Either '%s' is an unknown actuator type, not supported in this script, or '%s' is not supported in this script.  Please see preceding error messages to be sure." % (actType, subType)
+                print msg
+                continue
     return sensors
 
 if __name__ == "__main__":
