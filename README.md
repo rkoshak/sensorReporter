@@ -23,7 +23,7 @@ dependencies using using apt-get and pip and copy and enable the start script to
 init.d or /systemd/system and enalbe it so sensorReporter will start as a service 
 during boot. You must edit the script to match your system.
 
-The main folder has a default.ini with configuration parametersi examples  and the 
+The main folder has a default.ini with configuration parameters, examples and the 
 Python script itself.
 
 The install.sh expects there to be a .ini file that matches your hostname. It 
@@ -35,12 +35,14 @@ to update the sensorReporter start script or sensorReporter.service with the cor
 path.
 
 # Configuration
-The configuration file contains one or more Sensor sections which specify thier 
-Type, the MQTT/REST destination to report or subscribe to, reporting type (MQTT 
-or REST), sensor and actuator specific info (e.g. pin, BT address, etc.).
+The configuration file contains one or more Sensor and/or Actuator sections which specify thier 
+Type, the connection to report or subscribe to, path on the connection to report
+to (e.g. MQTT Topic or REST URL), sensor and actuator specific info (e.g. pin, 
+BT address, etc.).
 
-The Logging section allows one to specify where the scripts log file is saved, 
-its max size, and maximum number of old log files to save.
+The Connection sections contain the parameters for the connections sensorReporter
+communicates through. Currently there are two supported connections, REST and 
+MQTT.
 
 The REST section is where one specifies the biggining portion of the URL for the
 REST API.
@@ -51,6 +53,10 @@ report the state of the pins on command. One also defines a Last Will and
 Testament topic and message so other servers can monitor whether this script is 
 running. Finally there is an option for turning on TLS in the connection to the
 MQTT Broker. It will look for the certificates in ./certs/ca.cert.
+
+The Logging section allows one to specify where the scripts log file is saved, 
+its max size, and maximum number of old log files to save.
+
 
 # Usage
 To run the script manually:
@@ -68,7 +74,7 @@ sudo systemctl start sensorReporter
 # Behavior
 There are three types of behaviors.
 
-1. Certain sensors require polling. The Bluetooth and WebIOPi GPIO sensors will
+1. Certain sensors require polling. The Bluetooth, WebIOPi GPIO, and Raspberry Pi GPIO sensors will
 poll for the current state one per configured poll period. If the state of the 
 sensor has changed the new state is published to the configured MQTT/REST 
 destination.
@@ -139,3 +145,5 @@ LOW if the received message is "ON" and HIGH otherwise.
 
 NOTE: Work is in progress to make the HIGH/LOW behavior more flexible to 
 support a wider range of applications.
+
+WebIOPi support is deprectated and will be removed in the near future.

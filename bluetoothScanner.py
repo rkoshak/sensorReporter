@@ -1,4 +1,18 @@
 """
+   Copyright 2016 Richard Koshak / Lenny Shirley
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
  Script:      bluetoothScanner.py
  Author:      Rich Koshak / Lenny Shirley <http://www.lennysh.com>
  Date:        February 11, 2016
@@ -14,27 +28,33 @@ import bluetooth._bluetooth as bt
 
 debug = 0
 
-"""Either use 'RSSI' mode, or 'LOOKUP' mode.  RSSI is more reliable."""
-mode = "RSSI"
-#mode = "LOOKUP"
-
 class btSensor:
     """Represents a Bluetooth device"""
 
-    def __init__(self, address, destination, publish, logger, poll):
+    def __init__(self, publisher, logger, params):
         """Finds whether the BT device is close and publishes its current state"""
 
         self.logger = logger
-        self.logger.info("----------Configuring BluetoothSensor: Address = " + address + " Destination = " + destination)
-        self.logger.info("---Running in " + mode + " mode")
-        self.address = address
+        self.publish = publisher.publish
+        self.address = params("Address")
+        self.destination = params("Destination")
+        self.logger.info("----------Configuring BluetoothSensor: Address = " + self.address + " Destination = " + self.destination)
+
+        self.mode = params("Mode")
+        if self.mode != "RSSI" and self.mode != "LOOKUP":
+          self.logger.error("\"%s\" is an unknown MODE, defaulting to RSSI" % (self.mode))
+          self.mode = "RSSI"
+
+        self.logger.info("---Running in \"" + self.mode + "\" mode")
+        if self.mode == "RSSI":
+          self.maxCnt = int(params("Max"))
+          self.near = int(params("Near"))
+          self.far = int(params("Far"))
+
+        self.poll = float(params("Poll"))
         self.state = "OFF"
-        self.destination = destination
-        self.publish = publish
-        self.poll = poll
 
         # assume phone is initially far away
-        #self.far = True
         self.far_count = 0
         self.near_count = 0
         self.rssi = None
@@ -88,7 +108,7 @@ class btSensor:
     def checkState(self):
         """Detects and publishes any state change"""
 
-        if mode == "RSSI":
+        if self.mode == "RSSI":
             value = self.state
             self.rssi = self.getRSSI()
 		
@@ -103,8 +123,8 @@ class btSensor:
                 self.near_count -= 1
                 if self.near_count < 0:
                     self.near_count = 0
-                if self.far_count > 20:
-                    self.far_count = 20
+                if self.far_count > self.maxCnt:
+                    self.far_count = self.maxCnt
                 #self.logger.info("Destination " + self.destination + " not found")
                 #if self.far_count > 10:
                 #    value = "OFF"
@@ -113,20 +133,20 @@ class btSensor:
                 self.near_count += 1
                 if self.far_count < 0:
                     self.far_count = 0
-                if self.near_count > 20:
-                    self.near_count = 20
+                if self.near_count > self.maxCnt:
+                    self.near_count = self.maxCnt
                 #self.logger.info("Destination " + self.destination + " detected")
                 #if self.near_count > 10:
                 #    value = "ON"
-            if self.near_count > self.far_count and self.near_count > 15:
+            if self.near_count > self.far_count and self.near_count > self.near:
                 value = "ON"
-            elif self.far_count > self.near_count and self.far_count > 3:
+            elif self.far_count > self.near_count and self.far_count > self.far:
                 value = "OFF"
             else:
                 value = self.state
             #self.logger.info("Destination " + self.destination + " far count = " + str(self.far_count) + " near count " + str(self.near_count) + " RSSI = " + str(self.rssi))
             
-        elif mode == "LOOKUP":
+        elif self.mode == "LOOKUP":
             value = self.getPresence()
 
         else:

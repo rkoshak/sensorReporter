@@ -1,10 +1,24 @@
 #!/usr/bin/python
 
 """
+   Copyright 2016 Richard Koshak
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
  Script:  sensorReporter.py
- Author:  Rich Koshak / Lenny Shirley <http://www.lennysh.com>
+ Author:  Rich Koshak
  Date:    February 10, 2016
- Purpose: Uses the REST API or MQTT to report updates to the configured sensors
+ Purpose: Uses the REST API or MQTT to report updates to the configured sensors, activates actuators based on MQTT messages
 """
 
 import logging
@@ -16,92 +30,20 @@ import time
 import traceback
 from threading import *
 from signalProc import *
-
-try:
-    from restConn import restConnection
-    restSupport = True
-except:
-    restSupport = False
-    print 'REST required files not found. REST not supported in this script.'
-
-try:
-    from mqttConn import mqttConnection
-    mqttSupport = True
-except:
-    mqttSupport = False
-    print 'MQTT required files not found. MQTT not supported in this script.'
-
-try:
-    from bluetoothScanner import *
-    bluetoothSupport = True
-except ImportError:
-    bluetoothSupport = False
-    print 'Bluetooth is not supported on this machine'
-
-try:
-    from gpioSensor import *
-    gpioSupport = True
-except ImportError:
-    gpioSupport = False
-    print 'GPIO is not supported on this machine'
-
-try:
-    from rpiGPIOSensor import *
-    rpiGPIOSensorSupport = True
-except ImportError:
-    rpiGPIOSensorSupport = False
-    print 'RPi.GPIO IN is not supported on this machine'
-
-try:
-    from rpiGPIOActuator import *
-    rpiGPIOActuatorSupport = True
-except ImportError:
-    rpiGPIOActuatorSupport = False
-    print 'RPi.GPIO OUT is not supported on this machine'
-
-try:
-    from dash import *
-    dashSupport = True
-except ImportError:
-    dashSupport = False
-    print 'Dash button detection is not supported on this machine'
+import importlib
 
 # Globals
 logger = logging.getLogger('sensorReporter')
-if restSupport:
-    restConn = restConnection()
-if mqttSupport:
-    mqttConn = mqttConnection()
+
 config = ConfigParser.ConfigParser(allow_no_value=True)
 sensors = []
 actuators = []
+connections = {}
 
-# The decorators below causes the creation of a SignalHandler attached to this function for each of the
-# signals we care about using the handles function above. The resultant SignalHandler is registered with
-# the signal.signal so cleanup_and_exit is called when they are received.
-#@handles(signal.SIGTERM)
-#@handles(signal.SIGHUP)
-#@handles(signal.SIGINT)
-def cleanup_and_exit():
-    """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
-
-    logger.warn("Terminating the program")
-    try:
-        mqttConn.client.disconnect()
-        logger.info("Successfully disconnected from the MQTT server")
-    except:
-        pass
-    sys.exit(0)
-
-# This decorator registers the function with the SignalHandler blocks_on so the SignalHandler knows
-# when the function is running
-#@cleanup_and_exit.blocks_on
-def check(s):
-    """Gets the current state of the passed in sensor and publishes it"""
-    s.checkState()
-
+#------------------------------------------------------------------------------
+# Main event loops
 def on_message(client, userdata, msg):
-    """Called when a message is received from the MQTT broker, send the current sensor state.
+    """Called when a message is received from a connection, send the current sensor state.
        We don't care what the message is."""
     
     try:
@@ -140,32 +82,90 @@ def main():
         time.sleep(0.5) # give the processor a chance if REST is being slow
 
 #------------------------------------------------------------------------------
+# Signal Processing
+
+# The decorators below causes the creation of a SignalHandler attached to this function for each of the
+# signals we care about using the handles function above. The resultant SignalHandler is registered with
+# the signal.signal so cleanup_and_exit is called when they are received.
+@handles(signal.SIGTERM)
+@handles(signal.SIGHUP)
+@handles(signal.SIGINT)
+def cleanup_and_exit():
+    """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
+
+    logger.warn("Terminating the program")
+    try:
+        for key in connections:
+            try:
+                connections[key].disconnect()
+            except AttributeError:
+                pass
+	for s in sensors:
+            try:
+                s.quit = true
+            except AttributeError:
+                pass
+    except:
+        pass
+    sys.exit(0)
+
+# This decorator registers the function with the SignalHandler blocks_on so the SignalHandler knows
+# when the function is running
+@cleanup_and_exit.blocks_on
+def check(s):
+    """Gets the current state of the passed in sensor and publishes it"""
+    s.checkState()
+
+#------------------------------------------------------------------------------
 # Initialization
-def configLogger(file, size, num):
+def configLogger(file, size, num, syslog):
     """Configure a rotating log"""
-    print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
     logger.setLevel(logging.DEBUG)
-    fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
-    fh.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
+    if syslog != "YES":
+      print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
+      fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
+      fh.setLevel(logging.INFO)
+      formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+      fh.setFormatter(formatter)
+      logger.addHandler(fh)
+    elif syslog == "YES":
+      print "Configuring syslogging"
+      sh = logging.handlers.SysLogHandler('/dev/log', facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
+      sh.encodePriority(sh.LOG_SYSLOG, sh.LOG_INFO)
+      slFormatter = logging.Formatter('[sensorReporter] %(levelname)s - %(message)s')
+      sh.setFormatter(slFormatter)
+      logger.addHandler(sh)
     logger.info("---------------Started")
 
-def configMQTT(config):
-    """Configure the MQTT connection"""
+def createDevice(config, section):
+    """Configure a sensor or actuator"""
 
-    logger.info("Configuring the MQTT Broker " + config.get("MQTT", "Host"))
-    mqttConn.config(logger, config.get("MQTT", "User"), 
-                    config.get("MQTT", "Password"), config.get("MQTT", "Host"), 
-                    config.getint("MQTT", "Port"), config.getfloat("MQTT", "Keepalive"),
-                    config.get("MQTT", "LWT-Topic"), config.get("MQTT", "LWT-Msg"),
-                    config.get("MQTT", "Topic"), on_message, config.get("MQTT", "TLS"))
+    try:
+      module_name, class_name = config.get(section, "Class").rsplit(".", 1)
+      MyDevice = getattr(importlib.import_module(module_name), class_name)
 
-def configREST(url):
-    """Configure the REST connection"""	
-    restConn.config(logger, url)
-    logger.info("REST URL set to: " + url)
+      params = lambda key: config.get(section, key)
+      connName = params("Connection")
+      d = MyDevice(connections[connName], logger, params)
+      if config.getfloat(section, "Poll") == -1:
+        Thread(target=d.checkState).start() # don't need to use cleanup-on-exit for non-polling sensors
+
+      return d
+    except ImportError:
+      logger.err("%s.%s is not supported on this platform" % module_name, class_name)
+
+def createConnection(config, section):
+
+    try:
+      name = config.get(section, "Name")
+      logger.info("Creating connection %s" % (name))
+      module_name, class_name = config.get(section, "Class").rsplit(".", 1)
+      MyConn = getattr(importlib.import_module(module_name), class_name)
+      params = lambda key: config.get(section, key)
+      connections[name] = MyConn(on_message, logger, params)
+    except ImportError:
+      logger.err("%s.%s is not supported on this platform" % module_name, class_name)
+
 
 def loadConfig(configFile):
     """Read in the config file, set up the logger, and populate the sensors"""
@@ -174,87 +174,22 @@ def loadConfig(configFile):
 
     configLogger(config.get("Logging", "File"), 
                  config.getint("Logging", "MaxSize"), 
-                 config.getint("Logging", "NumFiles"))
+                 config.getint("Logging", "NumFiles"),
+                 config.get("Logging", "Syslog"))
 
-    if restSupport and config.has_section("REST"):
-        configREST(config.get("REST", "URL"))
-    if mqttSupport:
-        configMQTT(config)
+    # create connections first
+    logger.info("Creating connetions...")
+    for section in config.sections():
+        if section.startswith("Connection"):
+            createConnection(config, section)
 
-    logger.info("Populating the sensor's list...")
+    logger.info("Populating the sensor/actuator list...")
     for section in config.sections():
         if section.startswith("Sensor"):
-            senType = config.get(section, "Type")
-            rptType = config.get(section, "ReportType")
-            if rptType == "REST" and restSupport:
-                typeConn = restConn
-            elif rptType == "MQTT" and mqttSupport:
-                typeConn = mqttConn
-            else:
-                if senType == "Dash":
-		    msg = "Skipping 'Dash' sensors due to lack of support in the script for 'Dash'. Please see preceding error messages."
-                else:
-                    msg = "Skipping sensor '%s' due to lack of support in the script for '%s'. Please see preceding error messages." % (config.get(section, "Destination"), rptType)
-                print msg
-                logger.warn(msg)
-                continue
-
-            if senType == "Bluetooth" and bluetoothSupport:
-                sensors.append(btSensor(config.get(section, "Address"),
-                                        config.get(section, "Destination"),
-                                        typeConn.publish, logger,
-                                        config.getfloat(section, "Poll")))
-            elif senType == "GPIO" and gpioSupport:
-                sensors.append(gpioSensor(config.getint(section, "Pin"),
-                                          config.get(section, "Destination"),
-                                          config.get(section, "PUD"),
-                                          typeConn.publish, logger,
-                                          config.getfloat(section, "Poll")))
-            elif senType == "RPi.GPIO In" and rpiGPIOSensorSupport:
-                sensors.append(rpiGPIOSensor(config.getint(section, "Pin"),
-                                             config.get(section, "Destination"),
-                                             config.get(section, "PUD"),
-                                             typeConn.publish, logger,
-                                             config.getfloat(section, "Poll")))
-            elif senType == "Dash" and dashSupport:
-                devices = {}
-                i = 1
-                addr = 'Address'+str(i)
-                destination = 'Destination'+str(i)
-                while config.has_option(section, addr):
-                    i += 1
-                    addr = 'Address'+str(i)
-                    destination = 'Destination'+str(i)
-                    rptType = 'ReportType'+str(i)
-                s = dash(devices, typeConn.publish, logger, config.getint(section, "Poll"))
-                sensors.append(s)
-                Thread(target=s.checkState).start() # don't need to use cleanup-on-exit for this type
-            else:
-                msg = "Either '%s' is an unknown sensor type, not supported in this script, or '%s' is not supported in this script.  Please see preceding error messages to be sure." % (senType, rptType)
-                print msg
-                logger.error(msg)
-
+            sensors.append(createDevice(config, section))
         elif section.startswith("Actuator"):
-            actType = config.get(section, "Type")
-            subType = config.get(section, "SubscribeType")
-            if subType == "REST" and restSupport:
-                msg = "REST based actuators are not yet supported"
-                print msg
-                logger.error(msg)
-            elif subType == "MQTT" and mqttSupport:
-                typeConn = mqttConn
-            else:
-                msg = "Skipping actuator '%s' due to lack of support in the script for '%s'. Please see preceding error messages." % (config.get(section, "Destination"), subType)
-                print msg
-                logger.warn(msg)
-                continue
+            actuators.append(createDevice(config, section))
 
-            if actType == "RPi.GPIO OUT" and rpiGPIOActuatorSupport:
-                actuators.append(rpiGPIOActuator(config.getint(section, "Pin"), config.get(section, "Topic"), typeConn, config.getboolean(section, "Toggle"), logger))
-            else:
-                msg = "Either '%s' is an unknown actuator type, not supported in this script, or '%s' is not supported in this script.  Please see preceding error messages to be sure." % (actType, subType)
-                print msg
-                continue
     return sensors
 
 if __name__ == "__main__":

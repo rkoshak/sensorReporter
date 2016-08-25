@@ -1,8 +1,22 @@
 """
+   Copyright 2015 Richard Koshak
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
  Script: dash.py
  Author: Rich Koshak
  Date:   October 22, 2015
- Purpose: Checks the state of the given GPIO pin and publishes any changes
+ Purpose: Scans for ARP packets from Amazon Dash buttons
 """
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
@@ -10,21 +24,35 @@
 import sys
 import traceback
 from scapy.all import *
+import ConfigParser
 
 class dash:
-    """Represents a sensor connected to a GPIO pin"""
+    """Scans for ARP packets from Dash buttons"""
 
-    def __init__(self, devices, publish, logger, poll):
+    def __init__(self, publisher, logger, params):
         """Sets the sensor pin to pull up and publishes its current state"""
 
         self.logger = logger
 
         self.logger.info("----------Configuring dash: ")
-        for addr in devices:
-            self.logger.info("Address: " + addr + " Topic: " + devices[addr])
-        self.devices = devices
-        self.publish = publish
-        self.poll = poll
+        self.devices = {}
+        i = 1
+        addr = 'Address%s' % (i)
+        destination = 'Destination%s' % (i)
+        done = False
+        while not done:
+          try:
+            mac = params(addr)
+            self.devices[mac] = params(destination)
+            self.logger.info("Sniffing for %s to publish to %s" % (mac, params(destination)))
+            i += 1
+            addr = 'Address%s' % (i)
+            destination = 'Destination%s' % (i)
+          except ConfigParser.NoOptionError:
+            done = True
+
+        self.publish = publisher.publish    
+        self.poll = int(params("Poll"))
 
     def checkState(self):
         """Detects when the Dash button issues an ARP packet and publishes the fact to the topic"""
@@ -50,5 +78,5 @@ class dash:
             traceback.print_exc(file=sys.stdout)    
 
     def publishState(self):
-        """Publishes the current state"""
+        """Does nothing"""
 
