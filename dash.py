@@ -60,14 +60,12 @@ class dash:
         try:
 
             def arp_display(pkt):
-                if ARP in pkt:
-                    if pkt[ARP].op == 1: #who-has (request)
-                        if pkt[ARP].psrc == '0.0.0.0': # ARP Probe
-                            if self.devices[pkt[ARP].hwsrc] != None:
-                                self.logger.info("Dash button pressed: " + pkt[ARP].hwsrc)
-                                self.publish("Pressed", self.devices[pkt[ARP].hwsrc])
-                            else:
-                                self.logger.info("Received an ARP packet from an unknown mac: " + pkt[ARP].hwsrc)
+              if ARP in pkt and pkt[ARP].op in (1,2): #who-has or is-at
+                  if self.devices.get(pkt[ARP].hwsrc, None) != None:
+                      self.logger.info("Dash button pressed for: " + self.devices[pkt[ARP].hwsrc])
+                      self.publish("Pressed", self.devices[pkt[ARP].hwsrc])
+#                  else:
+#                      self.logger.info("Received and ARP packet from an unknown mac: " + pkt[ARP].hwsrc)
 
             self.logger.info("Dash: kicking off ARP sniffing")
             print sniff(prn=arp_display, filter="arp", store=0, count=0)
