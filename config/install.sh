@@ -11,6 +11,9 @@
 #echo "Installing scapy"
 #pip install scapy
 
+#echo "Installing subprocess32" for exec capability
+#pip install subprocess32
+
 #echo "Creating soft link in /opt"
 #cd ..
 #sudo ln -s `pwd` /opt/sensorReporter
