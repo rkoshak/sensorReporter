@@ -32,6 +32,9 @@ class mqttConnection(object):
 
     self.logger = logger
     self.msgProc = msgProc # function that gets called when a message is received
+
+    self.logger.info("Configuring MQTT connection to broker %s:%s" % (params("Host"), params("Port")))
+
     self.topic = params("Topic")
 
     self.client = mqtt.Client()
@@ -45,8 +48,6 @@ class mqttConnection(object):
     self.client.connect(params("Host"), port=int(params("Port")), keepalive=float(params("Keepalive")))
     self.client.loop_start()
     
-    self.logger.info("Configuring MQTT connection to broker %s:%s" % (params("Host"), params("Port")))
-
     self.registered = []
 
   def publish(self, message, pubTopic):

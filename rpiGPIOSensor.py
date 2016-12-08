@@ -40,7 +40,7 @@ class rpiGPIOSensor:
         self.state = GPIO.input(self.pin)
         self.destination = params("Destination")
         self.publish = publisher.publish
-        self.poll = float(params("poll"))
+        self.poll = float(params("Poll"))
 
         self.logger.info('----------Configuring rpiGPIOSensor: pin {0} on destination {1} with PULL {2}'.format(self.pin, self.destination, params("PUD")))
         self.publishState()

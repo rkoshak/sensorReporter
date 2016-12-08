@@ -21,6 +21,8 @@
  Purpose: Uses the REST API or MQTT to report updates to the configured sensors, activates actuators based on MQTT messages
 """
 
+print("Starting...")
+
 import logging
 import logging.handlers
 import ConfigParser
@@ -149,6 +151,7 @@ def createDevice(config, section):
       d = MyDevice(connections[connName], logger, params)
       if config.getfloat(section, "Poll") == -1:
         Thread(target=d.checkState).start() # don't need to use cleanup-on-exit for non-polling sensors
+        logger.info("Started thread to to run sensor")
 
       return d
     except ImportError:

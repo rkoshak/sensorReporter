@@ -47,7 +47,7 @@ class rpiGPIOActuator:
     def on_message(self, client, userdata, msg):
         """Process a message"""
         self.logger.info('Received command on {0}: {1} Toggle = {2} PIN = {3}'.format(self.destination, msg.payload, self.toggle, self.pin))
-        if self.toggle == True:
+        if self.toggle == "True":
             self.logger.info('Toggling pin %s HIGH to LOW' % (self.pin))
             GPIO.output(self.pin, GPIO.LOW)
             time.sleep(.5)
