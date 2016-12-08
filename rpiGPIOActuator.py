@@ -55,4 +55,5 @@ class rpiGPIOActuator:
             self.logger.info('Toggling pin %s LOW to HIGH' % (self.pin))
         else:
             out = GPIO.LOW if msg.payload == "ON" else GPIO.HIGH
+            GPIO.output(self.pin, out)
 
