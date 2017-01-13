@@ -1,10 +1,14 @@
 [Unit]
 Description=Reports status and sensor readings over MQTT and REST
+Requires=networking.service
+Wants=network-online.target
+After=network.target network-online.target
 
 [Service]
+WorkingDirectory=/opt/sensorReporter
+User=root
 Type=simple
 ExecStart=/opt/sensorReporter/sensorReporter.py /opt/sensorReporter/sensorReporter.ini
-RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
