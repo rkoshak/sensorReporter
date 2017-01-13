@@ -155,7 +155,7 @@ def createDevice(config, section):
 
       return d
     except ImportError:
-      logger.err("%s.%s is not supported on this platform" % module_name, class_name)
+      logger.error("%s.%s is not supported on this platform" % module_name, class_name)
 
 def createConnection(config, section):
 
@@ -167,7 +167,7 @@ def createConnection(config, section):
       params = lambda key: config.get(section, key)
       connections[name] = MyConn(on_message, logger, params)
     except ImportError:
-      logger.err("%s.%s is not supported on this platform" % module_name, class_name)
+      logger.error("%s.%s is not supported on this platform" % module_name, class_name)
 
 
 def loadConfig(configFile):
