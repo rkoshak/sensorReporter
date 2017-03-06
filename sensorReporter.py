@@ -59,7 +59,7 @@ def on_message(client, userdata, msg):
                 s.checkState()
                 s.publishState()
     except:
-        logger.info("Unexpected error:", sys.exec_info()[0])
+        logger.info("Unexpected error:", sys.exc_info()[0])
 
 def main():
     """Polls the sensor pins and publishes any changes"""
