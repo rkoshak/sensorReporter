@@ -47,8 +47,8 @@ class DHTSensor:
         self.sensor = Adafruit_DHT.DHT22
 	self.pin = int(params("Pin"))
 
-	self.precissionTemp = params("PressionTemp")
-	self.precissionHum = params("PressionHum")
+	self.precissionTemp = int(params("PressionTemp"))
+	self.precissionHum = int(params("PressionHum"))
 
 	#Use 1 reading as default
 	self.ARRAY_SIZE = 1
@@ -100,8 +100,6 @@ class DHTSensor:
 
 	#Verify reading of temperature
 	if(valueTemp != self.temperature):
-	    #DEBUG
- 	    self.logger.info("Temperature changed from '{0}' to '{1}".format(self.temperature, valueTemp))
             self.temperature = valueTemp
             hasChanged = True
 
@@ -116,10 +114,6 @@ class DHTSensor:
         """Publishes the current state"""
 	didPublish = False
 
-	#DEBUG
-	self.logger.info("Publish state for DHT Sensor...")
-
-	
 	if (self.humidity is not None):
 		didPublish = True
 		strHum = str(round(self.humidity,self.precissionHum))
@@ -186,16 +180,17 @@ class DHTSensor:
 		if (noTempReadings>0):
 			resultTemp = float(str(round(sumTemp/noTempReadings, self.precissionTemp)))
 
-		print("readValueAdvanced: Result - Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
+		#print("readValueAdvanced: Result - Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
 		self.logger.info("readValue: Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
 
 	#Simple mode -> Just return last reading
 	else:
-		resultHum = valueHum
-		resultTemp = valueTemp
+		resultHum =  float(str(round(valueHum, self.precissionHum)))
+		resultTemp = float(str(round(valueTemp, self.precissionTemp)))
+
 		self.logger.info("readValue: Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
 
-		print("readValueSimple: Result - Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
+		#print("readValueSimple: Result - Hum:'{0}', Temp:'{1}'".format(resultHum, resultTemp))
 
 
 	return resultHum, resultTemp
