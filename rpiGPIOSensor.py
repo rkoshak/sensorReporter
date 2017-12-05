@@ -17,9 +17,6 @@
  Author: Rich Koshak
  Date:   April 19, 2016
  Purpose: Checks the state of the GPIO pin and publishes any changes
-
- TODO: Take advantage of GPIO.add_event_detect(pin, GPIO.RISING, callback=myFunction) 
-       to register for events instead of polling. Use Dash sensor as an example.
 """
 
 import sys
@@ -35,6 +32,15 @@ class rpiGPIOSensor:
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         p = GPIO.PUD_UP if params("PUD")=="UP" else GPIO.PUD_DOWN
         GPIO.setup(int(params("Pin")), GPIO.IN, pull_up_down=p)
+
+        if (params("EventDetection")=="RISING" || params("EventDetection")=="FALLING" || params("EventDetection")=="BOTH"):
+            
+            def eventDetected(channel):
+                publishState()
+
+            whichEvent = { "RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH" : GPIO.BOTH }
+            event = whichEvent[params("EventDetection")]
+            GPIO.add_event_detect(int(params("Pin")), event, callback=eventDetected)
 
         self.pin = int(params("Pin"))
         self.state = GPIO.input(self.pin)
