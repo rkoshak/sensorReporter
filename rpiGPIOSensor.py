@@ -21,26 +21,60 @@
 
 import sys
 import RPi.GPIO as GPIO
+import ConfigParser
 
 class rpiGPIOSensor:
     """Represents a sensor connected to a GPIO pin"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the sensor pin to pud and publishes its current value"""
 
         self.logger = logger
+        self.stateCallback = None
+        self.params = params
+        self.actuators = actuators
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         p = GPIO.PUD_UP if params("PUD")=="UP" else GPIO.PUD_DOWN
         GPIO.setup(int(params("Pin")), GPIO.IN, pull_up_down=p)
+        self.logger.info("Creating rpigpio")
 
-        if (params("EventDetection")=="RISING" || params("EventDetection")=="FALLING" || params("EventDetection")=="BOTH"):
-            
-            def eventDetected(channel):
-                publishState()
+        def eventDetected(channel):
+            self.checkState()
+        
+        try:
+            eventDetection = params("EventDetection")
 
-            whichEvent = { "RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH" : GPIO.BOTH }
-            event = whichEvent[params("EventDetection")]
-            GPIO.add_event_detect(int(params("Pin")), event, callback=eventDetected)
+            if (eventDetection=="RISING" or eventDetection=="FALLING" or eventDetection=="BOTH"):
+
+                try:
+                    self.logger.debug("Looking for callback")
+                    callback = params('StateCallback')
+                    self.logger.debug("Attempting to load " + callback)
+                    self.stateCallback = __import__(callback, fromlist=[])
+                    getattr(self.stateCallback, 'stateChange')
+                    init = getattr(self.stateCallback, 'init')
+                    init(self.params)
+                    self.logger.debug("Found callback")
+                except AttributeError:
+                    self.logger.error("Imported module does not implement init or stateChange")
+                    self.stateCallback = None
+                except ConfigParser.NoOptionError:
+                    self.logger.debug("No callback specified")
+                    self.stateCallback = None
+                except Exception as e:
+                    self.logger.error("Import failed: " + str(e))
+                    self.stateCallback = None
+                
+                whichEvent = { "RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH" : GPIO.BOTH }
+                
+                event = whichEvent[eventDetection]
+                GPIO.add_event_detect(int(params("Pin")), event, callback=eventDetected)
+            else:
+                eventDetection = "NONE"
+                self.stateCallback = None
+        except ConfigParser.NoOptionError:
+            self.logger.debug("No event detection specified")
+            self.stateCallback = None
 
         self.pin = int(params("Pin"))
         self.state = GPIO.input(self.pin)
@@ -48,7 +82,7 @@ class rpiGPIOSensor:
         self.publish = publisher.publish
         self.poll = float(params("Poll"))
 
-        self.logger.info('----------Configuring rpiGPIOSensor: pin {0} on destination {1} with PULL {2}'.format(self.pin, self.destination, params("PUD")))
+        self.logger.info('----------Configuring rpiGPIOSensor: pin {0} on destination {1} with PULL {2} and event detection {3}'.format(self.pin, self.destination, params("PUD"), eventDetection))
         self.publishState()
 
     def checkState(self):
@@ -56,6 +90,13 @@ class rpiGPIOSensor:
         value = GPIO.input(self.pin)
         if(value != self.state):
             self.state = value
+            
+            if (not self.stateCallback is None):
+                self.logger.debug('Callback found')
+                self.stateCallback.stateChange(self.state, self.params, self.actuators)
+            else:
+                self.logger.debug('Callback not found')
+
             self.publishState()
 
     def publishState(self):
