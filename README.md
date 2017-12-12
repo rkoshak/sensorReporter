@@ -178,3 +178,10 @@ Note that in openHAB 2 there is now a Dash binding which you should use instead.
 The "Name" of the Roku is the device's serial number. This can be found printed 
 on the label on the bottom of your Roku device or found in the "My linked 
 devices" section on your roku.com account page.
+
+# DHT Specifics
+Supported DHT sensors is DHT22, it can either run in Advanced Mode or Simple Mode.
+In Simple mode it just reads data from the sensor, and verifies that it is between bounds and returns the reading.
+In Advanced mode it reads the value and stores last five readings in an array. The returned value is the mean value of the readings in the array. This approach can be used if you encounter some readings that are wrong every now and then.  
+Be sure that Adafruits DHT Python library is installed, instructions can be found at
+https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/software-install-updated
