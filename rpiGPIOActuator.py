@@ -39,7 +39,7 @@ class rpiGPIOActuator:
 
         self.destination = params("Topic")
         self.connection = connection
-        self.toggle = bool(params("Toggle"))
+        self.toggle = False if params("Toggle").lower() == 'false' else True
 
         self.logger.info('----------Configuring rpiGPIOActuator: pin {0} on destination {1} with toggle {2}'.format(self.pin, self.destination, self.toggle))
         self.connection.register(self.destination, self.on_message)
