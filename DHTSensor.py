@@ -27,6 +27,7 @@ TODO: Allow other DHT sensors than the DHT22
 import sys
 import time
 import Adafruit_DHT
+import ConfigParser
 
 class DHTSensor:
     """Represents a DHT sensor connected to a GPIO pin"""
@@ -49,6 +50,13 @@ class DHTSensor:
 
 	self.precissionTemp = int(params("PressionTemp"))
 	self.precissionHum = int(params("PressionHum"))
+	self.useF = False
+
+	try:
+		if (params("Scale") == 'F'):
+			self.useF = True
+	except ConfigParser.NoOptionError:
+		pass
 
 	#Use 1 reading as default
 	self.ARRAY_SIZE = 1
@@ -76,6 +84,9 @@ class DHTSensor:
 	#self.checkState()
         self.publishState()
 	
+
+    def convertTemp(self, value):
+        return value if self.useF == False else value * 9 / 5.0 + 32
 
 
     def checkState(self):
@@ -150,7 +161,8 @@ class DHTSensor:
 	# Is humidity and temperature reading valid?
 	if ((self.isReadingValid(valueHum, 0.0, 100.0)) and (self.isReadingValid(valueTemp, -40.0, 125.0))):
 		self.arrHumidity.append(round(valueHum, 2))
-		self.arrTemperature.append(round(valueTemp, 2))	
+		valueTemp = self.convertTemp(valueTemp);
+		self.arrTemperature.append(round(valueTemp, 2))
 	else:
 		#Reading out of bounds
 		return resultHum, resultTemp
