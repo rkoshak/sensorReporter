@@ -29,7 +29,7 @@ import ConfigParser
 class dash:
     """Scans for ARP packets from Dash buttons"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the sensor pin to pull up and publishes its current state"""
 
         self.logger = logger

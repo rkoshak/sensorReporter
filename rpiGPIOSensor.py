@@ -36,7 +36,6 @@ class rpiGPIOSensor:
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         p = GPIO.PUD_UP if params("PUD")=="UP" else GPIO.PUD_DOWN
         GPIO.setup(int(params("Pin")), GPIO.IN, pull_up_down=p)
-        self.logger.info("Creating rpigpio")
 
         def eventDetected(channel):
             self.checkState()

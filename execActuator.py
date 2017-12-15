@@ -31,7 +31,7 @@ import subprocess32
 class execActuator:
     """Represents an actuator connected to a command line script"""
 
-    def __init__(self, connection, logger, params):
+    def __init__(self, connection, logger, params, sensors, actuators):
         """Sets the output and changes its state when it receives a command"""
 
         self.logger = logger

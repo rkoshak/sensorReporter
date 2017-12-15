@@ -31,7 +31,7 @@ debug = 0
 class btSensor:
     """Represents a Bluetooth device"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Finds whether the BT device is close and publishes its current state"""
 
         self.logger = logger

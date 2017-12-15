@@ -1,21 +1,24 @@
 occupiedPin = None
 unoccupiedPin = None
 
+# Demonstrates a custom script that is run upon an event being received
+# The .ini file section for the GPIO sensor should contain for example:
+# EventDetection: BOTH
+# StateCallback: switchLed
+# StateCallbackArgs: Actuator_Occupied,Actuator_Unccupied
 def init(params):
     global occupiedPin
     global unoccupiedPin
     
-    pins = params('StateCallbackArgs').split(',')
-    occupiedPin = pins[0]
-    unoccupiedPin = pins[1]
+    occupiedPin, unoccupiedPin = params('StateCallbackArgs').split(',')
 
 def stateChange(state, params, actuators):
     global occupiedPin
     global unoccupiedPin
     
-    print(state)
+    # print(state)
     
-    if (state == 1):
+    if (state != 1):
         actuators[occupiedPin].on_direct_message("ON")
         actuators[unoccupiedPin].on_direct_message("OFF")
     else:

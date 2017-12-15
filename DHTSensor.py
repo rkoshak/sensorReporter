@@ -33,7 +33,7 @@ class DHTSensor:
     """Represents a DHT sensor connected to a GPIO pin"""
 
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the sensor pin to pud and publishes its current value"""
 
 	self.lastpoll = time.time()

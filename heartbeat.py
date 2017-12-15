@@ -25,7 +25,7 @@ import time
 class heartbeat:
     """Issues a heartbeat message on the polling period"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the heartbeat message and destination"""
 
         self.logger = logger

@@ -94,7 +94,6 @@ def main():
 @handles(signal.SIGINT)
 def cleanup_and_exit():
     """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
-
     logger.warn("Terminating the program")
     try:
         for key in connections:
@@ -102,9 +101,9 @@ def cleanup_and_exit():
                 connections[key].disconnect()
             except AttributeError:
                 pass
-	for s in sensors:
+        for s in sensors:
             try:
-                sensors[s].quit = true
+                sensors[s].cleanup()
             except AttributeError:
                 pass
     except:

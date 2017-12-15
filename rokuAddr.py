@@ -28,7 +28,7 @@ import ConfigParser
 class rokuAddr:
     """Represents a sensor which polls for Roku's on the network's current IP addresses"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Creates the ssdp request and sets parameters"""
 
         self.logger = logger
