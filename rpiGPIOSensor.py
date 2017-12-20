@@ -26,7 +26,7 @@ import ConfigParser
 class rpiGPIOSensor:
     """Represents a sensor connected to a GPIO pin"""
 
-    def __init__(self, publisher, logger, params, sensors, actuators):
+    def __init__(self, connections, logger, params, sensors, actuators):
         """Sets the sensor pin to pud and publishes its current value"""
 
         self.logger = logger
@@ -78,7 +78,7 @@ class rpiGPIOSensor:
         self.pin = int(params("Pin"))
         self.state = GPIO.input(self.pin)
         self.destination = params("Destination")
-        self.publish = publisher.publish
+        self.publish = connections
         self.poll = float(params("Poll"))
 
         self.logger.info('----------Configuring rpiGPIOSensor: pin {0} on destination {1} with PULL {2} and event detection {3}'.format(self.pin, self.destination, params("PUD"), eventDetection))
@@ -100,7 +100,9 @@ class rpiGPIOSensor:
 
     def publishState(self):
         """Publishes the current state"""
-        self.publish('CLOSED' if self.state == GPIO.LOW else 'OPEN', self.destination)
+        for conn in self.publish:
+            conn.publish('CLOSED' if self.state == GPIO.LOW else 'OPEN', self.destination)
+        #self.publish('CLOSED' if self.state == GPIO.LOW else 'OPEN', self.destination)
 
     def cleanup(self):
         """Resets the GPIO pins to their default state"""

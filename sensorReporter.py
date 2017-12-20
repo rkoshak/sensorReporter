@@ -146,8 +146,12 @@ def createDevice(config, section):
       MyDevice = getattr(importlib.import_module(module_name), class_name)
 
       params = lambda key: config.get(section, key)
-      connName = params("Connection")
-      d = MyDevice(connections[connName], logger, params, sensors, actuators)
+      devConns = []
+      
+      for connStr in params("Connection").split(","):
+        devConns.append(connections[connStr])
+        
+      d = MyDevice(devConns, logger, params, sensors, actuators)
       if config.getfloat(section, "Poll") == -1:
         Thread(target=d.checkState).start() # don't need to use cleanup-on-exit for non-polling sensors
         logger.info("Started thread to to run sensor")
@@ -164,7 +168,7 @@ def createConnection(config, section):
       module_name, class_name = config.get(section, "Class").rsplit(".", 1)
       MyConn = getattr(importlib.import_module(module_name), class_name)
       params = lambda key: config.get(section, key)
-      connections[name] = MyConn(on_message, logger, params)
+      connections[name] = MyConn(on_message, logger, params, sensors, actuators)
     except ImportError:
       logger.error("%s.%s is not supported on this platform" % module_name, class_name)
 
@@ -180,7 +184,7 @@ def loadConfig(configFile):
                  config.get("Logging", "Syslog"))
 
     # create connections first
-    logger.info("Creating connetions...")
+    logger.info("Creating connections...")
     for section in config.sections():
         if section.startswith("Connection"):
             createConnection(config, section)
@@ -190,6 +194,7 @@ def loadConfig(configFile):
         if section.startswith("Sensor"):
             sensors[section] = createDevice(config, section)
         elif section.startswith("Actuator"):
+            logger.debug("Adding actuator " + section)
             actuators[section] = createDevice(config, section)
 
     return sensors

@@ -19,8 +19,8 @@ def stateChange(state, params, actuators):
     # print(state)
     
     if (state != 1):
-        actuators[occupiedPin].on_direct_message("ON")
-        actuators[unoccupiedPin].on_direct_message("OFF")
+        actuators[occupiedPin].actOn("ON")
+        actuators[unoccupiedPin].actOn("OFF")
     else:
-        actuators[occupiedPin].on_direct_message("OFF")
-        actuators[unoccupiedPin].on_direct_message("ON")
+        actuators[occupiedPin].actOn("OFF")
+        actuators[unoccupiedPin].actOn("ON")
