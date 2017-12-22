@@ -51,7 +51,7 @@ class dash:
           except ConfigParser.NoOptionError:
             done = True
 
-        self.publish = publisher.publish    
+        self.publish = publisher
         self.poll = int(params("Poll"))
 
     def checkState(self):
@@ -63,7 +63,9 @@ class dash:
               if ARP in pkt and pkt[ARP].op in (1,2): #who-has or is-at
                   if self.devices.get(pkt[ARP].hwsrc, None) != None:
                       self.logger.info("Dash button pressed for: " + self.devices[pkt[ARP].hwsrc])
-                      self.publish("Pressed", self.devices[pkt[ARP].hwsrc])
+                      
+                      for conn in self.publish:
+                        conn.publish("Pressed", self.devices[pkt[ARP].hwsrc])
 #                  else:
 #                      self.logger.info("Received and ARP packet from an unknown mac: " + pkt[ARP].hwsrc)
 

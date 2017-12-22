@@ -148,8 +148,12 @@ def createDevice(config, section):
       params = lambda key: config.get(section, key)
       devConns = []
       
-      for connStr in params("Connection").split(","):
-        devConns.append(connections[connStr])
+      try:
+        for connStr in params("Connection").split(","):
+          devConns.append(connections[connStr])
+      except ConfigParser.NoOptionError:
+        # No connection is valid e.g. an actuator connection target
+        pass
         
       d = MyDevice(devConns, logger, params, sensors, actuators)
       if config.getfloat(section, "Poll") == -1:
