@@ -57,7 +57,7 @@ class rokuAddr:
             except ConfigParser.NoOptionError:
                 done = True
 
-        self.publish = publisher.publish
+        self.publish = publisher
         self.poll = int(params("Poll"))
         self.checkState()
 
@@ -82,11 +82,15 @@ class rokuAddr:
             except socket.timeout:
                 break
         sock.close()
+        
+    def publishStateImpl(self, data, destination):
+        for conn in self.publish:
+            conn.publish(data, destination)
 
     def publishState(self):
         """Publishes the current state"""
         for name in self.ips:
-            self.publish(self.ips[name], self.rokus[name])
+            self.publishStateImpl(self.ips[name], self.rokus[name])
 
     def cleanup(self):
         """Does nothing"""
