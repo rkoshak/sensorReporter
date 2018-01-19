@@ -27,7 +27,7 @@ import paho.mqtt.client as mqtt
 class mqttConnection(object):
   """Centralizes the MQTT logic"""
 
-  def __init__(self, msgProc, logger, params):
+  def __init__(self, msgProc, logger, params, sensors, actuators):
     """Creates and connects to the MQTT broker"""
 
     self.logger = logger

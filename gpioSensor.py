@@ -28,7 +28,7 @@ import webiopi
 class gpioSensor:
     """Represents a sensor connected to a GPIO pin"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the sensor pin to pull up and publishes its current state"""
 
         self.logger = logger

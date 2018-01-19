@@ -38,8 +38,8 @@ import importlib
 logger = logging.getLogger('sensorReporter')
 
 config = ConfigParser.ConfigParser(allow_no_value=True)
-sensors = []
-actuators = []
+sensors = {}
+actuators = {}
 connections = {}
 
 #------------------------------------------------------------------------------
@@ -55,9 +55,9 @@ def on_message(client, userdata, msg):
             logger.info("Topic: " + msg.topic + " Message: " + str(msg.payload))
         logger.info("getting states")
         for s in sensors:
-            if s.poll > 0:
-                s.checkState()
-                s.publishState()
+            if sensors[s].poll > 0:
+                sensors[s].checkState()
+                # sensors[s].publishState() # As far as I can tell checkState calls publishState so this is not needed
     except:
         logger.info("Unexpected error:", sys.exc_info()[0])
 
@@ -70,16 +70,16 @@ def main():
 
     loadConfig(sys.argv[1])
     for s in sensors:
-        s.lastPoll = time.time()
+        sensors[s].lastPoll = time.time()
 
     logger.info("Kicking off polling threads...")
     while True:
 
         # Kick off a poll of the sensor in a separate process
         for s in sensors:
-            if s.poll > 0 and (time.time() - s.lastPoll) > s.poll:
-                s.lastPoll = time.time()
-                Thread(target=check, args=(s,)).start()
+            if sensors[s].poll > 0 and (time.time() - sensors[s].lastPoll) > sensors[s].poll:
+                sensors[s].lastPoll = time.time()
+                Thread(target=check, args=(sensors[s],)).start()
         
         time.sleep(0.5) # give the processor a chance if REST is being slow
 
@@ -94,7 +94,6 @@ def main():
 @handles(signal.SIGINT)
 def cleanup_and_exit():
     """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
-
     logger.warn("Terminating the program")
     try:
         for key in connections:
@@ -102,9 +101,9 @@ def cleanup_and_exit():
                 connections[key].disconnect()
             except AttributeError:
                 pass
-	for s in sensors:
+        for s in sensors:
             try:
-                s.quit = true
+                sensors[s].cleanup()
             except AttributeError:
                 pass
     except:
@@ -126,7 +125,7 @@ def configLogger(file, size, num, syslog):
     if syslog != "YES":
       print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
       fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
-      fh.setLevel(logging.INFO)
+      fh.setLevel(logging.DEBUG)
       formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
       fh.setFormatter(formatter)
       logger.addHandler(fh)
@@ -147,8 +146,16 @@ def createDevice(config, section):
       MyDevice = getattr(importlib.import_module(module_name), class_name)
 
       params = lambda key: config.get(section, key)
-      connName = params("Connection")
-      d = MyDevice(connections[connName], logger, params)
+      devConns = []
+      
+      try:
+        for connStr in params("Connection").split(","):
+          devConns.append(connections[connStr])
+      except ConfigParser.NoOptionError:
+        # No connection is valid e.g. an actuator connection target
+        pass
+        
+      d = MyDevice(devConns, logger, params, sensors, actuators)
       if config.getfloat(section, "Poll") == -1:
         Thread(target=d.checkState).start() # don't need to use cleanup-on-exit for non-polling sensors
         logger.info("Started thread to to run sensor")
@@ -165,7 +172,7 @@ def createConnection(config, section):
       module_name, class_name = config.get(section, "Class").rsplit(".", 1)
       MyConn = getattr(importlib.import_module(module_name), class_name)
       params = lambda key: config.get(section, key)
-      connections[name] = MyConn(on_message, logger, params)
+      connections[name] = MyConn(on_message, logger, params, sensors, actuators)
     except ImportError:
       logger.error("%s.%s is not supported on this platform" % module_name, class_name)
 
@@ -181,7 +188,7 @@ def loadConfig(configFile):
                  config.get("Logging", "Syslog"))
 
     # create connections first
-    logger.info("Creating connetions...")
+    logger.info("Creating connections...")
     for section in config.sections():
         if section.startswith("Connection"):
             createConnection(config, section)
@@ -189,9 +196,10 @@ def loadConfig(configFile):
     logger.info("Populating the sensor/actuator list...")
     for section in config.sections():
         if section.startswith("Sensor"):
-            sensors.append(createDevice(config, section))
+            sensors[section] = createDevice(config, section)
         elif section.startswith("Actuator"):
-            actuators.append(createDevice(config, section))
+            logger.debug("Adding actuator " + section)
+            actuators[section] = createDevice(config, section)
 
     return sensors
 

@@ -31,7 +31,7 @@ import subprocess32
 class execActuator:
     """Represents an actuator connected to a command line script"""
 
-    def __init__(self, connection, logger, params):
+    def __init__(self, connections, logger, params, sensors, actuators):
         """Sets the output and changes its state when it receives a command"""
 
         self.logger = logger
@@ -40,11 +40,16 @@ class execActuator:
 
         self.cmdTopic = params("CMDTopic")
         self.pubTopic = params("ResultTopic")
-        self.connection = connection
-        self.publish = connection.publish
+        self.connections = connections
 
         self.logger.info('----------Configuring execActuator: cmdTopic = {0}, pubTopic = {1}, command = {2}'.format(self.cmdTopic, self.pubTopic, self.command))
-        self.connection.register(self.cmdTopic, self.on_message)
+        
+        for connection in self.connections:
+            connection.register(self.destination, self.on_message)
+    
+    def publishImpl(output, topic):
+        for connection in self.connections:
+            connection.publish(output, topic)
 
     def on_message(self, client, userdata, msg):
         """Process a message"""
@@ -63,7 +68,7 @@ class execActuator:
         try:
           output = subprocess.check_output(cmdArgs, shell=False, universal_newlines=True)
           self.logger.info('Command results to be published to {0}\n{1}'.format(self.pubTopic, output))
-          self.publish(output, self.pubTopic)
+          self.publishImpl(output, self.pubTopic)
         except subprocess.CalledProcessError as e:
           self.logger.info('Command returned an error code: {0}\n{1}'.format(e.returncode, e.output))
-          self.publish('ERROR', self.pubTopic)
+          self.publishImpl('ERROR', self.pubTopic)

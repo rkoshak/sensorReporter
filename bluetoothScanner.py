@@ -31,11 +31,11 @@ debug = 0
 class btSensor:
     """Represents a Bluetooth device"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Finds whether the BT device is close and publishes its current state"""
 
         self.logger = logger
-        self.publish = publisher.publish
+        self.publish = publisher
         self.address = params("Address")
         self.destination = params("Destination")
         self.logger.info("----------Configuring BluetoothSensor: Address = " + self.address + " Destination = " + self.destination)
@@ -161,5 +161,5 @@ class btSensor:
 
     def publishState(self):
         """Publishes the current state"""
-
-        self.publish(self.state, self.destination)
+        for conn in self.publisher:
+            conn.publish(self.state, self.destination)

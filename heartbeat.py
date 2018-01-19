@@ -25,13 +25,13 @@ import time
 class heartbeat:
     """Issues a heartbeat message on the polling period"""
 
-    def __init__(self, publisher, logger, params):
+    def __init__(self, publisher, logger, params, sensors, actuators):
         """Sets the heartbeat message and destination"""
 
         self.logger = logger
         self.numDest = params("Num-Dest")
         self.strDest = params("Str-Dest")
-        self.publish = publisher.publish
+        self.publish = publisher
         self.poll = float(params("Poll"))
         self.startTime = time.time()
 
@@ -56,7 +56,9 @@ class heartbeat:
         if day > 0:
           msg += '{0}:'.format(day)
         msg += '{0:02d}:{1:02d}:{2:02d}'.format(hr, min, sec)
-        self.publish(msg, self.strDest)
+        
+        for conn in self.publish:
+            conn.publish(msg, self.strDest)
 
     def cleanup(self):
         """Does nothing"""
