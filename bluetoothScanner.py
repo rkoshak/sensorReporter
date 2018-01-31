@@ -161,5 +161,5 @@ class btSensor:
 
     def publishState(self):
         """Publishes the current state"""
-        for conn in self.publisher:
+        for conn in self.publish:
             conn.publish(self.state, self.destination)
