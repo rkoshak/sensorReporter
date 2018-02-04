@@ -121,6 +121,10 @@ inactive pins.
 
 The Bluetooth scanner will report "ON" when the device is present
 and "OFF" when it is not.
+Bluetooth LE scanning is tested with a Gigaset G-tag but should work with any
+tag. It checks only for presence of the device, the parameters are not used.
+If the device is found, a keysword will be reported. The keywords can be
+modified in the ini file, default values are "ON" and "OFF".
 
 Dash will report "Pressed" when it detects the button
 press.
