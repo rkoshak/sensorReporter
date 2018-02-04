@@ -7,6 +7,7 @@
 
 #echo "Installing bluetooth"
 #sudo apt-get install bluez python-bluez
+#echo "Installing bluepy for BTLE scanning"
 #pip install bluepy
 
 #echo "Installing scapy"

@@ -88,7 +88,7 @@ class btSensor:
 		"""Scans for BT LE devices and returns the choosen keywords"""
 		self.count = 0
 		scanner = Scanner().withDelegate(DefaultDelegate())
-		devices = scanner.scan(self.scanTimeout) 
+		devices = scanner.scan(self.scanTimeout)
 		for dev in devices:
 			if dev.addr == self.address.lower():
 				self.count = 1
@@ -101,7 +101,7 @@ class btSensor:
     def getRSSI(self):
         """Detects whether the device is near by or not using RSSI"""
         addr = self.address
-		
+
         # Open hci socket
         hci_sock = bt.hci_open_dev()
         hci_fd = hci_sock.fileno()
@@ -140,7 +140,7 @@ class btSensor:
         if self.mode == "RSSI":
             value = self.state
             self.rssi = self.getRSSI()
-		
+
             #if debug:
             #if self.rssi == None:
             #    self.logger.info("Destination = " + self.destination + ", Current RSSI = None")
@@ -174,12 +174,12 @@ class btSensor:
             else:
                 value = self.state
             #self.logger.info("Destination " + self.destination + " far count = " + str(self.far_count) + " near count " + str(self.near_count) + " RSSI = " + str(self.rssi))
-            
+
         elif self.mode == "LOOKUP":
             value = self.getPresence()
 
-	elif self.mode == "BTLE":
-	    value = self.getTag()
+	    elif self.mode == "BTLE":
+	        value = self.getTag()
 
         else:
             msg = "Invalid 'mode' specified in 'bluetoothScanner.py' !"
