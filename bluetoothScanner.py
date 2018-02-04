@@ -25,6 +25,7 @@ import struct
 import array
 import bluetooth
 import bluetooth._bluetooth as bt
+from bluepy.btle import Scanner, DefaultDelegate
 
 debug = 0
 
@@ -41,7 +42,7 @@ class btSensor:
         self.logger.info("----------Configuring BluetoothSensor: Address = " + self.address + " Destination = " + self.destination)
 
         self.mode = params("Mode")
-        if self.mode != "RSSI" and self.mode != "LOOKUP":
+        if self.mode != "RSSI" and self.mode != "LOOKUP" and self.mode != "BTLE":
           self.logger.error("\"%s\" is an unknown MODE, defaulting to RSSI" % (self.mode))
           self.mode = "RSSI"
 
@@ -51,8 +52,22 @@ class btSensor:
           self.near = int(params("Near"))
           self.far = int(params("Far"))
 
+		"""Support of Bluetooth LE scanning for BTLE Tags like the Gigaset G-Tag"""
+		if self.mode == "BTLE":
+			self.scanTimeout = int(params("ScanTimeout"))
+			self.found = params("ON")
+			self.missing = params("OFF")
+		"""Here we set default values if they are not set in config file"""
+		if self.found == "":
+			self.found = "ON"
+		if self.missing == "":
+			self.missing = "OFF"
+		self.state = self.missing
+
+		if self.mode != "BTLE":
+			self.state = "OFF"
+
         self.poll = float(params("Poll"))
-        self.state = "OFF"
 
         # assume phone is initially far away
         self.far_count = 0
@@ -68,6 +83,20 @@ class btSensor:
             return "ON"
         else:
             return "OFF"
+
+    def getTag(self):
+		"""Scans for BT LE devices and returns the choosen keywords"""
+		self.count = 0
+		scanner = Scanner().withDelegate(DefaultDelegate())
+		devices = scanner.scan(self.scanTimeout) 
+		for dev in devices:
+			if dev.addr == self.address.lower():
+				self.count = 1
+		if self.count > 0:
+			self.count = 0
+			return self.found
+		else:
+			return self.missing
 
     def getRSSI(self):
         """Detects whether the device is near by or not using RSSI"""
@@ -148,6 +177,9 @@ class btSensor:
             
         elif self.mode == "LOOKUP":
             value = self.getPresence()
+
+	elif self.mode == "BTLE":
+	    value = self.getTag()
 
         else:
             msg = "Invalid 'mode' specified in 'bluetoothScanner.py' !"
