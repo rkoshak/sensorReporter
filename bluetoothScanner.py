@@ -103,11 +103,12 @@ class btSensor:
 	for dev in devices:
 		if dev.addr == self.address.lower():
 			self.count = 1
-		if self.count > 0:
-			self.count = 0
-			return self.found
-		else:
-			return self.missing
+			
+	if self.count > 0:
+		self.count = 0
+		return self.found
+	else:
+		return self.missing
 
     def getRSSI(self):
         """Detects whether the device is near by or not using RSSI"""
