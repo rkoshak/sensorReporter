@@ -28,7 +28,7 @@ debug = 1
 class restConnection(object):
     """Centralizes the REST logic"""
 
-    def __init__(self, msgProc, logger, params):
+    def __init__(self, msgProc, logger, params, sensors, actuators):
         """Configures the client"""
         
         # ignore msgProc
