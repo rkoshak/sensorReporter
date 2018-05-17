@@ -35,7 +35,7 @@ class restConnection(object):
         self.logger = logger
         self.url = params("URL")
         
-    def register(unused1, unused2):
+#    def register(unused1, unused2):
         # Do nothing
 
     def publish(self, message, destination):
