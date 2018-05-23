@@ -45,9 +45,9 @@ class execActuator:
         self.logger.info('----------Configuring execActuator: cmdTopic = {0}, pubTopic = {1}, command = {2}'.format(self.cmdTopic, self.pubTopic, self.command))
         
         for connection in self.connections:
-            connection.register(self.destination, self.on_message)
+            connection.register(self.cmdTopic, self.on_message)
     
-    def publishImpl(output, topic):
+    def publishImpl(self, output, topic):
         for connection in self.connections:
             connection.publish(output, topic)
 
