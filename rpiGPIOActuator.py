@@ -22,6 +22,7 @@
 import sys
 import time
 import RPi.GPIO as GPIO
+import ConfigParser
 
 class rpiGPIOActuator:
     """Represents an actuator connected to a GPIO pin"""
