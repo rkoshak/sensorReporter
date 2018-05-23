@@ -3,3 +3,5 @@ hydra.ini
 garage.ini
 *.pyc
 sensorReporter.ini
+cerberos.ini
+manticore.ini
