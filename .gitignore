@@ -6,3 +6,4 @@ sensorReporter.ini
 cerberos.ini
 manticore.ini
 iphoned.sh
+*.swp
