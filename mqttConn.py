@@ -23,12 +23,15 @@
 
 import sys
 import paho.mqtt.client as mqtt
+from time import sleep
 
 class mqttConnection(object):
   """Centralizes the MQTT logic"""
 
   def __init__(self, msgProc, logger, params, sensors, actuators):
     """Creates and connects to the MQTT broker"""
+
+    self.qos = 2
 
     self.logger = logger
     self.msgProc = msgProc # function that gets called when a message is received
@@ -37,15 +40,24 @@ class mqttConnection(object):
 
     self.topic = params("Topic")
 
-    self.client = mqtt.Client()
+    self.client = mqtt.Client(client_id=params("Client"), clean_session=False)
     if params("TLS") == "YES":
       self.client.tls_set("./certs/ca.crt")
     self.client.on_connect = self.on_connect
     self.client.on_message = self.msgProc
     self.client.on_disconnect = self.on_disconnect
     self.client.username_pw_set(params("User"), params("Password"))
+
+    connected = False
+    while not  connected:
+      try:
+        self.client.connect(params("Host"), port=int(params("Port")), keepalive=float(params("Keepalive")))
+        connected = True
+      except:
+        self.logger.error("Error connecting to " + params("Host") + ":" + params("Port"))
+        sleep(5) # wait five seconds before retrying
+
     self.client.will_set(params("LWT-Topic"), params("LWT-Msg"), 0, False)
-    self.client.connect(params("Host"), port=int(params("Port")), keepalive=float(params("Keepalive")))
     self.client.loop_start()
     
     self.registered = []
@@ -67,7 +79,7 @@ class mqttConnection(object):
     """Registers an actuator to receive messages"""
     self.logger.info("Registering for messages on " + subTopic)
     self.registered.append((subTopic, msgHandler))
-    self.client.subscribe(subTopic)
+    self.client.subscribe(subTopic, qos=self.qos)
     self.client.message_callback_add(subTopic, msgHandler)
 
   def on_connect(self, client, userdata, flags, rc):
@@ -77,10 +89,10 @@ class mqttConnection(object):
         
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed
-    self.client.subscribe(self.topic)
+    self.client.subscribe(self.topic, qos=self.qos)
 
     for r in self.registered:
-      self.client.subscribe(r[0])
+      self.client.subscribe(r[0], qos=self.qos)
 
     self.msgProc(None, None, None)
 
