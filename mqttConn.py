@@ -48,6 +48,7 @@ class mqttConnection(object):
     self.client.on_disconnect = self.on_disconnect
     self.client.username_pw_set(params("User"), params("Password"))
 
+    self.logger.info("Attempting to connect to MQTT broker at " + params("Host") + ":" + params("Port"))
     connected = False
     while not  connected:
       try:
