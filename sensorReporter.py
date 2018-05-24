@@ -182,10 +182,17 @@ def loadConfig(configFile):
     print "Loading " + configFile
     config.read(configFile)
 
-    configLogger(config.get("Logging", "File"), 
-                 config.getint("Logging", "MaxSize"), 
-                 config.getint("Logging", "NumFiles"),
-                 config.get("Logging", "Syslog"))
+    syslog = "NO"
+    if config.has_option("Logging", "Syslog"):
+      syslog = config.get("Logging", "Syslog")
+
+    if syslog == "YES":
+      configLogger("", -1, -1, "YES")
+    else:
+      configLogger(config.get("Logging", "File"), 
+                   config.getint("Logging", "MaxSize"), 
+                   config.getint("Logging", "NumFiles"),
+                   "NO")
 
     # create connections first
     logger.info("Creating connections...")
