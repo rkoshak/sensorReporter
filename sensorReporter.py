@@ -119,9 +119,20 @@ def check(s):
 
 #------------------------------------------------------------------------------
 # Initialization
-def configLogger(file, size, num, syslog):
+def configLogger(file, size, num, syslog, level):
     """Configure a rotating log"""
-    logger.setLevel(logging.DEBUG)
+
+    print "Setting logging level to " + level
+    levels = {
+      "CRITICAL": logging.CRITICAL,
+      "ERROR"   : logging.ERROR,
+      "WARNING" : logging.WARNING,
+      "INFO"    : logging.INFO,
+      "DEBUG"   : logging.DEBUG,
+      "NOTSET"  : logging.NOTSET
+    }
+    logger.setLevel(levels.get(level, logging.NOTSET))
+
     if syslog != "YES":
       print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
       fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
@@ -187,12 +198,13 @@ def loadConfig(configFile):
       syslog = config.get("Logging", "Syslog")
 
     if syslog == "YES":
-      configLogger("", -1, -1, "YES")
+      configLogger("", -1, -1, "YES", config.get("Logging", "Level"))
     else:
       configLogger(config.get("Logging", "File"), 
                    config.getint("Logging", "MaxSize"), 
                    config.getint("Logging", "NumFiles"),
-                   "NO")
+                   "NO",
+                   config.get("Logging", "Level"))
 
     # create connections first
     logger.info("Creating connections...")
