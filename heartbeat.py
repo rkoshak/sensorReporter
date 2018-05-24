@@ -45,7 +45,6 @@ class heartbeat:
     def publishState(self):
         """Publishes the heartbeat"""
         uptime = int((time.time() - self.startTime) * 1000)
-        self.logger.info(str(uptime))
         for conn in self.publish:
             conn.publish(str(uptime), self.numDest)
 

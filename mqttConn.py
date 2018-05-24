@@ -31,8 +31,6 @@ class mqttConnection(object):
   def __init__(self, msgProc, logger, params, sensors, actuators):
     """Creates and connects to the MQTT broker"""
 
-    self.qos = 2
-
     self.logger = logger
     self.msgProc = msgProc # function that gets called when a message is received
 
@@ -58,6 +56,8 @@ class mqttConnection(object):
         self.logger.error("Error connecting to " + params("Host") + ":" + params("Port"))
         sleep(5) # wait five seconds before retrying
 
+    self.logger.info("Connection successful")
+
     self.client.will_set(params("LWT-Topic"), params("LWT-Msg"), 0, False)
     self.client.loop_start()
     
@@ -80,7 +80,7 @@ class mqttConnection(object):
     """Registers an actuator to receive messages"""
     self.logger.info("Registering for messages on " + subTopic)
     self.registered.append((subTopic, msgHandler))
-    self.client.subscribe(subTopic, qos=self.qos)
+    self.client.subscribe(subTopic)
     self.client.message_callback_add(subTopic, msgHandler)
 
   def on_connect(self, client, userdata, flags, rc):
@@ -90,10 +90,10 @@ class mqttConnection(object):
         
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed
-    self.client.subscribe(self.topic, qos=self.qos)
+    self.client.subscribe(self.topic)
 
     for r in self.registered:
-      self.client.subscribe(r[0], qos=self.qos)
+      self.client.subscribe(r[0])
 
     self.msgProc(None, None, None)
 
