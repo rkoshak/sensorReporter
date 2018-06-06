@@ -58,10 +58,10 @@ class execActuator:
         inArgs = msg.payload.split(' ')
         cmdArgs = []
         for arg in self.command.split(' '):
-          if arg.find(';') == -1 or arg.find('|') == -1 or arg.find('\\') == -1:
+          if arg.find(';') == -1 or arg.find('|') == -1 or arg.find('//') == -1:
             cmdArgs.append(arg)
         for arg in inArgs:
-          if arg != 'NA' and arg.find(';') == -1 and arg.find('|') == -1 and arg.find('\\') == -1:
+          if arg != 'NA' and arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1:
             cmdArgs.append(arg)
 
         self.logger.info('Executing command with the following arguments: {0}'.format(cmdArgs))
