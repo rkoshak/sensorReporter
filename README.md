@@ -109,3 +109,7 @@ In Advanced mode it reads the value and stores last five readings in an array. T
   
 Be sure that Adafruits DHT Python library is installed, instructions can be found at
 https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/software-install-updated
+
+# Exec Specitics
+The exec sensor will periodically execute the given shell script and publish the result or 'ERROR' if the script didn't return a 0 exitcode to the configured destination. 
+Avoid making the polling period shorter than it takes the script to run in the worst case or else you will run out of threads to run the sensorReporter.
