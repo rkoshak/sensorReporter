@@ -36,7 +36,7 @@ class rpiGPIOActuator:
 
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         GPIO.setup(self.pin, GPIO.OUT)
-        out = GPIO.LOW
+        #out = GPIO.LOW
         
         try:
             out = GPIO.HIGH if params("InitialState")=="ON" else GPIO.LOW
