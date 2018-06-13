@@ -23,9 +23,13 @@ Credit From:  https://github.com/blakeman399/Bluetooth-Proximity-Light/blob/mast
 import fcntl
 import struct
 import array
-import bluetooth
-import bluetooth._bluetooth as bt
 import sys
+try:
+    import bluetooth
+    import bluetooth._bluetooth as bt
+    bluezCheck = 1
+except:
+    bluezCheck = 0
 try:
 	from bluepy.btle import Scanner, DefaultDelegate
 	bluepyCheck = 1
@@ -46,31 +50,36 @@ class btSensor:
         self.logger.info("----------Configuring BluetoothSensor: Address = " + self.address + " Destination = " + self.destination)
 
         self.mode = params("Mode")
+
+        if self.mode != "BTLE" and bluezCheck != 1:
+            logger.error("Please install bluez for RSSI or LOOKUPi mode")
+            raise ImportError("bluez missing")
+
         if self.mode != "RSSI" and self.mode != "LOOKUP" and self.mode != "BTLE":
-          self.logger.error("\"%s\" is an unknown MODE, defaulting to RSSI" % (self.mode))
-          self.mode = "RSSI"
+            self.logger.error("\"%s\" is an unknown MODE, defaulting to RSSI" % (self.mode))
+            self.mode = "RSSI"
 
         self.logger.info("---Running in \"" + self.mode + "\" mode")
         if self.mode == "RSSI":
-          self.maxCnt = int(params("Max"))
-          self.near = int(params("Near"))
-          self.far = int(params("Far"))
+            self.maxCnt = int(params("Max"))
+            self.near = int(params("Near"))
+            self.far = int(params("Far"))
 
 	"""Support of Bluetooth LE scanning for BTLE Tags like the Gigaset G-Tag"""
 	if self.mode == "BTLE":
-		self.scanTimeout = int(params("ScanTimeout"))
-		self.found = params("ON")
-		self.missing = params("OFF")
-		"""Here we set default values if they are not set in config file"""
-		if self.found == "":
-			self.found = "ON"
-		if self.missing == "":
-			self.missing = "OFF"
+            self.scanTimeout = int(params("ScanTimeout"))
+            self.found = params("ON")
+            self.missing = params("OFF")
+            """Here we set default values if they are not set in config file"""
+            if self.found == "":
+                self.found = "ON"
+            if self.missing == "":
+                self.missing = "OFF"
 
-		self.state = self.missing
+            self.state = self.missing
 
-	if self.mode != "BTLE":
-		self.state = "OFF"
+        if self.mode != "BTLE":
+            self.state = "OFF"
 
         self.poll = float(params("Poll"))
 
@@ -79,13 +88,13 @@ class btSensor:
         self.near_count = 0
         self.rssi = None
 
-	if self.mode =="BTLE" and bluepyCheck == 0:
-		msg = "Please install bluepy for Bluetooth LE scanning or change ini file"
-		print msg
-		logger.error(msg)
-		raise ImportError ("bluepy missing")
-	else:
-	        self.publishState()
+        if self.mode =="BTLE" and bluepyCheck == 0:
+            msg = "Please install bluepy for Bluetooth LE scanning or change ini file"
+            print msg
+            logger.error(msg)
+            raise ImportError ("bluepy missing")
+        else:
+            self.publishState()
 
     def getPresence(self):
         """Detects whether the device is near by or not using lookup_name"""
@@ -96,19 +105,19 @@ class btSensor:
             return "OFF"
 
     def getTag(self):
-	"""Scans for BT LE devices and returns the choosen keywords"""
-	self.count = 0
-	scanner = Scanner().withDelegate(DefaultDelegate())
-	devices = scanner.scan(self.scanTimeout)
-	for dev in devices:
-		if dev.addr == self.address.lower():
-			self.count = 1
+        """Scans for BT LE devices and returns the choosen keywords"""
+        self.count = 0
+        scanner = Scanner().withDelegate(DefaultDelegate())
+        devices = scanner.scan(self.scanTimeout)
+        for dev in devices:
+            if dev.addr == self.address.lower():
+                self.count = 1
 			
-	if self.count > 0:
-		self.count = 0
-		return self.found
-	else:
-		return self.missing
+        if self.count > 0:
+            self.count = 0
+            return self.found
+        else:
+            return self.missing
 
     def getRSSI(self):
         """Detects whether the device is near by or not using RSSI"""
