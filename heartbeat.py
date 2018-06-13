@@ -45,7 +45,8 @@ class heartbeat:
     def publishState(self):
         """Publishes the heartbeat"""
         uptime = int((time.time() - self.startTime) * 1000)
-        self.publish(str(uptime), self.numDest)
+        for conn in self.publish:
+            conn.publish(str(uptime), self.numDest)
 
         sec = (uptime / (1000)) % 60
         min = (uptime / (1000*60)) % 60

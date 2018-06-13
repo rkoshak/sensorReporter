@@ -22,6 +22,7 @@
 import sys
 import time
 import RPi.GPIO as GPIO
+import ConfigParser
 
 class rpiGPIOActuator:
     """Represents an actuator connected to a GPIO pin"""
@@ -35,7 +36,7 @@ class rpiGPIOActuator:
 
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         GPIO.setup(self.pin, GPIO.OUT)
-        out = GPIO.LOW
+        #out = GPIO.LOW
         
         try:
             out = GPIO.HIGH if params("InitialState")=="ON" else GPIO.LOW
@@ -67,10 +68,10 @@ class rpiGPIOActuator:
             self.logger.info('Toggling pin %s LOW to HIGH' % (self.pin))
         else:
             out = None
-            if msg == "ON":
+            if msg.payload == "ON":
                 self.logger.info("{0} pin high".format(self.destination))
                 out = GPIO.HIGH
-            elif msg == "OFF":
+            elif msg.payload == "OFF":
                 self.logger.info("{0} pin low".format(self.destination))
                 out = GPIO.LOW
             else:
