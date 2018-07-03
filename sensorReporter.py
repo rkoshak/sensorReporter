@@ -199,7 +199,7 @@ def loadConfig(configFile):
 
     level = "INFO"
     if config.has_option("Logging", "Level"):
-      level - config.get("Logging", "Level")
+      level = config.get("Logging", "Level")
 
     if syslog == "YES":
       configLogger("", -1, -1, "YES", level)
