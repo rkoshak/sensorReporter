@@ -34,8 +34,21 @@ class rpiGPIOSensor:
         self.params = params
         self.actuators = actuators
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
+        self.pin = int(params("Pin"))
+        self.values = []
+                
+        try:
+            if len(params("Values").split(",")) != 2:
+                self.logger.error("Invalid Values option passed for " + self.pin)
+            else:
+                self.values = params("Values").split(",")
+        except ConfigParser.NoOptionError:
+            self.values = ["CLOSED", "OPEN"]
+        
+        self.logger.debug("Sending %s for CLOSED and %s for OPEN" % (self.values[0], self.values[1]))
+        
         p = GPIO.PUD_UP if params("PUD")=="UP" else GPIO.PUD_DOWN
-        GPIO.setup(int(params("Pin")), GPIO.IN, pull_up_down=p)
+        GPIO.setup(self.pin, GPIO.IN, pull_up_down=p)
 
         def eventDetected(channel):
             self.checkState()
@@ -75,7 +88,6 @@ class rpiGPIOSensor:
             self.logger.debug("No event detection specified")
             self.stateCallback = None
 
-        self.pin = int(params("Pin"))
         self.state = GPIO.input(self.pin)
         self.destination = params("Destination")
         self.publish = connections
@@ -101,8 +113,7 @@ class rpiGPIOSensor:
     def publishState(self):
         """Publishes the current state"""
         for conn in self.publish:
-            conn.publish('CLOSED' if self.state == GPIO.LOW else 'OPEN', self.destination)
-        #self.publish('CLOSED' if self.state == GPIO.LOW else 'OPEN', self.destination)
+            conn.publish(self.values[0] if self.state == GPIO.LOW else self.values[1], self.destination)
 
     def cleanup(self):
         """Resets the GPIO pins to their default state"""

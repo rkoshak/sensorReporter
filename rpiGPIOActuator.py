@@ -22,6 +22,7 @@
 import sys
 import time
 import RPi.GPIO as GPIO
+import ConfigParser
 
 class rpiGPIOActuator:
     """Represents an actuator connected to a GPIO pin"""
@@ -64,13 +65,13 @@ class rpiGPIOActuator:
             GPIO.output(self.pin, GPIO.LOW)
             time.sleep(.5)
             GPIO.output(self.pin, GPIO.HIGH)
-            logger.info('Toggling pin %s LOW to HIGH' % (self.pin))
+            self.logger.info('Toggling pin %s LOW to HIGH' % (self.pin))
         else:
             out = None
-            if msg == "ON":
+            if msg.payload == "ON":
                 self.logger.info("{0} pin high".format(self.destination))
                 out = GPIO.HIGH
-            elif msg == "OFF":
+            elif msg.payload == "OFF":
                 self.logger.info("{0} pin low".format(self.destination))
                 out = GPIO.LOW
             else:

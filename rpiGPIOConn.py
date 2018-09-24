@@ -32,7 +32,7 @@ class rpiGPIOConn:
 
         self.actuatorName = params("Actuator")
         self.actuators = actuators
-        self.Values = []
+        self.values = []
         
         try:
             self.values = params("Values").split(",")
