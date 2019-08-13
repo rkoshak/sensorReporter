@@ -98,6 +98,7 @@ class rpiGPIOSensor:
 
     def checkState(self):
         """Detects and publishes any state change"""
+        self.logger.info("Checking the state for {}".format(self.destination))
         value = GPIO.input(self.pin)
         if(value != self.state):
             self.state = value
@@ -112,6 +113,7 @@ class rpiGPIOSensor:
 
     def publishState(self):
         """Publishes the current state"""
+        self.logger.info("Publishing the state for {}".format(self.destination))
         for conn in self.publish:
             conn.publish(self.values[0] if self.state == GPIO.LOW else self.values[1], self.destination)
 

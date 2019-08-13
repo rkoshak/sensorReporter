@@ -6,7 +6,7 @@ After=network.target network-online.target
 
 [Service]
 WorkingDirectory=/opt/sensorReporter
-User=root
+User=sensorReporter
 Type=simple
 ExecStart=/opt/sensorReporter/sensorReporter.py /opt/sensorReporter/sensorReporter.ini
 

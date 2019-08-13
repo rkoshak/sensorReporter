@@ -55,9 +55,9 @@ def on_message(client, userdata, msg):
             logger.info("Topic: " + msg.topic + " Message: " + str(msg.payload))
         logger.info("getting states")
         for s in sensors:
-            if sensors[s].poll > 0:
-                sensors[s].checkState()
-                # sensors[s].publishState() # As far as I can tell checkState calls publishState so this is not needed
+#            if sensors[s].poll > 0:
+            logger.info("Checking state for {}".format(sensors[s]))
+            sensors[s].publishState()
     except:
         logger.info("Unexpected error:", sys.exc_info()[0])
 
