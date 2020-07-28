@@ -51,15 +51,16 @@ class goveeSensor:
         self.devices = {}
 
     def on_advertisement(self, advertisement):
-        self.logger.info("Received advertisement from {}".format(advertisement.address.address))
+        self.logger.debug("Received advertisement from {}".format(advertisement.address.address))
 
         if advertisement.address.address.startswith(self.GOVEE_BT_MAC_PREFIX):
-            self.logger.info("Received Govee advertisement")
+            self.logger.debug("Received Govee advertisement")
 
             mac = advertisement.address.address
 
             if self.H5075_UPDATE_UUID16 in advertisement.uuid16s:
-                name = advertisement.name.split("'")[1]
+                split = advertisement.name.split("'")
+                name = split[0] if len(split) == 1 else split[1]
                 if mac not in self.devices:
                     self.devices[mac] = name
                 encoded_data = int(advertisement.mfg_data.hex()[6:12], 16)
@@ -68,7 +69,7 @@ class goveeSensor:
                 temp_f = format((((encoded_data / 10000) * 1.8) + 32), ".2f")
                 humi = format(((encoded_data % 1000) / 10), ".2f")
 
-                self.logger.info("Govee data to publish: name = {}, "
+                self.logger.debug("Govee data to publish: name = {}, "
                                  "battery = {}, temp_c = {}, temp_f = {}, and "
                                  "humi = {}"
                                  .format(name, battery, temp_c, temp_f, humi))
@@ -78,7 +79,7 @@ class goveeSensor:
                     conn.publish(str(temp_c),
                                  "{}/{}/temp_C".format(self.dest_root, name))
                     conn.publish(str(temp_f),
-                                 "{}/{}/temp_f".format(self.dest_root, name))
+                                 "{}/{}/temp_F".format(self.dest_root, name))
                     conn.publish(str(humi),
                                  "{}/{}/humi".format(self.dest_root, name))
 
