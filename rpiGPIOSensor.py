@@ -21,13 +21,15 @@
 
 import sys
 import RPi.GPIO as GPIO
-import ConfigParser
+from configparser import NoOptionError
 
 class rpiGPIOSensor:
     """Represents a sensor connected to a GPIO pin"""
 
     def __init__(self, connections, logger, params, sensors, actuators):
         """Sets the sensor pin to pud and publishes its current value"""
+
+        logger.info("Initializing rpiGPIOSensor...")
 
         self.logger = logger
         self.stateCallback = None
@@ -36,23 +38,23 @@ class rpiGPIOSensor:
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         self.pin = int(params("Pin"))
         self.values = []
-                
+
         try:
             if len(params("Values").split(",")) != 2:
                 self.logger.error("Invalid Values option passed for " + self.pin)
             else:
                 self.values = params("Values").split(",")
-        except ConfigParser.NoOptionError:
+        except NoOptionError:
             self.values = ["CLOSED", "OPEN"]
-        
+
         self.logger.debug("Sending %s for CLOSED and %s for OPEN" % (self.values[0], self.values[1]))
-        
+
         p = GPIO.PUD_UP if params("PUD")=="UP" else GPIO.PUD_DOWN
         GPIO.setup(self.pin, GPIO.IN, pull_up_down=p)
 
         def eventDetected(channel):
             self.checkState()
-        
+
         try:
             eventDetection = params("EventDetection")
 
@@ -70,21 +72,21 @@ class rpiGPIOSensor:
                 except AttributeError:
                     self.logger.error("Imported module does not implement init or stateChange")
                     self.stateCallback = None
-                except ConfigParser.NoOptionError:
+                except NoOptionError:
                     self.logger.debug("No callback specified")
                     self.stateCallback = None
                 except Exception as e:
                     self.logger.error("Import failed: " + str(e))
                     self.stateCallback = None
-                
+
                 whichEvent = { "RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH" : GPIO.BOTH }
-                
+
                 event = whichEvent[eventDetection]
                 GPIO.add_event_detect(int(params("Pin")), event, callback=eventDetected)
             else:
                 eventDetection = "NONE"
                 self.stateCallback = None
-        except ConfigParser.NoOptionError:
+        except NoOptionError:
             self.logger.debug("No event detection specified")
             self.stateCallback = None
 
@@ -101,7 +103,7 @@ class rpiGPIOSensor:
         value = GPIO.input(self.pin)
         if(value != self.state):
             self.state = value
-            
+
             if (not self.stateCallback is None):
                 self.logger.debug('Callback found')
                 self.stateCallback.stateChange(self.state, self.params, self.actuators)

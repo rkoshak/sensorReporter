@@ -50,10 +50,12 @@ class mqttConnection(object):
     connected = False
     while not  connected:
       try:
-        self.client.connect(params("Host"), port=int(params("Port")), keepalive=float(params("Keepalive")))
+        self.client.connect(params("Host"), port=int(params("Port")), keepalive=int(params("Keepalive")))
         connected = True
       except:
+        import traceback
         self.logger.error("Error connecting to " + params("Host") + ":" + params("Port"))
+        #self.logger.error("Exception: {}".format(traceback.format_exec()))
         sleep(5) # wait five seconds before retrying
 
     self.logger.info("Connection successful")
@@ -74,7 +76,8 @@ class mqttConnection(object):
       else:
         self.logger.info("Published message " + message + " to " + pubTopic)
     except:
-      print "Unexpected error publishing message:", sys.exc_info()[0]
+        import traceback
+        self.logger.error("Unexpected error publishing message: {}".format(traceback.format_exc()))
 
   def register(self, subTopic, msgHandler):
     """Registers an actuator to receive messages"""

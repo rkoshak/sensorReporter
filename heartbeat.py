@@ -56,8 +56,8 @@ class heartbeat:
         msg = ''
         if day > 0:
           msg += '{0}:'.format(day)
-        msg += '{0:02d}:{1:02d}:{2:02d}'.format(hr, min, sec)
-        
+        msg += '{0:02d}:{1:02d}:{2:02d}'.format(int(hr), int(min), int(sec))
+
         for conn in self.publish:
             conn.publish(msg, self.strDest)
 

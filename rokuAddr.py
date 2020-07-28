@@ -23,7 +23,7 @@
 import sys
 import socket
 import re
-import ConfigParser
+from configparser import NoOptionError
 
 class rokuAddr:
     """Represents a sensor which polls for Roku's on the network's current IP addresses"""
@@ -54,7 +54,7 @@ class rokuAddr:
                 i += 1
                 name = 'Name%s' % (i)
                 destination = 'Destination%s' % (i)
-            except ConfigParser.NoOptionError:
+            except NoOptionError:
                 done = True
 
         self.publish = publisher
@@ -82,7 +82,7 @@ class rokuAddr:
             except socket.timeout:
                 break
         sock.close()
-        
+
     def publishStateImpl(self, data, destination):
         for conn in self.publish:
             conn.publish(data, destination)

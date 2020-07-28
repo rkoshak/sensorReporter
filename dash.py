@@ -24,7 +24,7 @@
 import sys
 import traceback
 from scapy.all import *
-import ConfigParser
+from configparser import NoOptionError
 
 class dash:
     """Scans for ARP packets from Dash buttons"""
@@ -48,7 +48,7 @@ class dash:
             i += 1
             addr = 'Address%s' % (i)
             destination = 'Destination%s' % (i)
-          except ConfigParser.NoOptionError:
+          except NoOptionError:
             done = True
 
         self.publish = publisher
@@ -63,7 +63,7 @@ class dash:
               if ARP in pkt and pkt[ARP].op in (1,2): #who-has or is-at
                   if self.devices.get(pkt[ARP].hwsrc, None) != None:
                       self.logger.info("Dash button pressed for: " + self.devices[pkt[ARP].hwsrc])
-                      
+
                       for conn in self.publish:
                         conn.publish("Pressed", self.devices[pkt[ARP].hwsrc])
 #                  else:
@@ -75,8 +75,7 @@ class dash:
             self.logger.info("Dash: you should never see this")
         except:
             self.logger.error("Unexpected error in dash: %s", sys.exc_info()[0])
-            traceback.print_exc(file=sys.stdout)    
+            traceback.print_exc(file=sys.stdout)
 
     def publishState(self):
         """Does nothing"""
-

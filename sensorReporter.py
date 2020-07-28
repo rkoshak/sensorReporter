@@ -25,7 +25,7 @@ print("Starting...")
 
 import logging
 import logging.handlers
-import ConfigParser
+from configparser import ConfigParser, NoOptionError
 import signal
 import sys
 import time
@@ -37,7 +37,7 @@ import importlib
 # Globals
 logger = logging.getLogger('sensorReporter')
 
-config = ConfigParser.ConfigParser(allow_no_value=True)
+config = ConfigParser(allow_no_value=True)
 sensors = {}
 actuators = {}
 connections = {}
@@ -47,7 +47,7 @@ connections = {}
 def on_message(client, userdata, msg):
     """Called when a message is received from a connection, send the current sensor state.
        We don't care what the message is."""
-    
+
     try:
         logger.info("Received a request for current state, publishing")
         if msg is not None:
@@ -65,7 +65,7 @@ def main():
     """Polls the sensor pins and publishes any changes"""
 
     if len(sys.argv) < 2:
-        print "No config file specified on the command line!"
+        print("No config file specified on the command line!")
         sys.exit(1)
 
     loadConfig(sys.argv[1])
@@ -80,7 +80,7 @@ def main():
             if sensors[s].poll > 0 and (time.time() - sensors[s].lastPoll) > sensors[s].poll:
                 sensors[s].lastPoll = time.time()
                 Thread(target=check, args=(sensors[s],)).start()
-        
+
         time.sleep(0.5) # give the processor a chance if REST is being slow
 
 #------------------------------------------------------------------------------
@@ -94,7 +94,7 @@ def main():
 @handles(signal.SIGINT)
 def cleanup_and_exit():
     """ Signal handler to ensure we disconnect cleanly in the event of a SIGTERM or SIGINT. """
-    logger.warn("Terminating the program")
+    logger.warning("Terminating the program")
     try:
         for key in connections:
             try:
@@ -122,7 +122,7 @@ def check(s):
 def configLogger(file, size, num, syslog, level):
     """Configure a rotating log"""
 
-    print "Setting logging level to " + level
+    print("Setting logging level to {}".format(level))
     levels = {
       "CRITICAL": logging.CRITICAL,
       "ERROR"   : logging.ERROR,
@@ -134,14 +134,14 @@ def configLogger(file, size, num, syslog, level):
     logger.setLevel(levels.get(level, logging.NOTSET))
 
     if syslog != "YES":
-      print "Configuring logger: file = " + file + " size = " + str(size) + " num = " + str(num)
+      print("Configuring logger: file = {} size = {} num = {}".format(file, size, num))
       fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size, backupCount=num)
       fh.setLevel(logging.DEBUG)
       formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
       fh.setFormatter(formatter)
       logger.addHandler(fh)
     elif syslog == "YES":
-      print "Configuring syslogging"
+      print("Configuring syslogging")
       sh = logging.handlers.SysLogHandler('/dev/log', facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
       sh.encodePriority(sh.LOG_SYSLOG, sh.LOG_INFO)
       slFormatter = logging.Formatter('[sensorReporter] %(levelname)s - %(message)s')
@@ -158,14 +158,16 @@ def createDevice(config, section):
 
       params = lambda key: config.get(section, key)
       devConns = []
-      
+
       try:
+        logger.info("Creating connections")
         for connStr in params("Connection").split(","):
+          logger.info("Connection string is {}".format(connStr))
           devConns.append(connections[connStr])
-      except ConfigParser.NoOptionError:
+      except NoOptionError:
         # No connection is valid e.g. an actuator connection target
         pass
-        
+
       d = MyDevice(devConns, logger, params, sensors, actuators)
       if config.getfloat(section, "Poll") == -1:
         Thread(target=d.checkState).start() # don't need to use cleanup-on-exit for non-polling sensors
@@ -173,7 +175,8 @@ def createDevice(config, section):
 
       return d
     except ImportError:
-      logger.error("%s.%s is not supported on this platform" % module_name, class_name)
+      logger.error("{}.{} is not supported on this platform".format(module_name, class_name))
+      return None
 
 def createConnection(config, section):
 
@@ -185,12 +188,12 @@ def createConnection(config, section):
       params = lambda key: config.get(section, key)
       connections[name] = MyConn(on_message, logger, params, sensors, actuators)
     except ImportError:
-      logger.error("%s.%s is not supported on this platform" % module_name, class_name)
-
+      logger.error("{}.{} is not supported on this platform".format(module_name, class_name))
 
 def loadConfig(configFile):
     """Read in the config file, set up the logger, and populate the sensors"""
-    print "Loading " + configFile
+
+    print("Loading {}".format(configFile))
     config.read(configFile)
 
     syslog = "NO"
@@ -204,8 +207,8 @@ def loadConfig(configFile):
     if syslog == "YES":
       configLogger("", -1, -1, "YES", level)
     else:
-      configLogger(config.get("Logging", "File"), 
-                   config.getint("Logging", "MaxSize"), 
+      configLogger(config.get("Logging", "File"),
+                   config.getint("Logging", "MaxSize"),
                    config.getint("Logging", "NumFiles"),
                    "NO",
                    level)
@@ -219,10 +222,15 @@ def loadConfig(configFile):
     logger.info("Populating the sensor/actuator list...")
     for section in config.sections():
         if section.startswith("Sensor"):
-            sensors[section] = createDevice(config, section)
+            logger.info("Loading {}".format(section))
+            dev = createDevice(config, section)
+            if dev:
+              sensors[section] = dev
         elif section.startswith("Actuator"):
-            logger.debug("Adding actuator " + section)
-            actuators[section] = createDevice(config, section)
+            logger.info("Adding actuator " + section)
+            dev = createDevice(config, section)
+            if dev:
+              actuators[section] = dev
 
     return sensors
 

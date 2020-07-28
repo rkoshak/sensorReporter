@@ -19,7 +19,7 @@
  Purpose: Provides and maintains a connection to a GPIO pin on a Raspberry Pi
 """
 
-import ConfigParser
+from configparser import NoOptionError
 
 class rpiGPIOConn:
 
@@ -33,12 +33,12 @@ class rpiGPIOConn:
         self.actuatorName = params("Actuator")
         self.actuators = actuators
         self.values = []
-        
+
         try:
             self.values = params("Values").split(",")
-        except ConfigParser.NoOptionError:
+        except NoOptionError:
             self.values = ["OFF", "ON"]
-        
+
         if len(self.values) != 2:
             self.logger.error("Invalid Values option passed for " + self.actuatorName)
         else:
@@ -46,7 +46,7 @@ class rpiGPIOConn:
 
     def publish(self, message, unused):
         """Called by others to publish a message - must be value from Values option"""
-    
+
         try:
             if (message.upper() == self.values[0].upper()):
                 self.logger.debug("Publishing OFF to " + self.actuatorName)

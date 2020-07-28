@@ -22,7 +22,7 @@
 import sys
 import time
 import RPi.GPIO as GPIO
-import ConfigParser
+from configparser import NoOptionError
 
 class rpiGPIOActuator:
     """Represents an actuator connected to a GPIO pin"""
@@ -37,10 +37,10 @@ class rpiGPIOActuator:
         GPIO.setmode(GPIO.BCM) # uses BCM numbering, not Board numbering
         GPIO.setup(self.pin, GPIO.OUT)
         out = GPIO.LOW
-        
+
         try:
             out = GPIO.HIGH if params("InitialState")=="ON" else GPIO.LOW
-        except ConfigParser.NoOptionError:
+        except NoOptionError:
             pass
 
         GPIO.output(self.pin, out)
@@ -50,14 +50,14 @@ class rpiGPIOActuator:
         self.toggle = False if params("Toggle").lower() == 'false' else True
 
         logger.info('----------Configuring rpiGPIOActuator: pin {0} on destination {1} with toggle {2}'.format(self.pin, self.destination, self.toggle))
-        
+
         for connection in self.connections:
             connection.register(self.destination, self.on_message)
 
     def on_message(self, client, userdata, msg):
         """Process a message"""
         self.actOn(msg)
-            
+
     def actOn(self, msg):
         self.logger.info('Received command on {0}: {1} Toggle = {2} PIN = {3}'.format(self.destination, msg, self.toggle, self.pin))
         if self.toggle == True:
@@ -76,9 +76,6 @@ class rpiGPIOActuator:
                 out = GPIO.LOW
             else:
                 self.logger.error("Bad input {0}".format(msg))
-            
+
             if out != None:
                 GPIO.output(self.pin, out)
-        
-        
-

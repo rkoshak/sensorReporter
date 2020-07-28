@@ -27,7 +27,7 @@ TODO: Allow other DHT sensors than the DHT22
 import sys
 import time
 import Adafruit_DHT
-import ConfigParser
+from configparser import NoOptionError
 
 class DHTSensor:
     """Represents a DHT sensor connected to a GPIO pin"""
@@ -55,7 +55,7 @@ class DHTSensor:
         try:
             if (params("Scale") == 'F'):
                 self.useF = True
-        except ConfigParser.NoOptionError:
+        except NoOptionError:
             pass
 
         #Use 1 reading as default
@@ -82,7 +82,7 @@ class DHTSensor:
         self.logger.info("----------Configuring DHT Sensor: Type='{0}' pin='{1}' poll='{2}' destination='{3}' Initial values: Hum='{4}' Temp='{5}'".format(self.sensorType, self.pin, self.poll,  self.destination, self.humidity, self.temperature))
 
         self.publishState()
-    
+
 
     def convertTemp(self, value):
         return value if self.useF == False else value * 9 / 5.0 + 32
@@ -96,7 +96,7 @@ class DHTSensor:
 
         if ((valueHum is None) or (valueTemp is None)):
             self.logger.warn("Last reading isn't valid. preserving old reading T='{0}', H='{1}'".format(self.temperature, self.humidity))
-            return  
+            return
 
         #Verify reading of humidity
         if(valueHum != self.humidity):
@@ -145,7 +145,7 @@ class DHTSensor:
 
         if ((value >= acceptableMin) and (value <= acceptableMax)):
             return True
-        
+
         return False
 
 
@@ -165,7 +165,7 @@ class DHTSensor:
         else:
             #Reading out of bounds
             return resultHum, resultTemp
-    
+
         if (len(self.arrHumidity)>self.ARRAY_SIZE):
             del self.arrHumidity[0]
 
@@ -180,7 +180,7 @@ class DHTSensor:
 
             sumTemp = sum(filter(None, self.arrTemperature))
             noTempReadings = len(filter(None, self.arrTemperature))
-        
+
             if (noTempReadings>0):
                 resultTemp = float(str(round(sumTemp/noTempReadings, self.precissionTemp)))
 
