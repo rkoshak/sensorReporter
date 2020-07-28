@@ -8,7 +8,7 @@ After=network.target network-online.target
 WorkingDirectory=/opt/sensorReporter
 User=sensorReporter
 Type=simple
-ExecStart=/opt/sensorReporter/sensorReporter.py /opt/sensorReporter/sensorReporter.ini
+ExecStart=python3 sensorReporter.py sensorReporter.ini
 
 [Install]
 WantedBy=multi-user.target
