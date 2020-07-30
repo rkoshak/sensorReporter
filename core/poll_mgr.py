@@ -1,10 +1,28 @@
+# Copyright 2020 Richard Koshak
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import time
 from multiprocessing import Process
 
 class PollManager:
+    """Manages spawing Processes to call a sensor's check method each configured
+    polling period. Calling stop will end the polling loop and clean up all the
+    resources from the connections, sensors and actuators. When calling report,
+    the most recent reading of the sensor is published/republished.
+    """
 
     def __init__(self, connections, sensors, actuators, log):
-
+        """Prepares the manager to start the polling loop. """
         self.log = log
         self.connections = connections
         self.sensors = sensors
@@ -12,10 +30,14 @@ class PollManager:
         self.stop_poll = False
         self.processes = {}
 
-        self.log.info("Initializing SensorReporter")
-
     def __runner(self, target, key):
+        """Called in a separate Process, calls the check_state method on a
+        sensor and reports if there was an exception raised.
 
+        Arguments:
+        - target: the check_state method to call
+        - key: helps identify which Sensor entry died
+        """
         try:
             target()
         except:
@@ -24,7 +46,9 @@ class PollManager:
                            .format(key, traceback.format_exec()))
 
     def start(self):
-
+        """Kicks off the polling loop. This method will not return until stop()
+        is called from a separate thread.
+        """
         self.log.info("Starting polling loop")
 
         while not self.stop_poll:
@@ -45,8 +69,10 @@ class PollManager:
             time.sleep(0.5)
 
     def stop(self):
-        print("In stop!")
-
+        """Sets a flag to stop the polling loop. Cancels any outstanding
+        processes and waits for them to fail, then cleans and disconnects all
+        the sensors, actuators, and connections.
+        """
         # Stop the polling loop
         self.stop_poll = True
         time.sleep(0.5)
@@ -65,5 +91,5 @@ class PollManager:
         [c.disconnect() for c in self.connections.values()]
 
     def report(self):
-
+        """Calls publish_state on all the sensors."""
         [s.publish_state() for s in self.sensors]
