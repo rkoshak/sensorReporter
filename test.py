@@ -7,12 +7,9 @@ import logging.handlers
 import importlib
 from core.poll_mgr import PollManager
 
-pm = None
-
-def reload_configuration(signumr, frame, config_file):
+def reload_configuration(signum, frame, config_file, pm):
     print('(SIGHUP) reading configuration')
 
-    global pm
     if pm:
         print("pm is {}".format(pm))
         pm.stop()
@@ -30,6 +27,10 @@ def terminateProcess(signum, frame):
 def init_logger(config):
 
     logger = logging.getLogger('SensorReporter')
+
+    logger = logging.getLogger()
+    while logger.hasHandlers():
+        logger.removeHandler(logger.handlers[0])
 
     level = config.get("Logging", "Level", fallback="INFO")
     print("Setting logging level to {}".format(level))
@@ -171,12 +172,11 @@ def main():
 
     config_file = sys.argv[1]
     print("Loading config file {}".format(config_file))
-    global pm
     pm = create_sensor_reporter(config_file)
 
     # Register functions to handle signals
     print("Registering for signals")
-    signal.signal(signal.SIGHUP, lambda s, f : reload_configuration(s, f, config_file)) # reload config
+    signal.signal(signal.SIGHUP, lambda s, f : reload_configuration(s, f, config_file, pm)) # reload config
     signal.signal(signal.SIGTERM, terminateProcess)
     signal.signal(signal.SIGINT, terminateProcess) # CTRL-C
 

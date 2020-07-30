@@ -9,7 +9,7 @@ class PollManager:
         self.connections = connections
         self.sensors = sensors
         self.actuators = actuators
-        self.stop = False
+        self.stop_poll = False
         self.processes = {}
 
         self.log.info("Initializing SensorReporter")
@@ -27,7 +27,7 @@ class PollManager:
 
         self.log.info("Starting polling loop")
 
-        while not self.stop:
+        while not self.stop_poll:
             for k,s in {k:s for (k,s) in self.sensors.items()
                         if s.poll > 0
                            and (not s.last_poll or
@@ -48,21 +48,21 @@ class PollManager:
         print("In stop!")
 
         # Stop the polling loop
-        self.stop = True
+        self.stop_poll = True
         time.sleep(0.5)
 
         self.log.info("Cancelling all the polling threads")
-        [p.terminate() for p in self.processes]
-        [p.join() for p in self.processes]
+        [p.terminate() for p in self.processes.values()]
+        [p.join() for p in self.processes.values()]
 
         self.log.info("Cleaning up the sensors")
-        [s.cleanup() for s in self.sensors]
+        [s.cleanup() for s in self.sensors.values()]
 
         self.log.info("Cleaning up the actuators")
         [a.cleanup() for a in self.actuators]
 
         self.log.info("Disconnecting from connections")
-        [c.disconnect() for c in self.connections]
+        [c.disconnect() for c in self.connections.values()]
 
     def report(self):
 
