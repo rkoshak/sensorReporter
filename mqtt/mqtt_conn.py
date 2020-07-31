@@ -19,13 +19,17 @@ Classes: MqttConnection
 import socket
 import traceback
 from time import sleep
+import logging
 import paho.mqtt.client as mqtt
 from core.connection import Connection
+from core.utils import set_log_level
+
+log = logging.getLogger(__name__.split(".")[1])
 
 class MqttConnection(Connection):
     """Connects to and enables subscription and publishing to MQTT."""
 
-    def __init__(self, msg_processor, log, params):
+    def __init__(self, msg_processor, params):
         """Establishes the MQTT connection and starts the MQTT thread. Exepcts
         the following parameters in params:
         - "Host": hostname or IP address of the MQTT broker
@@ -45,9 +49,9 @@ class MqttConnection(Connection):
         If the connection fails, it will keep retrying every five seconds until
         the connection is successful.
         """
-        super().__init__(msg_processor, log, params)
-
-        self.log.info("Initializing MQTT Connection...")
+        super().__init__(msg_processor, params)
+        set_log_level(params, log)
+        log.info("Initializing MQTT Connection...")
 
         # Get the parameters, raises NoOptionError if one doesn't exist
         host = params("Host")
@@ -55,7 +59,7 @@ class MqttConnection(Connection):
         client_name = params("Client")
         self.topic = params("Topic")
         tls = params("TLS").lower()
-        self.log.info("tls = {}".format(tls))
+        log.info("tls = {}".format(tls))
         user = params("User")
         passwd = params("Password")
         keepalive = int(params("Keepalive"))
@@ -70,7 +74,7 @@ class MqttConnection(Connection):
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
-        self.log.info("Attempting to connect to MQTT broker at {}:{}"
+        log.info("Attempting to connect to MQTT broker at {}:{}"
                       .format(host, port))
         connected = False
         while not connected:
@@ -78,11 +82,11 @@ class MqttConnection(Connection):
                 self.client.connect(host, port=port, keepalive=keepalive)
                 connected = True
             except socket.gaierror:
-                self.log.error("Error connecting to {}:{}".format(host, port))
-                self.log.debug("Exception: {}".format(traceback.format_exc()))
+                log.error("Error connecting to {}:{}".format(host, port))
+                log.debug("Exception: {}".format(traceback.format_exc()))
                 sleep(5)
 
-        self.log.info("Connection to MQTT is successful")
+        log.info("Connection to MQTT is successful")
 
         self.client.will_set(lwtt, "OFFLINE", qos=0, retain=True)
         self.client.loop_start()
@@ -97,23 +101,23 @@ class MqttConnection(Connection):
         try:
             rval = self.client.publish(topic, message)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
-                self.log.error("Error puiblishing update {} to {}"
-                               .format(message, topic))
+                log.error("Error puiblishing update {} to {}"
+                          .format(message, topic))
             else:
-                self.log.info("Published message {} to {}"
-                              .format(message, topic))
+                log.info("Published message {} to {}"
+                         .format(message, topic))
         except ValueError:
-            self.log.error("Unexpected error publishing MQTT message: {}"
-                           .format(traceback.format_exc()))
+            log.error("Unexpected error publishing MQTT message: {}"
+                      .format(traceback.format_exc()))
 
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
-        self.log.info("Disconnecting from MQTT")
+        log.info("Disconnecting from MQTT")
         self.client.disconnect()
 
     def register(self, topic, handler):
         """Registers a handler to be called on messages received on topic."""
-        self.log.info("Registering for messages on " + topic)
+        log.info("Registering for messages on " + topic)
         self.registered.append((topic, handler))
         self.client.subscribe(topic)
         self.client.message_callback_add(topic, handler)
@@ -122,9 +126,9 @@ class MqttConnection(Connection):
         """Called when the client connects to the broker, resubscribe to the
         sensorReporter topic.
         """
-        self.log.info("Connected with client {}, userdata {}, flags {}, and "
-                      "result code {}. Subscribing to command topic {}"
-                      .format(client, userdata, flags, retcode, self.topic))
+        log.info("Connected with client {}, userdata {}, flags {}, and "
+                 "result code {}. Subscribing to command topic {}"
+                 .format(client, userdata, flags, retcode, self.topic))
 
         # Resubscribe on connection
         self.client.subscribe(self.topic)
@@ -138,8 +142,9 @@ class MqttConnection(Connection):
         """Called when the client disconnects from the broker. If the reason was
         not because disconnect() was called, try to reconnect.
         """
-        self.log.info("Disconnected from MQTT broker with code {}".format(retcode))
+        log.info("Disconnected from MQTT broker with client {}, userdata "
+                 "{}, and code {}".format(client, userdata, retcode))
 
         if retcode != 0:
-            self.log.info("Unexpected disconnect code {}, reconnecting"
-                          .format(retcode))
+            log.info("Unexpected disconnect code {}, reconnecting"
+                     .format(retcode))

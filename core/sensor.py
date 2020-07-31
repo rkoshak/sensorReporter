@@ -25,7 +25,7 @@ class Sensor(ABC):
     publish_state should be overridden.
     """
 
-    def __init__(self, publishers, log, params):
+    def __init__(self, publishers, params):
         """
         Sets all the passed in arguments as data members. If params("Poll")
         exists self.poll will be set to that. If not it is initialized to -1.
@@ -33,12 +33,10 @@ class Sensor(ABC):
 
         Arguments:
         - publishers: list of Connection objects to report to.
-        - log: logger to use to log out imporant information
         - params: parameters from the section in the .ini file the sensor is created
         from.
         """
         self.publishers = publishers
-        self.log = log
         self.params = params
         try:
             self.poll = int(params("Poll"))

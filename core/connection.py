@@ -23,17 +23,15 @@ class Connection(ABC):
     implementation for all methods except publish which must be overridden.
     """
 
-    def __init__(self, msg_processor, log, params):
+    def __init__(self, msg_processor, params):
         """Stores the passed in arguments as data members.
 
         Arguments:
         - msg_processor: Connections will subscribe to a destination for
         communication to the program overall, not an individual actuator or
         sensor. This is the method that gets called when a message is received.
-        - log: used for logging out important information.
         - params: set of properties from the loaded ini file.
         """
-        self.log = log
         self.msg_processor = msg_processor
         self.params = params
 

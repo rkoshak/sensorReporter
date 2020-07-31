@@ -1,99 +1,172 @@
+# Copyright 2020 Richard Koshak
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""The main script responsible for loading and parsing the .ini file, creating
+the polling manager and all of the connections, sensors, and actuators via
+reflection, and handling OS signals. On SIGINT it will exit. On SIGHUP it will
+stop and reload the config file to contine processing again.
+
+Functions:
+    - reload_configuration: Called on SIGHUP, reloads the configuration
+    - terminate_process: Called on SIGINT and SIGTERM, cleans up and exits the
+    program
+    - init_logger: Initializes the logger based on the config in the .ini
+    - create_connection: Creates a Connection based on the config in the .ini
+    - create_device: Creates a Sensor or Actuator based on the config in the .ini
+    - create_poll_manager: Parses the .ini file and creates the logger,
+    connections, sensors, and actuators and polling manager based on the config
+    in the .ini.
+    - on_message: called when a connection receives a message on the
+    sensor_reporter's topic
+    - register_sig_handlers: Registers the reload_configuration and
+    terminate_process to be called on the appropriate OS signals
+    - main: Verifies the command line arguments, call create_sensor_reporter,
+    registers for OS signals, and starts the polling manager.
+"""
 import signal
-import time
 import sys
+import traceback
 from configparser import ConfigParser, NoOptionError
 import logging
 import logging.handlers
 import importlib
 from core.poll_mgr import PollManager
+from core.utils import set_log_level
 
-def reload_configuration(signum, frame, config_file, pm):
-    print('(SIGHUP) reading configuration')
+logger = logging.getLogger("sensor_reporter")
 
-    if pm:
-        print("pm is {}".format(pm))
-        pm.stop()
-        pm = create_sensor_reporter(config_file)
-        pm.start()
+def reload_configuration(signum, frame, config_file, poll_mgr):
+    """Called when a SIGHUP is received. Stops the polling manager and recreates
+    it with the latest config file. Reregisters the signal handlers.
+    """
+    logger.info('(SIGHUP) reading configuration: {} {}'.format(signum, frame))
+
+    if poll_mgr:
+        poll_mgr.stop()
+        poll_mgr = create_poll_manager(config_file)
+        register_sig_handlers(config_file, poll_mgr)
+        poll_mgr.start()
     else:
-        print("pm is not set! {}".format(pm))
+        logger.info("poll_mgr is not set! {}".format(poll_mgr))
 
-    return
-
-def terminateProcess(signum, frame):
-    print('(SIGTERM/SIGINT) terminating the process')
+def terminate_process(signum, frame, poll_mgr):
+    """Called when a SIGTERM or SIGINT is received, exits the program."""
+    logger.info('(SIGTERM/SIGINT) terminating the process: {} {}'.format(signum, frame))
+    # TODO figure out how to set a timeout to wait for everything to exit
+    poll_mgr.stop()
     sys.exit()
 
+def register_sig_handlers(config_file, poll_mgr):
+    """Registers the singal handler functions with the passed in config_file
+    and poll_mgr.
+    """
+    signal.signal(signal.SIGHUP,
+                  lambda s, f: reload_configuration(s, f, config_file, poll_mgr))
+    signal.signal(signal.SIGTERM,
+                  lambda s, f: terminate_process(s, f, poll_mgr))
+    signal.signal(signal.SIGINT,
+                  lambda s, f: terminate_process(s, f, poll_mgr))
+
 def init_logger(config):
+    """Initializes the logger based on the properties in the .ini file's Logging
+    section.
 
-    logger = logging.getLogger('SensorReporter')
+    Properties:
+        - "Level": one of "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", or
+        "NOTSET", sets the logging level.
+        - "Syslog": When "True" (or other acceptable boolean representations of
+        True) logging is done to the syslog
+        - "File": only required when "Syslog" is False, the path to the file to
+        log to.
+        - "MaxSize": maximum size of the log file in bytes before rolling the
+        log file; only required when "SysLog" is False
+        - "NumFiles": the number of rolled over log files to keep; only required
+        when "SysLog" is False
+    """
+    root_logger = logging.getLogger()
+    while root_logger.hasHandlers():
+        root_logger.removeHandler(root_logger.handlers[0])
+    # level = config.get("Logging", "Level", fallback="INFO")
 
-    logger = logging.getLogger()
-    while logger.hasHandlers():
-        logger.removeHandler(logger.handlers[0])
+    # levels = {
+    #     "CRITICAL": logging.CRITICAL,
+    #     "ERROR"   : logging.ERROR,
+    #     "WARNING" : logging.WARNING,
+    #     "INFO"    : logging.INFO,
+    #     "DEBUG"   : logging.DEBUG,
+    #     "NOTSET"  : logging.NOTSET
+    # }
 
-    level = config.get("Logging", "Level", fallback="INFO")
-    print("Setting logging level to {}".format(level))
+    # root_logger.setLevel(levels.get(level, logging.NOTSET))
+    set_log_level(lambda key: config.get("Logging", key), root_logger)
 
-    levels = {
-      "CRITICAL": logging.CRITICAL,
-      "ERROR"   : logging.ERROR,
-      "WARNING" : logging.WARNING,
-      "INFO"    : logging.INFO,
-      "DEBUG"   : logging.DEBUG,
-      "NOTSET"  : logging.NOTSET
-    }
+    formatter = logging.Formatter('%(asctime)s %(levelname)8s - [%(name)15.15s] %(message)s')
 
-    logger.setLevel(levels.get(level, logging.NOTSET))
-
+    # Syslog logger
     if config.getboolean("Logging", "Syslog", fallback=True):
-        print("Configuring syslogging")
-        sh = logging.handlers.SysLogHandler('/dev/log',
-                             facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
-        sh.encodePriority(sh.LOG_SYSLOG, sh.LOG_INFO)
-        slFormatter = logging.Formatter('[SensorReporter] %(levelname)s - %(message)s')
-        sh.setFormatter(slFormatter)
-        logger.addHandler(sh)
+        handler = logging.handlers.SysLogHandler('/dev/log',
+                                                 facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
+        handler.encodePriority(handler.LOG_SYSLOG, handler.LOG_INFO)
+        formatter = logging.Formatter('%(levelname)s - [%(name)s] %(message)s')
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
 
     else:
+        # File logging
         file = config.get("Logging", "File", fallback="/tmp/sensorReporter.log")
         size = int(config.get("Logging", "MaxSize", fallback="67108864"))
         num = int(config.get("Logging", "NumFiles", fallback="10"))
-        print("Configuring logger: file = {} size = {} num = {}"
-              .format(file, size, num))
-        fh = logging.handlers.RotatingFileHandler(file, mode='a', maxBytes=size,
-                                                  backupCount=num)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        handler = logging.handlers.RotatingFileHandler(file, mode='a',
+                                                       maxBytes=size,
+                                                       backupCount=num)
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
 
-    logger.info("-----------------Logging Started")
+        # STDOUT logging
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(formatter)
+        root_logger.addHandler(stdout_handler)
 
-    return logger
+    logger.info("Setting logging level to {}".format(config.get("Logging", "Level", fallback="INFO")))
 
-def create_connection(config, section, log):
-
+def create_connection(config, section):
+    """Creates a Connection using reflection based on the passed in section of
+    the .ini file.
+    """
     try:
         name = config.get(section, "Name")
-        log.info("Creating connection {}".format(name))
+        logger.info("Creating connection {}".format(name))
         class_ = config.get(section, "Class")
         module_name, class_name = class_.rsplit(".", 1)
         conn = getattr(importlib.import_module(module_name), class_name)
         params = lambda key: config.get(section, key)
-        return conn(on_message, log, params)
+        return conn(on_message, params)
+        # TODO create own exception to throw so we don't have to catch all
     except:
-        import traceback
-        log.error("Error creating connection {}: {}"
-                  .format(section, traceback.format_exc()))
+        logger.error("Error creating connection {}: {}"
+                     .format(section, traceback.format_exc()))
         return None
 
-def create_device(config, section, log, connections):
-
+def create_device(config, section, connections):
+    """Creates a Sensor or Actuator using reflection based on the passed in
+    section of the .ini file.
+    """
     try:
-        log.info("Creating device for {}".format(section))
+        logger.info("Creating device for {}".format(section))
         class_ = config.get(section, "Class")
         module_name, class_name = class_.rsplit(".", 1)
-        Device = getattr(importlib.import_module(module_name), class_name)
+        device = getattr(importlib.import_module(module_name), class_name)
         params = lambda key: config.get(section, key)
 
         dev_conns = []
@@ -103,67 +176,71 @@ def create_device(config, section, log, connections):
             # An Actuator doesn't always have a connection
             pass
 
-        return Device(dev_conns, log, params)
+        return device(dev_conns, params)
     except:
-        import traceback
-        log.error("Error creating device {}: {}"
-                  .format(section, traceback.format_exc()))
+        logger.error("Error creating device {}: {}"
+                     .format(section, traceback.format_exc()))
         return None
 
-def create_sensor_reporter(config_file):
-
+def create_poll_manager(config_file):
+    """Loads and parses the config_file and based on it's contents initializes
+    the logger, creates the Connections, Sensors, and Actuators, and creates
+    the PollMgr to handle them all.
+    """
     config = ConfigParser(allow_no_value=True)
     config.read(config_file)
 
-    log = init_logger(config)
+    init_logger(config)
 
     # Create the connections
     connections = {}
     for section in [s for s in config.sections() if s.startswith("Connection")]:
-        conn = create_connection(config, section, log)
+        conn = create_connection(config, section)
         if conn:
             name = config.get(section, "Name")
             connections[name] = conn
 
-    log.info("{} connections created".format(len(connections)))
+    logger.debug("%d connections created", len(connections))
 
     # Create the Actuators
     actuators = []
     for section in [s for s in config.sections() if s.startswith("Actuator")]:
-        actuator = create_device(config, section, log, connections)
+        actuator = create_device(config, section, connections)
         if actuator:
             actuators.append(actuator)
 
-    log.info("{} actuators created".format(len(actuators)))
+    logger.debug("%d actuators created", len(actuators))
 
     # Create the Sensors
     sensors = {}
     for section in [s for s in config.sections() if s.startswith("Sensor")]:
-        sensor = create_device(config, section, log, connections)
+        sensor = create_device(config, section, connections)
         if sensor:
             sensors[section] = sensor
 
-    log.info("{} sensors created".format(len(sensors)))
+    logger.debug("%d sensors created", len(sensors))
 
-    # TODO create SR, SR is to start the polling threads
-    log.info("Creating polling manager")
-    pm = PollManager(connections, sensors, actuators, log)
-    log.info("Created, returning polling manager")
-    return pm
+    logger.debug("Creating polling manager")
+    poll_mgr = PollManager(connections, sensors, actuators)
+    logger.debug("Created, returning polling manager")
+    return poll_mgr
 
-def on_message(client, userdata, msg, log):
-
+def on_message(client, userdata, msg, poll_mgr):
+    """Called when a message to sensor_reporter is received on a Connection.
+    Calls report on the poll_mgr.
+    """
     try:
-        log.info("Received an update request")
+        logger.info("Received an update request: client {} userdata {}"
+                 .format(client, userdata))
         if msg:
-            log.info("Topic: {} Message: {}".format(msg.topic, msg.payload))
-        log.info("Getting current sensor states...")
-        sr.report()
+            logger.info("Topic: {} Message: {}".format(msg.topic, msg.payload))
+        logger.info("Getting current sensor states...")
+        poll_mgr.report()
     except:
-        import traceback
-        log.error("Unexpected error: {}".format(traceback.format_exec()))
+        logger.error("Unexpected error: {}".format(traceback.format_exc()))
 
 def main():
+    """"The main function, creates everything and starts the polling loop."""
 
     if len(sys.argv) < 2:
         print("No config file specified on the command line! Usage: "
@@ -171,18 +248,13 @@ def main():
         sys.exit(1)
 
     config_file = sys.argv[1]
-    print("Loading config file {}".format(config_file))
-    pm = create_sensor_reporter(config_file)
+    poll_mgr = create_poll_manager(config_file)
 
     # Register functions to handle signals
-    print("Registering for signals")
-    signal.signal(signal.SIGHUP, lambda s, f : reload_configuration(s, f, config_file, pm)) # reload config
-    signal.signal(signal.SIGTERM, terminateProcess)
-    signal.signal(signal.SIGINT, terminateProcess) # CTRL-C
+    register_sig_handlers(config_file, poll_mgr)
 
     # Starting polling loop
-    print("Starting polling loop")
-    pm.start()
+    poll_mgr.start()
 
 if __name__ == '__main__':
     main()

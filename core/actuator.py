@@ -25,19 +25,17 @@ class Actuator(ABC):
     for all but the on_message method which must be overridden.
     """
 
-    def __init__(self, connections, log, params):
+    def __init__(self, connections, params):
         """Initializes the Actuator by storing the passed in arguments as data
         members and registers to subscribe to params("Topic").
 
         Arguments:
         - connections: List of the connections
-        - log: logger to use for important logging messages
         - params: lambda that returns value for the passed in key
 
         Raises:
         - configurationparser.NoOptionError if "Topic" doesn't exist.
         """
-        self.log = log
         self.params = params
         self.connections = connections
         self.destination = params("Topic")

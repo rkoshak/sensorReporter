@@ -19,6 +19,9 @@ Classes: PollManager
 import time
 from multiprocessing import Process
 import traceback
+import logging
+
+log = logging.getLogger(__name__.split(".")[1])
 
 class PollManager:
     """Manages spawing Processes to call a sensor's check method each configured
@@ -27,9 +30,8 @@ class PollManager:
     the most recent reading of the sensor is published/republished.
     """
 
-    def __init__(self, connections, sensors, actuators, log):
+    def __init__(self, connections, sensors, actuators):
         """Prepares the manager to start the polling loop. """
-        self.log = log
         self.connections = connections
         self.sensors = sensors
         self.actuators = actuators
@@ -47,14 +49,14 @@ class PollManager:
         try:
             target()
         except:
-            self.log.error("Error in checking sensor {}: {}"
-                           .format(key, traceback.format_exc()))
+            log.error("Error in checking sensor {}: {}"
+                      .format(key, traceback.format_exc()))
 
     def start(self):
         """Kicks off the polling loop. This method will not return until stop()
         is called from a separate thread.
         """
-        self.log.info("Starting polling loop")
+        log.info("Starting polling loop")
 
         while not self.stop_poll:
             for key, sen in {key:sen for (key, sen) in self.sensors.items()
@@ -62,7 +64,7 @@ class PollManager:
                              and (not sen.last_poll or
                                   (time.time() - sen.last_poll) > sen.poll)}.items():
                 if key in self.processes and self.processes[key].is_alive():
-                    self.log.warn("Sensor {} is still running! Skipping poll."
+                    log.warn("Sensor {} is still running! Skipping poll."
                                   .format(key))
                 else:
                     sen.last_poll = time.time()
@@ -82,20 +84,20 @@ class PollManager:
         self.stop_poll = True
         time.sleep(0.5)
 
-        self.log.info("Cancelling all the polling threads")
+        log.info("Cancelling all the polling threads")
         for proc in self.processes.values():
             proc.terminate()
             proc.join()
 
-        self.log.info("Cleaning up the sensors")
+        log.info("Cleaning up the sensors")
         for sen in self.sensors.values():
             sen.cleanup()
 
-        self.log.info("Cleaning up the actuators")
+        log.info("Cleaning up the actuators")
         for act in self.actuators:
             act.cleanup()
 
-        self.log.info("Disconnecting from connections")
+        log.info("Disconnecting from connections")
         for conn in self.connections.values():
             conn.disconnect()
 
