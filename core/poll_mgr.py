@@ -11,8 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Contains the PollManager class, the class that drives the sensor_reporter.
+
+Classes: PollManager
+"""
 import time
 from multiprocessing import Process
+import traceback
 
 class PollManager:
     """Manages spawing Processes to call a sensor's check method each configured
@@ -41,9 +47,8 @@ class PollManager:
         try:
             target()
         except:
-            import traceback
             self.log.error("Error in checking sensor {}: {}"
-                           .format(key, traceback.format_exec()))
+                           .format(key, traceback.format_exc()))
 
     def start(self):
         """Kicks off the polling loop. This method will not return until stop()
@@ -52,17 +57,17 @@ class PollManager:
         self.log.info("Starting polling loop")
 
         while not self.stop_poll:
-            for k,s in {k:s for (k,s) in self.sensors.items()
-                        if s.poll > 0
-                           and (not s.last_poll or
-                                (time.time() - s.last_poll) > s.poll)}.items():
-                if k in self.processes and self.processes[k].is_alive():
+            for key, sen in {key:sen for (key, sen) in self.sensors.items()
+                             if sen.poll > 0
+                             and (not sen.last_poll or
+                                  (time.time() - sen.last_poll) > sen.poll)}.items():
+                if key in self.processes and self.processes[key].is_alive():
                     self.log.warn("Sensor {} is still running! Skipping poll."
-                                  .format(k))
+                                  .format(key))
                 else:
-                    s.last_poll = time.time()
-                    proc = Process(target=self.__runner, args=(s.check_state, k))
-                    self.processes[k] = proc
+                    sen.last_poll = time.time()
+                    proc = Process(target=self.__runner, args=(sen.check_state, key))
+                    self.processes[key] = proc
                     proc.start()
             # TODO measure the time for the fill loop and warn if it continues
             # to grow.
@@ -78,18 +83,23 @@ class PollManager:
         time.sleep(0.5)
 
         self.log.info("Cancelling all the polling threads")
-        [p.terminate() for p in self.processes.values()]
-        [p.join() for p in self.processes.values()]
+        for proc in self.processes.values():
+            proc.terminate()
+            proc.join()
 
         self.log.info("Cleaning up the sensors")
-        [s.cleanup() for s in self.sensors.values()]
+        for sen in self.sensors.values():
+            sen.cleanup()
 
         self.log.info("Cleaning up the actuators")
-        [a.cleanup() for a in self.actuators]
+        for act in self.actuators:
+            act.cleanup()
 
         self.log.info("Disconnecting from connections")
-        [c.disconnect() for c in self.connections.values()]
+        for conn in self.connections.values():
+            conn.disconnect()
 
     def report(self):
         """Calls publish_state on all the sensors."""
-        [s.publish_state() for s in self.sensors]
+        for sen in self.sensors.values():
+            sen.publish_state()

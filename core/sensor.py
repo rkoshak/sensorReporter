@@ -11,6 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Contains the parent class for Sensors.
+
+Classes: Sensor
+"""
+
 from abc import ABC
 from configparser import NoOptionError
 
@@ -50,13 +56,12 @@ class Sensor(ABC):
         """Called to publish the current state to the publishers. The default
         implementation is a pass.
         """
-        pass
 
     def _send(self, msg, dest):
         """Sends msg to the dest on all publishers."""
-        [conn.publish(msg, dest) for conn in self.publishers]
+        for conn in self.publishers:
+            conn.publish(msg, dest)
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up
         and release resources."""
-        pass

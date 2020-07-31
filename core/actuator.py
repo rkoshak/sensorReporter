@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""This module includes the Actuator parent class.
+
+Classes: Actuator
+"""
 from abc import ABC, abstractmethod
 
 class Actuator(ABC):
@@ -44,7 +48,8 @@ class Actuator(ABC):
         """Protected method that registers to the communicator to subscribe to
         destination and process incoming messages with handler.
         """
-        [conn.register(destination, handler) for conn in self.connections]
+        for conn in self.connections:
+            conn.register(destination, handler)
 
     @abstractmethod
     def on_message(self, client, userdata, msg):
@@ -52,16 +57,15 @@ class Actuator(ABC):
         registered destination. Implementers should execute the action the
         Actuator performes.
         """
-        pass
 
     def cleanup(self):
         """Called to give the Actuator a chance to close down and release any
         resources.
         """
-        pass
 
     def _publish(self, message, destination):
         """Protected method that will publish the passed in message to the
         passed in destination to all the passed in connections.
         """
-        [conn.publish(message, topic) for conn in self.connections]
+        for conn in self.connections:
+            conn.publish(message, destination)

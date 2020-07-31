@@ -11,10 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
+"""Contains the Heartbeat sensor.
+
+Classes: Heartbeat
+"""
 import time
 from core.sensor import Sensor
-from configparser import NoOptionError
 
 class Heartbeat(Sensor):
     """Polling sensor that publishes the current time in number of milliseconds
@@ -28,8 +30,8 @@ class Heartbeat(Sensor):
         - "Poll": cannot be < 1
 
         Raises:
-        - NoOptionError - if an expected parameter doesn't exist or if poll is
-        < 0.
+        - NoOptionError - if an expected parameter doesn't exist
+        - ValueError - if poll is < 0.
         """
         super().__init__(publishers, log, params)
 
@@ -38,7 +40,7 @@ class Heartbeat(Sensor):
         self.start_time = time.time()
 
         if self.poll < 1:
-            raise NoOptionError("Heartbeat poll period is too small!")
+            raise ValueError("Heartbeat requires a poll >= 1")
 
         self.log.info("Configuing Heartbeat: msec to {} and str to {} with "
                       "interval {}".format(self.num_dest, self.str_dest,
@@ -53,14 +55,15 @@ class Heartbeat(Sensor):
         self._send(str(uptime), self.num_dest)
 
         # TODO see if there is some library like timedelta that makes this nicer
-        sec = (uptime / (1000)) % 60
-        min = (uptime / (1000*60)) % 60
-        hr  = (uptime / (1000*60*60)) % 24
-        day = int(uptime / (1000*60*60*24))
+        seconds = (uptime / (1000)) % 60
+        minutes = (uptime / (1000*60)) % 60
+        hours = (uptime / (1000*60*60)) % 24
+        days = int(uptime / (1000*60*60*24))
 
         msg = ''
-        if day > 0:
-          msg += '{0}:'.format(day)
-        msg += '{0:02d}:{1:02d}:{2:02d}'.format(int(hr), int(min), int(sec))
+        if days > 0:
+            msg += '{0}:'.format(days)
+        msg += ('{0:02d}:{1:02d}:{2:02d}'
+                .format(int(hours), int(minutes), int(seconds)))
 
         self._send(msg, self.num_dest)

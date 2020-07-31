@@ -11,9 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import paho.mqtt.client as mqtt
-from configparser import NoOptionError
+
+"""Contains the MQTT connection class.
+
+Classes: MqttConnection
+"""
+import socket
+import traceback
 from time import sleep
+import paho.mqtt.client as mqtt
 from core.connection import Connection
 
 class MqttConnection(Connection):
@@ -46,34 +52,33 @@ class MqttConnection(Connection):
         # Get the parameters, raises NoOptionError if one doesn't exist
         host = params("Host")
         port = int(params("Port"))
-        client = params("Client")
+        client_name = params("Client")
         self.topic = params("Topic")
         tls = params("TLS").lower()
         self.log.info("tls = {}".format(tls))
-        if tls == "yes" or tls == "true" or tls == "1":
-            self.client.tls.set("./certs/ca.crt")
         user = params("User")
         passwd = params("Password")
         keepalive = int(params("Keepalive"))
         lwtt = params("LWT-Topic")
 
         # Initialize the client
-        self.client = mqtt.Client(client_id=client, clean_session=False)
+        self.client = mqtt.Client(client_id=client_name, clean_session=False)
+        if tls in ('yes', 'true', '1'):
+            self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.msg_processor
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
         self.log.info("Attempting to connect to MQTT broker at {}:{}"
-                      .format(host,port))
+                      .format(host, port))
         connected = False
         while not connected:
             try:
                 self.client.connect(host, port=port, keepalive=keepalive)
                 connected = True
-            except:
-                import traceback
-                self.log.error("Error connecting to {}:{}".format(host,port))
+            except socket.gaierror:
+                self.log.error("Error connecting to {}:{}".format(host, port))
                 self.log.debug("Exception: {}".format(traceback.format_exc()))
                 sleep(5)
 
@@ -97,10 +102,9 @@ class MqttConnection(Connection):
             else:
                 self.log.info("Published message {} to {}"
                               .format(message, topic))
-        except:
-            import traceback
+        except ValueError:
             self.log.error("Unexpected error publishing MQTT message: {}"
-                           .format(traceback.format_exec()))
+                           .format(traceback.format_exc()))
 
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
@@ -114,26 +118,28 @@ class MqttConnection(Connection):
         self.client.subscribe(topic)
         self.client.message_callback_add(topic, handler)
 
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, userdata, flags, retcode):
         """Called when the client connects to the broker, resubscribe to the
         sensorReporter topic.
         """
-        self.log.info("Connected with result code {}, subscribing to command "
-                      "topic {}".format(rc, self.topic))
+        self.log.info("Connected with client {}, userdata {}, flags {}, and "
+                      "result code {}. Subscribing to command topic {}"
+                      .format(client, userdata, flags, retcode, self.topic))
 
         # Resubscribe on connection
         self.client.subscribe(self.topic)
-        [self.client.subscribe(r[0]) for r in self.registered]
+        for reg in self.registered:
+            self.client.subscribe(reg[0])
 
         # Act like we received a message on the command topic
         self.msg_processor(None, None, None)
 
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(self, client, userdata, retcode):
         """Called when the client disconnects from the broker. If the reason was
         not because disconnect() was called, try to reconnect.
         """
-        self.log.info("Disconnected from MQTT broker with code {}".format(rc))
+        self.log.info("Disconnected from MQTT broker with code {}".format(retcode))
 
-        if rc != 0:
+        if retcode != 0:
             self.log.info("Unexpected disconnect code {}, reconnecting"
-                          .format(rc))
+                          .format(retcode))

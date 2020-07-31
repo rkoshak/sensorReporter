@@ -11,8 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from core.actuator import Actuator
+
+"""Contains an ExecActuator, an Actuator that executes a command when receiving
+a message.
+
+Classes: ExecActuator
+"""
+
 import subprocess
+from core.actuator import Actuator
 
 class ExecActuator(Actuator):
     """Actuator that calls a configred command line script using the passed in
@@ -44,14 +51,16 @@ class ExecActuator(Actuator):
         is called. Executes the command and publishes the result. Any argument
         that contains ';', '|', or '//' are ignored.
         """
-        self.log("Receives command on {}: {}"
-                 .format(self.command_topic, msg.payload))
+        self.log.info("Receives command on {}: {}"
+                      .format(self.command_topic, msg.payload))
 
-        cmd_args = [arg for arg in self.command.split(' ')
-                    if arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1]
+        def issafe(arg):
+            return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
 
-        [cmd_args.append(arg) for arg in msg.payload.split(' ')
-         if arg != 'NA' and arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1]
+        cmd_args = [arg for arg in self.command.split(' ') if issafe(arg)]
+
+        for arg in [arg for arg in msg.payload.decode("utf-8").split(' ') if issafe(arg)]:
+            cmd_args.append(arg)
 
         self.log.info("Executing command withe the following arguments: {}"
                       .format(cmd_args))
@@ -59,14 +68,14 @@ class ExecActuator(Actuator):
         try:
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
-                                             timeout=10)
+                                             timeout=10).rstrip()
             self.log.info("Command results to be published to {}\n{}"
                           .format(self.result_topic, output))
             self._publish(output, self.result_topic)
-        except subprocess.CallProcessError as e:
+        except subprocess.CalledProcessError as ex:
             self.log.error("Command returned and error code: {}\n{}"
-                           .format(e.returncode, e.output))
+                           .format(ex.returncode, ex.output))
             self._publish("ERROR", self.result_topic)
-        except subprocess.TimoutExpired as e:
+        except subprocess.TimeoutExpired:
             self.log.error("Command took longer than 10 seconds.")
             self._publish("ERROR", self.result_topic)

@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Contains the parent Connection class.
+
+Classes: Connections
+"""
 from abc import ABC, abstractmethod
 
 class Connection(ABC):
@@ -37,14 +42,11 @@ class Connection(ABC):
         """Abstarct method that must be overriden. When called, send the passed
         in message to the passed in destination.
         """
-        pass
 
     def disconnect(self):
         """Disconnect from the connection and release any resources."""
-        pass
 
     def register(self, destination, handler):
         """Set up the passed in handler to be called for any message on the
         destination.
         """
-        pass
