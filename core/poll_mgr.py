@@ -38,20 +38,6 @@ class PollManager:
         self.stop_poll = False
         self.threads = {}
 
-    def __runner(self, target, key):
-        """Called in a separate Process, calls the check_state method on a
-        sensor and reports if there was an exception raised.
-
-        Arguments:
-        - target: the check_state method to call
-        - key: helps identify which Sensor entry died
-        """
-        try:
-            target()
-        except:
-            log.error("Error in checking sensor {}: {}"
-                      .format(key, traceback.format_exc()))
-
     def start(self):
         """Kicks off the polling loop. This method will not return until stop()
         is called from a separate thread.
@@ -64,11 +50,21 @@ class PollManager:
                              and (not sen.last_poll or
                                   (time.time() - sen.last_poll) > sen.poll)}.items():
                 if key in self.threads and self.threads[key].is_alive():
-                    log.warn("Sensor {} is still running! Skipping poll."
-                                  .format(key))
+                    log.warning("Sensor %s is still running! Skipping poll.",
+                                key)
                 else:
+                    # Wrap the call so we can catch and report exceptions.
+                    def runner(target, key):
+                        try:
+                            target()
+                        # TODO create a special exception to catch
+                        except:
+                            log.error("Error in checing sensor %s: %s", key,
+                                      traceback.format_exc())
+
                     sen.last_poll = time.time()
-                    thread = Thread(target=self.__runner, args=(sen.check_state, key))
+                    thread = Thread(target=runner,
+                                    args=(sen.check_state, key))
                     self.threads[key] = thread
                     thread.start()
             # TODO measure the time for the fill loop and warn if it continues

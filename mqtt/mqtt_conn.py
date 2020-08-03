@@ -59,7 +59,6 @@ class MqttConnection(Connection):
         client_name = params("Client")
         self.topic = params("Topic")
         tls = params("TLS").lower()
-        log.info("tls = {}".format(tls))
         user = params("User")
         passwd = params("Password")
         keepalive = int(params("Keepalive"))
@@ -75,16 +74,15 @@ class MqttConnection(Connection):
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
-        log.info("Attempting to connect to MQTT broker at {}:{}"
-                      .format(host, port))
+        log.info("Attempting to connect to MQTT broker at %s:%s", host, port)
         self.connected = False
         while not self.connected:
             try:
                 self.client.connect(host, port=port, keepalive=keepalive)
                 self.connected = True
             except socket.gaierror:
-                log.error("Error connecting to {}:{}".format(host, port))
-                log.debug("Exception: {}".format(traceback.format_exc()))
+                log.error("Error connecting to %s:%s", host, port)
+                log.debug("Exception: %s", traceback.format_exc())
                 sleep(5)
 
         log.info("Connection to MQTT is successful")
@@ -101,19 +99,17 @@ class MqttConnection(Connection):
         """Publishes message to topic, logging if there is an error."""
         try:
             if not self.connected:
-                log.warn("MQTT is not currently connected! Ignoring message")
+                log.warning("MQTT is not currently connected! Ignoring message")
                 return
 
             rval = self.client.publish(topic, message)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
-                log.error("Error puiblishing update {} to {}"
-                          .format(message, topic))
+                log.error("Error puiblishing update %s to %s", message, topic)
             else:
-                log.info("Published message {} to {}"
-                         .format(message, topic))
+                log.info("Published message %s to %s", message, topic)
         except ValueError:
-            log.error("Unexpected error publishing MQTT message: {}"
-                      .format(traceback.format_exc()))
+            log.error("Unexpected error publishing MQTT message: %s",
+                      traceback.format_exc())
 
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
@@ -122,7 +118,7 @@ class MqttConnection(Connection):
 
     def register(self, topic, handler):
         """Registers a handler to be called on messages received on topic."""
-        log.info("Registering for messages on " + topic)
+        log.info("Registering for messages on %s", topic)
         self.registered.append((topic, handler))
         self.client.subscribe(topic)
         self.client.message_callback_add(topic, handler)
@@ -131,9 +127,9 @@ class MqttConnection(Connection):
         """Called when the client connects to the broker, resubscribe to the
         sensorReporter topic.
         """
-        log.info("Connected with client {}, userdata {}, flags {}, and "
-                 "result code {}. Subscribing to command topic {}"
-                 .format(client, userdata, flags, retcode, self.topic))
+        log.info("Connected with client %s, userdata %s, flags %s, and "
+                 "result code %s. Subscribing to command topic %s",
+                 client, userdata, flags, retcode, self.topic)
 
         self.connected = True
         # Resubscribe on connection
@@ -148,15 +144,15 @@ class MqttConnection(Connection):
         """Called when the client disconnects from the broker. If the reason was
         not because disconnect() was called, try to reconnect.
         """
-        log.info("Disconnected from MQTT broker with client {}, userdata "
-                 "{}, and code {}".format(client, userdata, retcode))
+        log.info("Disconnected from MQTT broker with client %s, userdata "
+                 "%s, and code %s", client, userdata, retcode)
 
         self.connected = False
         if retcode != 0:
-            codes = { 1: "incorrect protocol verison",
-                      2: "invalid client identifier",
-                      3: "server unavailable",
-                      4: "bad username or password",
-                      5: "not authorized"}
-            log.error("Unexpected disconnect code {}:{}, reconnecting"
-                      .format(retcode, codes[retcode]))
+            codes = {1: "incorrect protocol verison",
+                     2: "invalid client identifier",
+                     3: "server unavailable",
+                     4: "bad username or password",
+                     5: "not authorized"}
+            log.error("Unexpected disconnect code %s: %s, reconnecting",
+                      retcode, codes[retcode])

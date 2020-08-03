@@ -47,9 +47,8 @@ class Heartbeat(Sensor):
         if self.poll < 1:
             raise ValueError("Heartbeat requires a poll >= 1")
 
-        log.info("Configuing Heartbeat: msec to {} and str to {} with "
-                 "interval {}".format(self.num_dest, self.str_dest,
-                                      self.poll))
+        log.info("Configuing Heartbeat: msec to %s and str to %s with "
+                 "interval %s", self.num_dest, self.str_dest, self.poll)
 
     def publish_state(self):
         """Calculates the current up time and publishes it as msec and string

@@ -47,17 +47,16 @@ class ExecActuator(Actuator):
         self.command_topic = params("Topic")
         self.result_topic = params("ResultTopic")
 
-        log.info("Configuring Exec Actuator: Command Topic = {}, Result "
-                 "Topic = {}, Command = {}"
-                 .format(self.command_topic, self.result_topic, self.command))
+        log.info("Configuring Exec Actuator: Command Topic = %s, Result "
+                 "Topic = %s, Command = %s", self.command_topic,
+                 self.result_topic, self.command)
 
     def on_message(self, client, userdata, msg):
         """When a message is received on the "Command" destination this method
         is called. Executes the command and publishes the result. Any argument
         that contains ';', '|', or '//' are ignored.
         """
-        log.info("Receives command on {}: {}"
-                 .format(self.command_topic, msg.payload))
+        log.info("Receives command on %s: %s", self.command_topic, msg.payload)
 
         def issafe(arg):
             return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
@@ -67,19 +66,18 @@ class ExecActuator(Actuator):
         for arg in [arg for arg in msg.payload.decode("utf-8").split(' ') if issafe(arg)]:
             cmd_args.append(arg)
 
-        log.info("Executing command withe the following arguments: {}"
-                 .format(cmd_args))
+        log.info("Executing command withe the following arguments: %s", cmd_args)
 
         try:
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
                                              timeout=10).rstrip()
-            log.info("Command results to be published to {}\n{}"
-                     .format(self.result_topic, output))
+            log.info("Command results to be published to %s\n%s",
+                     self.result_topic, output)
             self._publish(output, self.result_topic)
         except subprocess.CalledProcessError as ex:
-            log.error("Command returned and error code: {}\n{}"
-                      .format(ex.returncode, ex.output))
+            log.error("Command returned and error code: %s\n%s",
+                      ex.returncode, ex.output)
             self._publish("ERROR", self.result_topic)
         except subprocess.TimeoutExpired:
             log.error("Command took longer than 10 seconds.")
