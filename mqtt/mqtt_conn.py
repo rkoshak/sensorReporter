@@ -66,8 +66,9 @@ class MqttConnection(Connection):
         lwtt = params("LWT-Topic")
 
         # Initialize the client
-        self.client = mqtt.Client(client_id=client_name, clean_session=False)
+        self.client = mqtt.Client(client_id=client_name, clean_session=True)
         if tls in ('yes', 'true', '1'):
+            log.debug("TLS is true, configuring certificates")
             self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.msg_processor
@@ -76,11 +77,11 @@ class MqttConnection(Connection):
 
         log.info("Attempting to connect to MQTT broker at {}:{}"
                       .format(host, port))
-        connected = False
-        while not connected:
+        self.connected = False
+        while not self.connected:
             try:
                 self.client.connect(host, port=port, keepalive=keepalive)
-                connected = True
+                self.connected = True
             except socket.gaierror:
                 log.error("Error connecting to {}:{}".format(host, port))
                 log.debug("Exception: {}".format(traceback.format_exc()))
@@ -88,7 +89,7 @@ class MqttConnection(Connection):
 
         log.info("Connection to MQTT is successful")
 
-        self.client.will_set(lwtt, "OFFLINE", qos=0, retain=True)
+        self.client.will_set(lwtt, "OFFLINE", qos=2, retain=True)
         self.client.loop_start()
 
         self.registered = []
@@ -99,6 +100,10 @@ class MqttConnection(Connection):
     def publish(self, message, topic):
         """Publishes message to topic, logging if there is an error."""
         try:
+            if not self.connected:
+                log.warn("MQTT is not currently connected! Ignoring message")
+                return
+
             rval = self.client.publish(topic, message)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
                 log.error("Error puiblishing update {} to {}"
@@ -130,6 +135,7 @@ class MqttConnection(Connection):
                  "result code {}. Subscribing to command topic {}"
                  .format(client, userdata, flags, retcode, self.topic))
 
+        self.connected = True
         # Resubscribe on connection
         self.client.subscribe(self.topic)
         for reg in self.registered:
@@ -145,6 +151,12 @@ class MqttConnection(Connection):
         log.info("Disconnected from MQTT broker with client {}, userdata "
                  "{}, and code {}".format(client, userdata, retcode))
 
+        self.connected = False
         if retcode != 0:
-            log.info("Unexpected disconnect code {}, reconnecting"
-                     .format(retcode))
+            codes = { 1: "incorrect protocol verison",
+                      2: "invalid client identifier",
+                      3: "server unavailable",
+                      4: "bad username or password",
+                      5: "not authorized"}
+            log.error("Unexpected disconnect code {}:{}, reconnecting"
+                      .format(retcode, codes[retcode]))

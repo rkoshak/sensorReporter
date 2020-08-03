@@ -17,7 +17,7 @@
 Classes: PollManager
 """
 import time
-from multiprocessing import Process
+from threading import Thread
 import traceback
 import logging
 
@@ -36,7 +36,7 @@ class PollManager:
         self.sensors = sensors
         self.actuators = actuators
         self.stop_poll = False
-        self.processes = {}
+        self.threads = {}
 
     def __runner(self, target, key):
         """Called in a separate Process, calls the check_state method on a
@@ -63,14 +63,14 @@ class PollManager:
                              if sen.poll > 0
                              and (not sen.last_poll or
                                   (time.time() - sen.last_poll) > sen.poll)}.items():
-                if key in self.processes and self.processes[key].is_alive():
+                if key in self.threads and self.threads[key].is_alive():
                     log.warn("Sensor {} is still running! Skipping poll."
                                   .format(key))
                 else:
                     sen.last_poll = time.time()
-                    proc = Process(target=self.__runner, args=(sen.check_state, key))
-                    self.processes[key] = proc
-                    proc.start()
+                    thread = Thread(target=self.__runner, args=(sen.check_state, key))
+                    self.threads[key] = thread
+                    thread.start()
             # TODO measure the time for the fill loop and warn if it continues
             # to grow.
             time.sleep(0.5)
@@ -81,13 +81,13 @@ class PollManager:
         the sensors, actuators, and connections.
         """
         # Stop the polling loop
+        # TODO add an Event object that we can use to interrupt sleeps in sensors
         self.stop_poll = True
         time.sleep(0.5)
 
-        log.info("Cancelling all the polling threads")
-        for proc in self.processes.values():
-            proc.terminate()
-            proc.join()
+        log.info("Waiting for all the polling threads")
+        for thread in self.threads.values():
+            thread.join()
 
         log.info("Cleaning up the sensors")
         for sen in self.sensors.values():

@@ -71,4 +71,4 @@ class Heartbeat(Sensor):
         msg += ('{0:02d}:{1:02d}:{2:02d}'
                 .format(int(hours), int(minutes), int(seconds)))
 
-        self._send(msg, self.num_dest)
+        self._send(msg, self.str_dest)
