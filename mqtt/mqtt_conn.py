@@ -49,8 +49,7 @@ class MqttConnection(Connection):
         If the connection fails, it will keep retrying every five seconds until
         the connection is successful.
         """
-        super().__init__(msg_processor, params)
-        set_log_level(params, log)
+        super().__init__(msg_processor, params, log)
         log.info("Initializing MQTT Connection...")
 
         # Get the parameters, raises NoOptionError if one doesn't exist
@@ -106,7 +105,7 @@ class MqttConnection(Connection):
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
                 log.error("Error puiblishing update %s to %s", message, topic)
             else:
-                log.info("Published message %s to %s", message, topic)
+                log.debug("Published message %s to %s", message, topic)
         except ValueError:
             log.error("Unexpected error publishing MQTT message: %s",
                       traceback.format_exc())
