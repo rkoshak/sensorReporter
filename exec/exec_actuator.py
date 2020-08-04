@@ -21,7 +21,7 @@ Classes: ExecActuator
 import subprocess
 import logging
 from core.actuator import Actuator
-from core.utils import set_log_level
+from core.utils import set_log_level #TODO move this to Actuator
 
 log = logging.getLogger(__name__.split(".")[1])
 
@@ -58,6 +58,7 @@ class ExecActuator(Actuator):
         """
         log.info("Receives command on %s: %s", self.command_topic, msg.payload)
 
+        # TODO move this to utils
         def issafe(arg):
             return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
 

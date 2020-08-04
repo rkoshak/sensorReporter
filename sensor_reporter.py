@@ -97,18 +97,7 @@ def init_logger(config):
     root_logger = logging.getLogger()
     while root_logger.hasHandlers():
         root_logger.removeHandler(root_logger.handlers[0])
-    # level = config.get("Logging", "Level", fallback="INFO")
 
-    # levels = {
-    #     "CRITICAL": logging.CRITICAL,
-    #     "ERROR"   : logging.ERROR,
-    #     "WARNING" : logging.WARNING,
-    #     "INFO"    : logging.INFO,
-    #     "DEBUG"   : logging.DEBUG,
-    #     "NOTSET"  : logging.NOTSET
-    # }
-
-    # root_logger.setLevel(levels.get(level, logging.NOTSET))
     set_log_level(lambda key: config.get("Logging", key), root_logger)
 
     formatter = logging.Formatter('%(asctime)s %(levelname)8s - [%(name)15.15s] %(message)s')

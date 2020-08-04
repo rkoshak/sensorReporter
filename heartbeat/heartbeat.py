@@ -18,7 +18,6 @@ Classes: Heartbeat
 import time
 import logging
 from core.sensor import Sensor
-from core.utils import set_log_level
 
 log = logging.getLogger(__name__.split(".")[1])
 
@@ -37,8 +36,7 @@ class Heartbeat(Sensor):
         - NoOptionError - if an expected parameter doesn't exist
         - ValueError - if poll is < 0.
         """
-        super().__init__(publishers, params)
-        set_log_level(params, log)
+        super().__init__(publishers, params, log)
 
         self.num_dest = params("Num-Dest")
         self.str_dest = params("Str-Dest")

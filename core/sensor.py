@@ -19,13 +19,14 @@ Classes: Sensor
 
 from abc import ABC
 from configparser import NoOptionError
+from core.utils import set_log_level
 
 class Sensor(ABC):
     """Abstract class from which all sensors should inherit. check_state and/or
     publish_state should be overridden.
     """
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, params, logger):
         """
         Sets all the passed in arguments as data members. If params("Poll")
         exists self.poll will be set to that. If not it is initialized to -1.
@@ -35,6 +36,7 @@ class Sensor(ABC):
         - publishers: list of Connection objects to report to.
         - params: parameters from the section in the .ini file the sensor is created
         from.
+        - logger: Logger that we will set the level to based on the Level param
         """
         self.publishers = publishers
         self.params = params
@@ -43,6 +45,8 @@ class Sensor(ABC):
         except NoOptionError:
             self.poll = -1
         self.last_poll = None
+        set_log_level(logger)
+
 
     def check_state(self):
         """Called to check the latest state of sensor and publish it. If not
