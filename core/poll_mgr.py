@@ -59,7 +59,7 @@ class PollManager:
                             target()
                         # TODO create a special exception to catch
                         except:
-                            log.error("Error in checing sensor %s: %s", key,
+                            log.error("Error in checking sensor %s: %s", key,
                                       traceback.format_exc())
 
                     sen.last_poll = time.time()

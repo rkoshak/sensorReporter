@@ -66,6 +66,7 @@ class GoveeSensor(Sensor):
 
                 name = split[0] if len(split) == 1 else split[1]
                 if mac not in self.devices:
+                    self.devices[mac] = {}
                     self.devices[mac]["name"] = name
 
                 encoded_data = int(advertisement.mfg_data.hex()[6:12], 16)
@@ -77,7 +78,7 @@ class GoveeSensor(Sensor):
                 self.devices[mac]["humi"] = format(((encoded_data % 1000) / 10),
                                                    ".2f")
 
-                self.logger.debug("Govee data to publish: {}", self.devices)
+                log.debug("Govee data to publish: {}", self.devices)
                 self.publish_state()
 
             # Process an rssi reading. Don't bother to publish now, wait for the
@@ -91,7 +92,7 @@ class GoveeSensor(Sensor):
     def publish_state(self):
         """Publishes the most recent of all the readings."""
 
-        for conn in self.publish:
+        for conn in self.publishers:
             for mac in self.devices:
                 if "name" in self.devices[mac]:
                     name = self.devices[mac]["name"]
