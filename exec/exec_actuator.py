@@ -70,6 +70,7 @@ class ExecActuator(Actuator):
         log.info("Executing command withe the following arguments: %s", cmd_args)
 
         try:
+            # TODO make timeout a parameter
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
                                              timeout=10).rstrip()

@@ -51,7 +51,7 @@ class ExecSensor(Sensor):
         try:
             self.results = subprocess.check_output(self.cmd_args, shell=False,
                                                    universal_newlines=True,
-                                                   timeout=10).rstrip()
+                                                   timeout=self.poll).rstrip()
             log.info("Command results to be published to %s\n%s",
                      self.destination, self.results)
         except subprocess.CalledProcessError as ex:
