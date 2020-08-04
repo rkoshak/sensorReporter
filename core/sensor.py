@@ -45,7 +45,7 @@ class Sensor(ABC):
         except NoOptionError:
             self.poll = -1
         self.last_poll = None
-        set_log_level(logger)
+        set_log_level(params, logger)
 
 
     def check_state(self):

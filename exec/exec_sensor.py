@@ -1,4 +1,4 @@
-_# Copyright 2020 Richard Koshak
+# Copyright 2020 Richard Koshak
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ poll and reports the results.
 import subprocess
 import logging
 import time
-from core.sensor import sensor
+from core.sensor import Sensor
 
 log = logging.getLogger(__name__.split(".")[1])
 
@@ -28,7 +28,7 @@ def issafe(arg):
 class ExecSensor(Sensor):
     """Periodically calls a script/program and publishes the result."""
 
-    def __init(self, publishers, params):
+    def __init__(self, publishers, params):
         """Parses the params and prepars to be called. Polling is managed
         outside the sensor.
         """
@@ -42,7 +42,7 @@ class ExecSensor(Sensor):
         self.results = ""
 
         log.info("Configured exec_sensor to call script %s and destination %s "
-                 "with interval %s", self.script, self.dest, self.poll)
+                 "with interval %s", self.script, self.destination, self.poll)
 
     def check_state(self):
         """Calls the script and saves and publishes the result."""
