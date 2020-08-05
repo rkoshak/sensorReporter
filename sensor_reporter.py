@@ -45,13 +45,15 @@ from core.poll_mgr import PollManager
 from core.utils import set_log_level
 
 logger = logging.getLogger("sensor_reporter")
+poll_mgr = None
 
-def reload_configuration(signum, frame, config_file, poll_mgr):
+def reload_configuration(signum, frame, config_file):
     """Called when a SIGHUP is received. Stops the polling manager and recreates
     it with the latest config file. Reregisters the signal handlers.
     """
     logger.info('(SIGHUP) reading configuration: {} {}'.format(signum, frame))
 
+    global poll_mgr
     if poll_mgr:
         poll_mgr.stop()
         poll_mgr = create_poll_manager(config_file)
@@ -72,7 +74,7 @@ def register_sig_handlers(config_file, poll_mgr):
     and poll_mgr.
     """
     signal.signal(signal.SIGHUP,
-                  lambda s, f: reload_configuration(s, f, config_file, poll_mgr))
+                  lambda s, f: reload_configuration(s, f, config_file))
     signal.signal(signal.SIGTERM,
                   lambda s, f: terminate_process(s, f, poll_mgr))
     signal.signal(signal.SIGINT,
@@ -214,15 +216,13 @@ def create_poll_manager(config_file):
     logger.debug("Created, returning polling manager")
     return poll_mgr
 
-def on_message(client, userdata, msg, poll_mgr):
+def on_message(msg):
     """Called when a message to sensor_reporter is received on a Connection.
     Calls report on the poll_mgr.
     """
     try:
-        logger.info("Received an update request: client {} userdata {}"
-                 .format(client, userdata))
         if msg:
-            logger.info("Topic: {} Message: {}".format(msg.topic, msg.payload))
+            logger.info("Message: {}".format(msg))
         logger.info("Getting current sensor states...")
         poll_mgr.report()
     except:
@@ -237,6 +237,7 @@ def main():
         sys.exit(1)
 
     config_file = sys.argv[1]
+    global poll_mgr
     poll_mgr = create_poll_manager(config_file)
 
     # Register functions to handle signals

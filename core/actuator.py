@@ -50,7 +50,7 @@ class Actuator(ABC):
             conn.register(destination, handler)
 
     @abstractmethod
-    def on_message(self, client, userdata, msg):
+    def on_message(self, msg):
         """Abstract method that will get called when a message is received on a
         registered destination. Implementers should execute the action the
         Actuator performes.

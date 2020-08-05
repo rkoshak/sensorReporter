@@ -67,7 +67,7 @@ class ExecActuator(Actuator):
         for arg in [arg for arg in msg.payload.decode("utf-8").split(' ') if issafe(arg)]:
             cmd_args.append(arg)
 
-        log.info("Executing command withe the following arguments: %s", cmd_args)
+        log.info("Executing command with the following arguments: %s", cmd_args)
 
         try:
             # TODO make timeout a parameter
