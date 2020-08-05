@@ -17,6 +17,7 @@
 Classes: Actuator
 """
 from abc import ABC, abstractmethod
+from core.utils import set_log_level
 
 class Actuator(ABC):
     """Class from which all actuator capabilities must inherit. Is assumes there
@@ -25,22 +26,25 @@ class Actuator(ABC):
     for all but the on_message method which must be overridden.
     """
 
-    def __init__(self, connections, params):
+    def __init__(self, connections, params, log):
         """Initializes the Actuator by storing the passed in arguments as data
         members and registers to subscribe to params("Topic").
 
         Arguments:
         - connections: List of the connections
         - params: lambda that returns value for the passed in key
+        - log: Loggger from the inheriting class to set it's level.
 
         Raises:
         - configurationparser.NoOptionError if "Topic" doesn't exist.
         """
         self.params = params
         self.connections = connections
-        self.destination = params("Topic")
+        self.cmd_src = params("CommandSrc")
+        self.destination = params("ResultsDest")
+        set_log_level(params, log)
 
-        self._register(self.destination, self.on_message)
+        self._register(self.cmd_src, self.on_message)
 
     def _register(self, destination, handler):
         """Protected method that registers to the communicator to subscribe to

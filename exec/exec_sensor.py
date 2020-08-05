@@ -19,11 +19,9 @@ import subprocess
 import logging
 import time
 from core.sensor import Sensor
+from core.utils import issafe
 
 log = logging.getLogger(__name__.split(".")[1])
-
-def issafe(arg):
-    return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
 
 class ExecSensor(Sensor):
     """Periodically calls a script/program and publishes the result."""

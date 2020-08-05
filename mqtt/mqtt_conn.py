@@ -74,7 +74,6 @@ class MqttConnection(Connection):
             log.debug("TLS is true, configuring certificates")
             self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
-#        self.client.on_message = self.on_refresh
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
@@ -93,7 +92,7 @@ class MqttConnection(Connection):
 
         log.info("LWT topic is %s, subscribing to refresh topic %s", self.lwt, self.refresh_topic)
         self.client.will_set(self.lwt, "OFFLINE", qos=2, retain=True)
-        self.register("refresh", self.on_refresh)
+        self.register("refresh", msg_processor)
 
         self.client.loop_start()
 
@@ -128,10 +127,13 @@ class MqttConnection(Connection):
         """
         full_topic = "{}/{}".format(self.root_topic, topic)
         log.info("Registering for messages on %s", full_topic)
-        mqtt_handler = lambda client, userdata, msg: handler(msg)
-        self.registered.append((full_topic, mqtt_handler))
+
+        def on_message(client, userdata, msg):
+            handler(msg.payload.decode("utf-8"))
+
+        self.registered.append((full_topic, on_message))
         self.client.subscribe(full_topic)
-        self.client.message_callback_add(full_topic, mqtt_handler)
+        self.client.message_callback_add(full_topic, on_message)
 
     def on_connect(self, client, userdata, flags, retcode):
         """Called when the client connects to the broker, resubscribe to the
@@ -170,10 +172,10 @@ class MqttConnection(Connection):
             log.error("Unexpected disconnect code %s: %s, reconnecting",
                       retcode, codes[retcode])
 
-    def on_refresh(self, msg):
-        """Called when a message on the refresh topic is received, call the main
-        sensor_reporter message processor.
-        """
-        message = str(msg.payload.decode("utf-8"))
-        log.info("Received a message on %s: %s", self.refresh_topic, message)
-        self.msg_processor(message)
+    # def on_refresh(self, msg):
+    #     """Called when a message on the refresh topic is received, call the main
+    #     sensor_reporter message processor.
+    #     """
+    #     message = str(msg.payload.decode("utf-8"))
+    #     log.info("Received a message on %s: %s", self.refresh_topic, message)
+    #     self.msg_processor(message)

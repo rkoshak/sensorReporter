@@ -3,6 +3,8 @@
 Functions:
     - set_log_level: Sets the logging level on the passed in logger to the level
     equivalent to the passed "Level" property in params.
+    - issage: returns False if the passed in ag contains unsafe characters to use
+    on the command line.
 """
 import logging
 from configparser import NoOptionError
@@ -29,3 +31,7 @@ def set_log_level(params, logger):
     }
 
     logger.setLevel(levels.get(level, logging.NOTSET))
+
+def issafe(arg):
+    """Returns False if arg contains ';', '|', or '//'."""
+    return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
