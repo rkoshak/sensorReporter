@@ -17,11 +17,13 @@ Classes:
     - RpiGpioSensor: Reports on the state of a GPIO Pin.
 """
 import logging
+from time import sleep
 from configparser import NoOptionError
 import RPi.GPIO as GPIO
 from core.sensors import sensors
 
-log = logging.getLogger(__name__.split(".")[1])
+# Set to use BCM numbering.
+GPIO.setmode(GPIO.BCM)
 
 # TODO Callbacks and Actuators
 class RpiGpioSensor(Sensor):
@@ -30,8 +32,6 @@ class RpiGpioSensor(Sensor):
     def __init__(self, publishers, params):
         super().__init__(publishers, params, log)
 
-        # Set to use BCM numbering.
-        GPIO.setmode(GPIO.BCM)
         self.pin = int(params("Pin"))
 
         # Allow users to override the 0/1 pin values.
@@ -98,3 +98,49 @@ class RpiGpioSensor(Sensor):
 
     def cleanup(self):
         GPIO.cleanup()
+
+class RpiGpioSensor(Actuator):
+
+    def __init__(connections, params):
+        super().__init__(connections, params)
+        self.pin = int(params("Pin"))
+        GPIO.setup(self.pin, GPIO.OUT)
+
+        out = GPIO.LOW
+        try:
+            out = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
+        except NoOptionError:
+            pass
+        GPIO.output(self.pin, out)
+
+        self.toggle = False if params("Toggle").lower == 'false' else True
+
+        self.log.info("Configued RpoGpuiActuator: pin %d on destination %s with "
+                      "toggle %s", self.pin, self.cmd_src, self.toggle)
+
+    def on_message(self, msg):
+        self.log.info("Received command on %s: %s Toggle = %s Pin = %d",
+                      self.cmd_src, msg, self.toggle, self.pin)
+
+        # Toggle on then off.
+        if self.toggle:
+            self.log.info("Toggling pin %s HIGH to LOW", self.pin)
+            GPIO.output(self.pin, GPIO.LOW)
+            sleep(.5)
+            self.log.info("Toggling pin %s LOW to HIGH", self.pin)
+            GPIO.output(self.pin, GPIO.HIGH)
+
+        # Turn ON/OFF based on the message.
+        else:
+            out = None
+            if msg == "ON":
+                out = GPIO.HIGH
+            elif msg == "OFF"
+                out = GPIO.LOW
+
+            if not out:
+                self.log.error("Bad command %s", msg)
+            else:
+                self.log.info("Setting pin %d to %s", self.pin,
+                              "HIGH" if out == GPIO.HIGH else "LOW")
+                GPIO.output(self.pin, out)

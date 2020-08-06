@@ -18,6 +18,7 @@ Classes: Actuator
 """
 from abc import ABC, abstractmethod
 import logging
+from configparser import NoOptionError
 from core.utils import set_log_level
 
 class Actuator(ABC):
@@ -34,15 +35,20 @@ class Actuator(ABC):
         Arguments:
         - connections: List of the connections
         - params: lambda that returns value for the passed in key
-
+            "CommandSrc": required, where command to run the actuator come from
+            "ResultDest": optional, where the results from the command are
+            published.
         Raises:
-        - configurationparser.NoOptionError if "Topic" doesn't exist.
+        - configurationparser.NoOptionError if "CommandSrc" doesn't exist.
         """
         self.log = logging.getLogger(type(self).__name__)
         self.params = params
         self.connections = connections
         self.cmd_src = params("CommandSrc")
-        self.destination = params("ResultsDest")
+        try:
+            self.destination = params("ResultsDest")
+        except NoOptionError:
+            self.destination = None
         set_log_level(params, self.log)
 
         self._register(self.cmd_src, self.on_message)
