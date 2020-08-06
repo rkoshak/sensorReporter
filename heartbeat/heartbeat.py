@@ -16,10 +16,7 @@
 Classes: Heartbeat
 """
 import time
-import logging
 from core.sensor import Sensor
-
-log = logging.getLogger(__name__.split(".")[1])
 
 class Heartbeat(Sensor):
     """Polling sensor that publishes the current time in number of milliseconds
@@ -36,7 +33,7 @@ class Heartbeat(Sensor):
         - NoOptionError - if an expected parameter doesn't exist
         - ValueError - if poll is < 0.
         """
-        super().__init__(publishers, params, log)
+        super().__init__(publishers, params)
 
         self.num_dest = params("Num-Dest")
         self.str_dest = params("Str-Dest")
@@ -45,8 +42,8 @@ class Heartbeat(Sensor):
         if self.poll < 1:
             raise ValueError("Heartbeat requires a poll >= 1")
 
-        log.info("Configuing Heartbeat: msec to %s and str to %s with "
-                 "interval %s", self.num_dest, self.str_dest, self.poll)
+        self.log.info("Configuing Heartbeat: msec to %s and str to %s with "
+                      "interval %s", self.num_dest, self.str_dest, self.poll)
 
     def publish_state(self):
         """Calculates the current up time and publishes it as msec and string

@@ -17,6 +17,7 @@
 Classes: Connections
 """
 from abc import ABC, abstractmethod
+import logging
 from core.utils import set_log_level
 
 class Connection(ABC):
@@ -24,7 +25,7 @@ class Connection(ABC):
     implementation for all methods except publish which must be overridden.
     """
 
-    def __init__(self, msg_processor, params, logger):
+    def __init__(self, msg_processor, params):
         """Stores the passed in arguments as data members.
 
         Arguments:
@@ -33,9 +34,10 @@ class Connection(ABC):
         sensor. This is the method that gets called when a message is received.
         - params: set of properties from the loaded ini file.
         """
+        self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
         self.params = params
-        set_log_level(params, logger)
+        set_log_level(params, self.log)
 
     @abstractmethod
     def publish(self, message, destination):

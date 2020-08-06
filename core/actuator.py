@@ -17,6 +17,7 @@
 Classes: Actuator
 """
 from abc import ABC, abstractmethod
+import logging
 from core.utils import set_log_level
 
 class Actuator(ABC):
@@ -26,23 +27,23 @@ class Actuator(ABC):
     for all but the on_message method which must be overridden.
     """
 
-    def __init__(self, connections, params, log):
+    def __init__(self, connections, params):
         """Initializes the Actuator by storing the passed in arguments as data
         members and registers to subscribe to params("Topic").
 
         Arguments:
         - connections: List of the connections
         - params: lambda that returns value for the passed in key
-        - log: Loggger from the inheriting class to set it's level.
 
         Raises:
         - configurationparser.NoOptionError if "Topic" doesn't exist.
         """
+        self.log = logging.getLogger(type(self).__name__)
         self.params = params
         self.connections = connections
         self.cmd_src = params("CommandSrc")
         self.destination = params("ResultsDest")
-        set_log_level(params, log)
+        set_log_level(params, self.log)
 
         self._register(self.cmd_src, self.on_message)
 

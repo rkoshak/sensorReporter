@@ -16,15 +16,12 @@
 Classes:
     - openhab_rest: publishes state updates to openHAB Items.
 """
-import logging
 import json
 import traceback
 from threading import Thread
 import requests
 import sseclient
 from core.connection import Connection
-
-log = logging.getLogger(__name__.split(".")[1])
 
 class OpenhabREST(Connection):
     """Publishes a state to a given openHAB Item. Expects there to be a URL
@@ -39,9 +36,10 @@ class OpenhabREST(Connection):
         - "RefreshItem": Name of the openHAB Item that, when it receives a
         command will cause sensor_reporter to publish the most recent states of
         all the sensors.
+        - msg_processor: message handler for command to the RefreshItem
         """
-        super().__init__(msg_processor, params, log)
-        log.info("Initializing openHAB REST Connection...")
+        super().__init__(msg_processor, params)
+        self.log.info("Initializing openHAB REST Connection...")
 
         self.openhab_url = params("URL")
         self.refresh_item = params("RefreshItem")
@@ -74,7 +72,7 @@ class OpenhabREST(Connection):
                 if item in self.registered:
                     payload = json.loads(decoded["payload"])
                     msg = payload["value"]
-                    log.info("Received command from %s: %s", item, msg)
+                    self.log.info("Received command from %s: %s", item, msg)
                     self.registered[item](msg)
 
     def register(self, item, handler):
@@ -87,21 +85,21 @@ class OpenhabREST(Connection):
     def publish(self, state, item):
         """Publishes the passed in state to the passed in Item as an update."""
         try:
-            log.debug("Publishing message %s to %s", state, item)
+            self.log.debug("Publishing message %s to %s", state, item)
             response = requests.put("{}/rest/items/{}/state"
                                     .format(self.openhab_url, item),
                                     data=state, timeout=10)
             response.raise_for_status()
         except ConnectionError:
-            log.error("Failed to connect to %s\n%s", self.openhab_url,
-                      traceback.format_exc())
+            self.log.error("Failed to connect to %s\n%s", self.openhab_url,
+                           traceback.format_exc())
         except requests.exceptions.Timeout:
-            log.error("Timed out connecting to %s")
+            self.log.error("Timed out connecting to %s")
         except requests.exceptions.HTTPError as ex:
-            log.error("Received and unsuccessful response code %s", ex)
+            self.log.error("Received and unsuccessful response code %s", ex)
 
     def disconnect(self):
         """Stops the event processing loop."""
-        log.info("Disconnecting from openHAB SSE")
+        self.log.info("Disconnecting from openHAB SSE")
         self.stop = True
         self.thread.join()

@@ -19,11 +19,8 @@ Classes: ExecActuator
 """
 
 import subprocess
-import logging
 from core.actuator import Actuator
 from core.utils import issafe
-
-log = logging.getLogger(__name__.split(".")[1])
 
 class ExecActuator(Actuator):
     """Actuator that calls a configred command line script using the passed in
@@ -42,40 +39,40 @@ class ExecActuator(Actuator):
         - "Timeout": The number of seconds to let the command run before timing
         out.
         """
-        super().__init__(connections, params, log)
+        super().__init__(connections, params)
 
         self.command = params("Command")
         self.timeout = int(params("Timeout"))
 
-        log.info("Configuring Exec Actuator: Command Topic = %s, Result "
-                 "Topic = %s, Command = %s", self.cmd_src, self.destination,
-                 self.command)
+        self.log.info("Configuring Exec Actuator: Command Topic = %s, Result "
+                      "Topic = %s, Command = %s", self.cmd_src, self.destination,
+                      self.command)
 
     def on_message(self, msg):
         """When a message is received on the "Command" destination this method
         is called. Executes the command and publishes the result. Any argument
         that contains ';', '|', or '//' are ignored.
         """
-        log.info("Receives command on %s: %s", self.cmd_src, msg)
+        self.log.info("Receives command on %s: %s", self.cmd_src, msg)
 
         cmd_args = [arg for arg in self.command.split(' ') if issafe(arg)]
 
         for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
             cmd_args.append(arg)
 
-        log.info("Executing command with the following arguments: %s", cmd_args)
+        self.log.info("Executing command with the following arguments: %s", cmd_args)
 
         try:
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
                                              timeout=self.timeout).rstrip()
-            log.info("Command results to be published to %s\n%s",
-                     self.destination, output)
+            self.log.info("Command results to be published to %s\n%s",
+                          self.destination, output)
             self._publish(output, self.destination)
         except subprocess.CalledProcessError as ex:
-            log.error("Command returned and error code: %s\n%s",
-                      ex.returncode, ex.output)
-            self._publish("ERROR", self.result_topic)
+            self.log.error("Command returned and error code: %s\n%s",
+                           ex.returncode, ex.output)
+            self._publish("ERROR", self.destination)
         except subprocess.TimeoutExpired:
-            log.error("Command took longer than 10 seconds.")
-            self._publish("ERROR", self.result_topic)
+            self.log.error("Command took longer than 10 seconds.")
+            self._publish("ERROR", self.destination)

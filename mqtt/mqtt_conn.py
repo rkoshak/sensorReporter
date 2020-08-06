@@ -19,12 +19,8 @@ Classes: MqttConnection
 import socket
 import traceback
 from time import sleep
-import logging
 import paho.mqtt.client as mqtt
 from core.connection import Connection
-from core.utils import set_log_level
-
-log = logging.getLogger(__name__.split(".")[1])
 
 class MqttConnection(Connection):
     """Connects to and enables subscription and publishing to MQTT."""
@@ -52,8 +48,8 @@ class MqttConnection(Connection):
         RootTopic/refresh is the topic listened to so external clients can send
         messages to sensor_reporter
         """
-        super().__init__(msg_processor, params, log)
-        log.info("Initializing MQTT Connection...")
+        super().__init__(msg_processor, params)
+        self.log.info("Initializing MQTT Connection...")
 
         # Get the parameters, raises NoOptionError if one doesn't exist
         host = params("Host")
@@ -71,26 +67,26 @@ class MqttConnection(Connection):
         # Initialize the client
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
         if tls in ('yes', 'true', '1'):
-            log.debug("TLS is true, configuring certificates")
+            self.log.debug("TLS is true, configuring certificates")
             self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
-        log.info("Attempting to connect to MQTT broker at %s:%s", host, port)
+        self.log.info("Attempting to connect to MQTT broker at %s:%s", host, port)
         self.connected = False
         while not self.connected:
             try:
                 self.client.connect(host, port=port, keepalive=keepalive)
                 self.connected = True
             except socket.gaierror:
-                log.error("Error connecting to %s:%s", host, port)
-                log.debug("Exception: %s", traceback.format_exc())
+                self.log.error("Error connecting to %s:%s", host, port)
+                self.log.debug("Exception: %s", traceback.format_exc())
                 sleep(5)
 
-        log.info("Connection to MQTT is successful")
+        self.log.info("Connection to MQTT is successful")
 
-        log.info("LWT topic is %s, subscribing to refresh topic %s", self.lwt, self.refresh_topic)
+        self.log.info("LWT topic is %s, subscribing to refresh topic %s", self.lwt, self.refresh_topic)
         self.client.will_set(self.lwt, "OFFLINE", qos=2, retain=True)
         self.register("refresh", msg_processor)
 
@@ -102,21 +98,21 @@ class MqttConnection(Connection):
         """
         try:
             if not self.connected:
-                log.warning("MQTT is not currently connected! Ignoring message")
+                self.log.warning("MQTT is not currently connected! Ignoring message")
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
             rval = self.client.publish(full_topic, message)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
-                log.error("Error puiblishing update %s to %s", message, full_topic)
+                self.log.error("Error puiblishing update %s to %s", message, full_topic)
             else:
-                log.debug("Published message %s to %s", message, full_topic)
+                self.log.debug("Published message %s to %s", message, full_topic)
         except ValueError:
-            log.error("Unexpected error publishing MQTT message: %s",
-                      traceback.format_exc())
+            self.log.error("Unexpected error publishing MQTT message: %s",
+                           traceback.format_exc())
 
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
-        log.info("Disconnecting from MQTT")
+        self.log.info("Disconnecting from MQTT")
         self.publish("OFFLINE", "status")
         self.client.disconnect()
 
@@ -126,7 +122,7 @@ class MqttConnection(Connection):
         the message.
         """
         full_topic = "{}/{}".format(self.root_topic, topic)
-        log.info("Registering for messages on %s", full_topic)
+        self.log.info("Registering for messages on %s", full_topic)
 
         def on_message(client, userdata, msg):
             handler(msg.payload.decode("utf-8"))
@@ -139,9 +135,9 @@ class MqttConnection(Connection):
         """Called when the client connects to the broker, resubscribe to the
         sensorReporter topic.
         """
-        log.info("Connected with client %s, userdata %s, flags %s, and "
-                 "result code %s. Subscribing to command topic %s",
-                 client, userdata, flags, retcode, self.topic)
+        self.log.info("Connected with client %s, userdata %s, flags %s, and "
+                      "result code %s. Subscribing to command topic %s",
+                      client, userdata, flags, retcode, self.topic)
 
         self.connected = True
 
@@ -159,8 +155,8 @@ class MqttConnection(Connection):
         """Called when the client disconnects from the broker. If the reason was
         not because disconnect() was called, try to reconnect.
         """
-        log.info("Disconnected from MQTT broker with client %s, userdata "
-                 "%s, and code %s", client, userdata, retcode)
+        self.log.info("Disconnected from MQTT broker with client %s, userdata "
+                      "%s, and code %s", client, userdata, retcode)
 
         self.connected = False
         if retcode != 0:
@@ -169,13 +165,5 @@ class MqttConnection(Connection):
                      3: "server unavailable",
                      4: "bad username or password",
                      5: "not authorized"}
-            log.error("Unexpected disconnect code %s: %s, reconnecting",
-                      retcode, codes[retcode])
-
-    # def on_refresh(self, msg):
-    #     """Called when a message on the refresh topic is received, call the main
-    #     sensor_reporter message processor.
-    #     """
-    #     message = str(msg.payload.decode("utf-8"))
-    #     log.info("Received a message on %s: %s", self.refresh_topic, message)
-    #     self.msg_processor(message)
+            self.log.error("Unexpected disconnect code %s: %s, reconnecting",
+                           retcode, codes[retcode])

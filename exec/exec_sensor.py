@@ -16,12 +16,9 @@
 poll and reports the results.
 """
 import subprocess
-import logging
 import time
 from core.sensor import Sensor
 from core.utils import issafe
-
-log = logging.getLogger(__name__.split(".")[1])
 
 class ExecSensor(Sensor):
     """Periodically calls a script/program and publishes the result."""
@@ -30,7 +27,7 @@ class ExecSensor(Sensor):
         """Parses the params and prepars to be called. Polling is managed
         outside the sensor.
         """
-        super().__init__(publishers, params, log)
+        super().__init__(publishers, params)
 
         self.script = params("Script")
         self.destination = params("Destination")
@@ -39,24 +36,24 @@ class ExecSensor(Sensor):
         self.cmd_args = [arg for arg in self.script.split(' ') if issafe(arg)]
         self.results = ""
 
-        log.info("Configured exec_sensor to call script %s and destination %s "
-                 "with interval %s", self.script, self.destination, self.poll)
+        self.log.info("Configured exec_sensor to call script %s and destination %s "
+                      "with interval %s", self.script, self.destination, self.poll)
 
     def check_state(self):
         """Calls the script and saves and publishes the result."""
-        log.debug("Executing with arguments %s", self.cmd_args)
+        self.log.debug("Executing with arguments %s", self.cmd_args)
 
         try:
             self.results = subprocess.check_output(self.cmd_args, shell=False,
                                                    universal_newlines=True,
                                                    timeout=self.poll).rstrip()
-            log.info("Command results to be published to %s\n%s",
-                     self.destination, self.results)
+            self.log.info("Command results to be published to %s\n%s",
+                          self.destination, self.results)
         except subprocess.CalledProcessError as ex:
-            log.error("Command returned an error code %s\n%s", ex.returncode,
-                      ex.output)
+            self.log.error("Command returned an error code %s\n%s", ex.returncode,
+                           ex.output)
         except subprocess.TimeoutExpired:
-            log.error("Command took longer than %d to complete!", self.poll)
+            self.log.error("Command took longer than %d to complete!", self.poll)
             self.results = "ERROR"
 
         self.publish_state()

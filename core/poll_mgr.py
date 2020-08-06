@@ -21,8 +21,6 @@ from threading import Thread
 import traceback
 import logging
 
-log = logging.getLogger(__name__.split(".")[1])
-
 class PollManager:
     """Manages spawing Processes to call a sensor's check method each configured
     polling period. Calling stop will end the polling loop and clean up all the
@@ -32,6 +30,7 @@ class PollManager:
 
     def __init__(self, connections, sensors, actuators):
         """Prepares the manager to start the polling loop. """
+        self.log = logging.getLogger(type(self).__name__)
         self.connections = connections
         self.sensors = sensors
         self.actuators = actuators
@@ -42,7 +41,7 @@ class PollManager:
         """Kicks off the polling loop. This method will not return until stop()
         is called from a separate thread.
         """
-        log.info("Starting polling loop")
+        self.log.info("Starting polling loop")
 
         while not self.stop_poll:
             for key, sen in {key:sen for (key, sen) in self.sensors.items()
@@ -50,8 +49,8 @@ class PollManager:
                              and (not sen.last_poll or
                                   (time.time() - sen.last_poll) > sen.poll)}.items():
                 if key in self.threads and self.threads[key].is_alive():
-                    log.warning("Sensor %s is still running! Skipping poll.",
-                                key)
+                    self.log.warning("Sensor %s is still running! Skipping poll.",
+                                     key)
                 else:
                     # Wrap the call so we can catch and report exceptions.
                     def runner(target, key):
@@ -59,8 +58,8 @@ class PollManager:
                             target()
                         # TODO create a special exception to catch
                         except:
-                            log.error("Error in checking sensor %s: %s", key,
-                                      traceback.format_exc())
+                            self.log.error("Error in checking sensor %s: %s", key,
+                                           traceback.format_exc())
 
                     sen.last_poll = time.time()
                     thread = Thread(target=runner,
@@ -81,19 +80,19 @@ class PollManager:
         self.stop_poll = True
         time.sleep(0.5)
 
-        log.info("Waiting for all the polling threads")
+        self.log.info("Waiting for all the polling threads")
         for thread in self.threads.values():
             thread.join()
 
-        log.info("Cleaning up the sensors")
+        self.log.info("Cleaning up the sensors")
         for sen in self.sensors.values():
             sen.cleanup()
 
-        log.info("Cleaning up the actuators")
+        self.log.info("Cleaning up the actuators")
         for act in self.actuators:
             act.cleanup()
 
-        log.info("Disconnecting from connections")
+        self.log.info("Disconnecting from connections")
         for conn in self.connections.values():
             conn.disconnect()
 

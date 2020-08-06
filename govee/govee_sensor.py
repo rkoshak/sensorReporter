@@ -15,7 +15,6 @@
 """Implements a BTLE listener that looks for broadcasts from a Govee H5072
 sensor (it may work with others).
 """
-import logging
 from bleson import get_provider, Observer, UUID16
 from bleson.logger import set_level, ERROR#, DEBUG
 from core.sensor import Sensor
@@ -23,8 +22,6 @@ from core.sensor import Sensor
 # Disable bleson warning messages in the log.
 set_level(ERROR)
 #set_level(DEBUG)
-
-log = logging.getLogger(__name__.split(".")[1])
 
 GOVEE_BT_MAC_PREFIX = "A4:C1:38"
 H5075_UPDATE_UUID16 = UUID16(0xEC88)
@@ -34,12 +31,12 @@ class GoveeSensor(Sensor):
 
     def __init__(self, publishers, params):
         """Initializes the listener and kicks off the listening thread."""
-        super().__init__(publishers, params, log)
+        super().__init__(publishers, params)
 
         self.dest_root = params("Destination")
 
-        log.info("Configuring Govee listener with destination %s",
-                 self.dest_root)
+        self.log.info("Configuring Govee listener with destination %s",
+                      self.dest_root)
 
         self.adapter = get_provider().get_adapter()
         self.observer = Observer(self.adapter)
@@ -52,11 +49,11 @@ class GoveeSensor(Sensor):
     def on_advertisement(self, advertisement):
         """Called when a BTLE advertisement is received. If it goes with one
         of the Govee H5075 sensors, the reading is parsed and published."""
-        log.debug("Received advertisement from %s",
-                  advertisement.address.address)
+        self.log.debug("Received advertisement from %s",
+                       advertisement.address.address)
 
         if advertisement.address.address.startswith(GOVEE_BT_MAC_PREFIX):
-            log.debug("Received Govee advertisement")
+            self.log.debug("Received Govee advertisement")
 
             mac = advertisement.address.address
 
@@ -78,7 +75,7 @@ class GoveeSensor(Sensor):
                 self.devices[mac]["humi"] = format(((encoded_data % 1000) / 10),
                                                    ".2f")
 
-                log.debug("Govee data to publish: {}", self.devices)
+                self.log.debug("Govee data to publish: {}", self.devices)
                 self.publish_state()
 
             # Process an rssi reading. Don't bother to publish now, wait for the
@@ -103,5 +100,5 @@ class GoveeSensor(Sensor):
 
     def cleanup(self):
         """Stop the observer."""
-        log.info("Stopping Govee observer")
+        self.log.info("Stopping Govee observer")
         self.observer.stop()
