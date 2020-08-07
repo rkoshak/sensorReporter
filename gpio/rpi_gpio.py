@@ -20,17 +20,17 @@ import logging
 from time import sleep
 from configparser import NoOptionError
 import RPi.GPIO as GPIO
-from core.sensors import sensors
+from core.sensor import Sensor
+from core.actuator import Actuator
 
 # Set to use BCM numbering.
 GPIO.setmode(GPIO.BCM)
 
-# TODO Callbacks and Actuators
 class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
     def __init__(self, publishers, params):
-        super().__init__(publishers, params, log)
+        super().__init__(publishers, params)
 
         self.pin = int(params("Pin"))
 
@@ -47,7 +47,7 @@ class RpiGpioSensor(Sensor):
         except NoOptionError:
             self.values = ["CLOSED", "OPEN"]
 
-        log.debug("Configured %s for CLOSED and %s for OPEN", self.values[0], self.values[1])
+        self.log.debug("Configured %s for CLOSED and %s for OPEN", self.values[0], self.values[1])
 
         pud = GPIO.PUD_UP if params("PUD") == "UP" else GPIO.PUD_DOWN
         GPIO.setup(self.pin, GPIO.IN, pull_up_down=pud)
@@ -57,18 +57,18 @@ class RpiGpioSensor(Sensor):
             event_detection = params("EventDetection")
             event_map = {"RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH": GPIO.BOTH}
             if event_detection not in event_map:
-                log.error("Invalid event detection specified: %s, one of RISING,"
-                          " FALLING, BOTH or NONE are the only allowed values. "
-                          "Defaulting to NONE",
-                          event_detection)
+                self.log.error("Invalid event detection specified: %s, one of RISING,"
+                               " FALLING, BOTH or NONE are the only allowed values. "
+                               "Defaulting to NONE",
+                               event_detection)
                 event_detection = "NONE"
         except NoOptionError:
-            log.info("No event detection specified, falling back to polling")
+            self.log.info("No event detection specified, falling back to polling")
             event_detection = "NONE"
 
         if event_detection != "NONE":
             GPIO.add_event_detect(self.pin, event_map[event_detection],
-                                  callback=lambda channel: self.check_state)
+                                  callback=lambda channel: self.check_state())
 
         self.state = GPIO.input(self.pin)
         self.destination = params("Destination")
@@ -79,9 +79,9 @@ class RpiGpioSensor(Sensor):
             raise ValueError("Event detection is {} but polling is {}"
                              .format(event_detection, self.poll))
 
-        log.info("Configured RpiGpioSensor: pin %d on destination %s with PUD %s"
-                 " and event detection %s", self.pin, self.destination, pud,
-                 event_detection)
+        self.log.info("Configured RpiGpioSensor: pin %d on destination %s with PUD %s"
+                      " and event detection %s", self.pin, self.destination, pud,
+                      event_detection)
 
         # We've a first reading so publish it.
         self.publish_state()
@@ -89,6 +89,7 @@ class RpiGpioSensor(Sensor):
     def check_state(self):
         value = GPIO.input(self.pin)
         if(value != self.state):
+            self.log.info("Pin %s changed from %s to %s", self.pin, self.state, value)
             self.state = value
             self.publish_state()
 
@@ -99,7 +100,7 @@ class RpiGpioSensor(Sensor):
     def cleanup(self):
         GPIO.cleanup()
 
-class RpiGpioSensor(Actuator):
+class RpiGpioActuator(Actuator):
 
     def __init__(connections, params):
         super().__init__(connections, params)
@@ -135,7 +136,7 @@ class RpiGpioSensor(Actuator):
             out = None
             if msg == "ON":
                 out = GPIO.HIGH
-            elif msg == "OFF"
+            elif msg == "OFF":
                 out = GPIO.LOW
 
             if not out:
