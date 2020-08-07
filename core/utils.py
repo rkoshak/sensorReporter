@@ -33,5 +33,5 @@ def set_log_level(params, logger):
     logger.setLevel(levels.get(level, logging.NOTSET))
 
 def issafe(arg):
-    """Returns False if arg contains ';', '|', or '//'."""
-    return arg.find(';') == -1 and arg.find('|') == -1 and arg.find('//') == -1
+    """Returns False if arg contains ';' or '|'."""
+    return arg.find(';') == -1 and arg.find('|') == -1

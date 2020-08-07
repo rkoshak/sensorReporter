@@ -53,12 +53,13 @@ class ExecActuator(Actuator):
         is called. Executes the command and publishes the result. Any argument
         that contains ';', '|', or '//' are ignored.
         """
-        self.log.info("Receives command on %s: %s", self.cmd_src, msg)
+        self.log.info("Received command on %s: %s", self.cmd_src, msg)
 
         cmd_args = [arg for arg in self.command.split(' ') if issafe(arg)]
 
-        for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
-            cmd_args.append(arg)
+        if msg and msg != "NA":
+            for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
+                cmd_args.append(arg)
 
         self.log.info("Executing command with the following arguments: %s", cmd_args)
 
