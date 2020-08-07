@@ -86,7 +86,11 @@ class MqttConnection(Connection):
 
         self.log.info("Connection to MQTT is successful")
 
-        self.log.info("LWT topic is %s, subscribing to refresh topic %s", self.lwt, self.refresh_topic)
+        # Publish the ONLINE message to the LWT
+        self.publish("ONLINE", "status")
+
+        self.log.info("LWT topic is %s, subscribing to refresh topic %s",
+                      self.lwt, self.refresh_topic)
         self.client.will_set(self.lwt, "OFFLINE", qos=2, retain=True)
         self.register("refresh", msg_processor)
 
