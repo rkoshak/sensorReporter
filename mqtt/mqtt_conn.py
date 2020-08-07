@@ -22,6 +22,11 @@ from time import sleep
 import paho.mqtt.client as mqtt
 from core.connection import Connection
 
+LWT = "status"
+REFRESH = "refresh"
+ONLINE = "ONLINE"
+OFFLINE = "OFFLINE"
+
 class MqttConnection(Connection):
     """Connects to and enables subscription and publishing to MQTT."""
 
@@ -56,8 +61,6 @@ class MqttConnection(Connection):
         port = int(params("Port"))
         client_name = params("Client")
         self.root_topic = params("RootTopic")
-        self.lwt = "{}/status".format(self.root_topic)
-        self.refresh_topic = "{}/refresh".format(self.root_topic)
         tls = params("TLS").lower()
         user = params("User")
         passwd = params("Password")
@@ -86,38 +89,43 @@ class MqttConnection(Connection):
 
         self.log.info("Connection to MQTT is successful")
 
-        # Publish the ONLINE message to the LWT
-        self.publish("ONLINE", "status")
+        lwtt = "{}/{}".format(self.root_topic, LWT)
+        ref = "{}/{}".format(self.root_topic, REFRESH)
 
         self.log.info("LWT topic is %s, subscribing to refresh topic %s",
-                      self.lwt, self.refresh_topic)
-        self.client.will_set(self.lwt, "OFFLINE", qos=2, retain=True)
-        self.register("refresh", msg_processor)
+                      lwtt, ref)
+        self.client.will_set(lwtt, OFFLINE, qos=2, retain=True)
+        self.register(REFRESH, msg_processor)
 
         self.client.loop_start()
+        self._publish_mqtt(ONLINE, LWT, True)
 
     def publish(self, message, topic):
         """Publishes message to topic, logging if there is an error. topic is
         appended to root_topic.
         """
+        self._publish_mqtt(message, topic, False)
+
+    def _publish_mqtt(self, message, topic, retain):
         try:
             if not self.connected:
                 self.log.warning("MQTT is not currently connected! Ignoring message")
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
-            rval = self.client.publish(full_topic, message)
+            rval = self.client.publish(full_topic, message, retain=retain)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
                 self.log.error("Error puiblishing update %s to %s", message, full_topic)
             else:
-                self.log.debug("Published message %s to %s", message, full_topic)
+                self.log.debug("Published message %s to %s retain=%s", message, full_topic, retain)
         except ValueError:
             self.log.error("Unexpected error publishing MQTT message: %s",
                            traceback.format_exc())
 
+
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
         self.log.info("Disconnecting from MQTT")
-        self.publish("OFFLINE", "status")
+        self._publish_mqtt(OFFLINE, LWT, True)
         self.client.disconnect()
 
     def register(self, topic, handler):
@@ -146,7 +154,7 @@ class MqttConnection(Connection):
         self.connected = True
 
         # Publish the ONLINE message to the LWT
-        self.publish("ONLINE", "status")
+        self._publish_mqtt(ONLINE, LWT, True)
 
         # Resubscribe on connection
         for reg in self.registered:
