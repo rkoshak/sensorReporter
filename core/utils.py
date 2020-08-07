@@ -15,7 +15,7 @@ def set_log_level(params, logger):
     levels. Sets the level of the passed in logger based on the params Level
     property.
     """
-    level = "INFO"
+    level = None
     try:
         level = params("Level")
     except NoOptionError:
@@ -30,7 +30,8 @@ def set_log_level(params, logger):
         "NOTSET"  : logging.NOTSET
     }
 
-    logger.setLevel(levels.get(level, logging.NOTSET))
+    if level:
+        logger.setLevel(levels.get(level, logging.NOTSET))
 
 def issafe(arg):
     """Returns False if arg contains ';' or '|'."""
