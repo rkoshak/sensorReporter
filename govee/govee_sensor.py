@@ -93,7 +93,7 @@ class GoveeSensor(Sensor):
             for mac in self.devices:
                 if "name" in self.devices[mac]:
                     name = self.devices[mac]["name"]
-                    dest = "{}/{}/".format(self.dest_root, name)
+                    dest = "{}/{}".format(self.dest_root, name)
                     for dev in [dev for dev in self.devices[mac] if dev != "name"]:
                         conn.publish(str(self.devices[mac][dev]),
                                      "{}/{}".format(dest, dev))
