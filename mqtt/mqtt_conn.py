@@ -65,7 +65,6 @@ class MqttConnection(Connection):
         user = params("User")
         passwd = params("Password")
         keepalive = int(params("Keepalive"))
-        self.registered = []
 
         # Initialize the client
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
@@ -100,11 +99,9 @@ class MqttConnection(Connection):
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
 
-    def publish(self, message, topic):
-        """Publishes message to topic, logging if there is an error. topic is
-        appended to root_topic.
-        """
-        self._publish_mqtt(message, topic, False)
+    def publish(self, message, destination):
+        """Publishes message to destination, logging if there is an error."""
+        self._publish_mqtt(message, destination, False)
 
     def _publish_mqtt(self, message, topic, retain):
         try:
@@ -121,25 +118,26 @@ class MqttConnection(Connection):
             self.log.error("Unexpected error publishing MQTT message: %s",
                            traceback.format_exc())
 
-
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
         self.log.info("Disconnecting from MQTT")
         self._publish_mqtt(OFFLINE, LWT, True)
         self.client.disconnect()
 
-    def register(self, topic, handler):
+    def register(self, destination, handler):
         """Registers a handler to be called on messages received on topic
         appended to the root_topic. Handler is expected to take one argument,
         the message.
         """
-        full_topic = "{}/{}".format(self.root_topic, topic)
+        full_topic = "{}/{}".format(self.root_topic, destination)
         self.log.info("Registering for messages on %s", full_topic)
 
         def on_message(client, userdata, msg):
+            self.log.debug("Received message client %s userdata %s and msg %s",
+                           client, userdata, msg)
             handler(msg.payload.decode("utf-8"))
 
-        self.registered.append((full_topic, on_message))
+        self.registered[full_topic] = on_message
         self.client.subscribe(full_topic)
         self.client.message_callback_add(full_topic, on_message)
 
@@ -147,9 +145,10 @@ class MqttConnection(Connection):
         """Called when the client connects to the broker, resubscribe to the
         sensorReporter topic.
         """
+        refresh = "{}/{}".format(self.root_topic, REFRESH)
         self.log.info("Connected with client %s, userdata %s, flags %s, and "
-                      "result code %s. Subscribing to command topic %s",
-                      client, userdata, flags, retcode, self.topic)
+                      "result code %s. Subscribing to refresh command topic %s",
+                      client, userdata, flags, retcode, refresh)
 
         self.connected = True
 
@@ -158,10 +157,9 @@ class MqttConnection(Connection):
 
         # Resubscribe on connection
         for reg in self.registered:
-            self.client.subscribe(reg[0])
+            self.client.subscribe(self.registered[reg])
 
-        # Act like we received a message on the command topic
-        self.on_refresh(None, None, "connected")
+        self.registered[refresh]("connected")
 
     def on_disconnect(self, client, userdata, retcode):
         """Called when the client disconnects from the broker. If the reason was

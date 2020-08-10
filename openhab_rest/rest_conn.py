@@ -43,7 +43,6 @@ class OpenhabREST(Connection):
 
         self.openhab_url = params("URL")
         self.refresh_item = params("RefreshItem")
-        self.registered = {}
         self.registered[self.refresh_item] = msg_processor
 
         # Subscribe to SSE events and start processing the events
@@ -74,13 +73,6 @@ class OpenhabREST(Connection):
                     msg = payload["value"]
                     self.log.info("Received command from %s: %s", item, msg)
                     self.registered[item](msg)
-
-    def register(self, item, handler):
-        """Actuators register the passed in Item with this Connection. When that
-        Item receives a command, the handler is called with the received command.
-        The handler is expected to accept a single string as an argument.
-        """
-        self.registered[item] = handler
 
     def publish(self, state, item):
         """Publishes the passed in state to the passed in Item as an update."""
