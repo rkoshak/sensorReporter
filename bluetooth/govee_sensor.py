@@ -75,7 +75,7 @@ class GoveeSensor(Sensor):
                 self.devices[mac]["humi"] = format(((encoded_data % 1000) / 10),
                                                    ".2f")
 
-                self.log.debug("Govee data to publish: {}", self.devices)
+                self.log.debug("Govee data to publish: %s", self.devices)
                 self.publish_state()
 
             # Process an rssi reading. Don't bother to publish now, wait for the
