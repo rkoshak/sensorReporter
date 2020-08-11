@@ -42,7 +42,7 @@ class Sensor(ABC):
         self.publishers = publishers
         self.params = params
         try:
-            self.poll = int(params("Poll"))
+            self.poll = float(params("Poll"))
         except NoOptionError:
             self.poll = -1
         self.last_poll = None

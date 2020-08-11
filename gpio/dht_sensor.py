@@ -21,13 +21,13 @@ from core.sensor import Sensor
 
 # Will need to be updated for boards with more or less than 25 digital pins.
 # This table should support most Raspberry Pis though.
-PIN_MAP = {"1": board.D1, "2": board.D2, "3": board.D3, "4": board.D4,
-           "5": board.D5, "6": board.D6, "7": board.D7, "8": board.D8,
-           "9": board.D9, "10": board.D10, "11": board.D11, "12": board.D12,
-           "13": board.D13, "14": board.D14, "15": board.D15, "16": board.D16,
-           "17": board.D17, "18": board.D18, "19": board.D19, "20": board.D20,
-           "21": board.D21, "22": board.D22, "23": board.D23, "24": board.D24,
-           "25": board.D25}
+#PIN_MAP = {"1": board.D1, "2": board.D2, "3": board.D3, "4": board.D4,
+#           "5": board.D5, "6": board.D6, "7": board.D7, "8": board.D8,
+#           "9": board.D9, "10": board.D10, "11": board.D11, "12": board.D12,
+#           "13": board.D13, "14": board.D14, "15": board.D15, "16": board.D16,
+#           "17": board.D17, "18": board.D18, "19": board.D19, "20": board.D20,
+#           "21": board.D21, "22": board.D22, "23": board.D23, "24": board.D24,
+#           "25": board.D25}
 
 class DhtSensor(Sensor):
     """A polling sensor that reads and reports temperature and humidity. It
@@ -56,17 +56,19 @@ class DhtSensor(Sensor):
                              .format(self.poll))
 
         pin = params("Pin")
-        if pin not in PIN_MAP:
-            raise ValueError("Unsupported pin numerb {}".format(pin))
+        #if pin not in PIN_MAP:
+        #    raise ValueError("Unsupported pin numerb {}".format(pin))
 
         sen_type = params("Sensor")
         if sen_type in ("DHT22", "AM2302"):
-            self.sensor = adafruit_dht.DHT22(PIN_MAP[pin])
+            self.log.info("Creating DHT22/AM2302 sensor")
+            self.sensor = adafruit_dht.DHT22(board.D4)
         elif sen_type == "DHT11":
-            self.sensor = adafruit_dht.DHT11(PIN_MAP[pin])
+            self.sensor = adafruit_dht.DHT11(board.D4)
         else:
             raise ValueError("{} is an unsupported Sensor".format(sen_type))
 
+        self.log.info("Sensor created, setting parameters.")
         self.humi_dest = params("HumiDest")
         self.temp_dest = params("TempDest")
 
@@ -101,11 +103,12 @@ class DhtSensor(Sensor):
         """
         try:
             temp = self.sensor.temperature
-            if self.temp_unit == "F":
+            if temp and self.temp_unit == "F":
                 temp = temp * (9 / 5) + 32
+
             humidity = self.sensor.humidity
 
-            if -40 <= temp <= 125:
+            if temp and -40 <= temp <= 125:
                 to_send = temp
                 if self.smoothing:
                     self.temp_readings.pop()
@@ -113,10 +116,10 @@ class DhtSensor(Sensor):
                     to_send = sum([t for t in self.temp_readings if t]) / 5
                 self._send("{:.1f}".format(to_send), self.temp_dest)
             else:
-                self.log.warning("Unreasonable temperature reading of %.1f, "
+                self.log.warning("Unreasonable temperature reading of %s "
                                  "dropping it", temp)
 
-            if 0 <= humidity <= 100:
+            if humidity and 0 <= humidity <= 100:
                 to_send = humidity
                 if self.smoothing:
                     self.humidity_readings.pop()
@@ -124,7 +127,7 @@ class DhtSensor(Sensor):
                     to_send = sum([h for h in self.humidity_readings if h]) / 5
                 self._send("{:.1f}".format(to_send), self.humi_dest)
             else:
-                self.log.warning("Unreasonable humidity reading of %.1f, "
+                self.log.warning("Unreasonable humidity reading of %s, "
                                  "dropping it", humidity)
 
         except RuntimeError as error:
