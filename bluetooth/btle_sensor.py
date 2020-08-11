@@ -39,12 +39,15 @@ class BtleSensor(Sensor):
         super().__init__(publishers, params)
 
         addresses = get_sequential_params(params, "Address")
+        self.log.debug("Addresses: %s", addresses)
         destinations = get_sequential_params(params, "Destination")
-        laststates = [None]
+        laststates = [None] * len(addresses)
         if len(addresses) != len(destinations):
             raise ValueError("List of addresses and destinations do not match up!")
         self.devices = dict(zip(addresses, destinations))
         self.states = dict(zip(addresses, laststates))
+        self.log.debug("Devices %s", self.devices)
+        self.log.debug("States %s", self.states)
 
         self.log.info("Configuring BTLE sensor")
 
@@ -56,54 +59,39 @@ class BtleSensor(Sensor):
             raise ValueError("Poll must be greater than or equal to Timeout")
 
         self.values = parse_values(params, ("ON", "OFF"))
-        self.log.debug("Using presence/absence values of %s", self.values)
-
-<<<<<<< HEAD
-        self.state = None
-        self.check_state()
-=======
->>>>>>> 17a59bcc3e408929fd87e6f20658569f7ae87ba3
 
     def check_state(self):
         """Scans for BTLE packets. If some where found where previously there
         were none the present message is published, and viseversa. Only when
         there is a change in presence is the message published.
         """
-        self.log.debug("Looking for %s", self.address)
+        self.log.debug("Checking for BTLE devices")
         scanner = Scanner().withDelegate(DefaultDelegate())
-<<<<<<< HEAD
-        devices = scanner.scan(self.timeout)
-        found = len([dev for dev in devices if dev.addr == self.address.lower()]) > 0
-        self.log.debug("Found packets? %s", found)
-        if self.state != found:
-            self.state = found
-            self.publish_state()
-
-    def publish_state(self):
-        """Publishes the most recent presence state."""
-        self._send(self.values[0] if self.state else self.values[1],
-                   self.destination)
-=======
         # Scan for packets and get a list of the addresses found
         scanneddevs = [dev.addr for dev in scanner.scan(self.timeout)]
         # Get a list of addresses for which one or more packets were found during
         # the scan.
+        self.log.debug("Packets is %s", scanneddevs)
         founddevs = [mac for mac in self.devices if scanneddevs.count(mac) > 0]
+        self.log.debug("Found %s", founddevs)
 
         # Publish ON for those addresses where packets were found and the
         # previous reported state isn't ON.
-        for mac in [mac in founddevs if not self.laststates[mac]]:
-            self.laststates[mac] = True
-            self._send(self.values[0], self.destinations[mac])
+        for mac in [mac for mac in founddevs if not self.states[mac]]:
+            self.log.info("Publishing %s as ON", mac)
+            self.states[mac] = True
+            self._send(self.values[0], self.devices[mac])
         # Publish OFF for those addresses where no packets where found and the
         # previous reported state isn't OFF.
-        for mac in [mac in self.devices if mac not in founddevs and self.laststates[mac] or self.laststates[mac] == None]:
-            self.laststates[mac] = False
-            self._send(self.values[1], self.destinations[mac])
+        for mac in [mac for mac in self.devices if mac not in founddevs and self.states[mac] or self.states[mac] == None]:
+            self.log.info("Publishing %s as OFF", mac)
+            self.states[mac] = False
+            self._send(self.values[1], self.devices[mac])
+
+        self.log.info("Done with poll")
 
     def publish_state(self):
         """Publishes the most recent presence state."""
-        for mac in self.laststates:
-            self._send(self.values[0] if self.laststates[mac] else self.values[1],
-            self.destinations[mac])
->>>>>>> 17a59bcc3e408929fd87e6f20658569f7ae87ba3
+        for mac in self.states:
+            self._send(self.values[0] if self.states[mac] else self.values[1],
+            self.devices[mac])
