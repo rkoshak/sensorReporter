@@ -17,6 +17,7 @@ Classes:
 """
 from bluepy.btle import Scanner, DefaultDelegate
 from core.sensor import Sensor
+from core.utils import parse_values
 
 class BtleSensor(Sensor):
     """Uses BluePy to scan for BTLE braodcasts from a device with a given MAC
@@ -50,12 +51,7 @@ class BtleSensor(Sensor):
         if self.poll <= self.timeout:
             raise ValueError("Poll must be greater than or equal to Timeout")
 
-        try:
-            self.values = params("Values").split(",")
-        except NoOptionError:
-            self.values = ["ON", "OFF"]
-        if len(self.values) != 2:
-            raise ValueError("Expected 2 values separated by a comma for Values")
+        self.values = parse_values(params, ["ON", "OFF"])
 
         self.state = None
 
@@ -73,5 +69,5 @@ class BtleSensor(Sensor):
 
     def publish_state(self):
         """Publishes the most recent presence state."""
-        self._send(self.values([0] if self.state else self.values[1]),
+        self._send(self.values[0] if self.state else self.values[1]),
                    self.destination)

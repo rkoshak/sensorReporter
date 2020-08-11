@@ -36,3 +36,13 @@ def set_log_level(params, logger):
 def issafe(arg):
     """Returns False if arg contains ';' or '|'."""
     return arg.find(';') == -1 and arg.find('|') == -1
+
+def parse_values(params, defaults):
+    try:
+        split = params("Values").split(",")
+        if len(split) != 2:
+            return defaults
+        else:
+            return [split]
+    except NoOptionError:
+        return defaults

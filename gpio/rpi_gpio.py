@@ -22,6 +22,7 @@ from configparser import NoOptionError
 import RPi.GPIO as GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
+from core.utils import parse_values
 
 # Set to use BCM numbering.
 GPIO.setmode(GPIO.BCM)
@@ -53,17 +54,7 @@ class RpiGpioSensor(Sensor):
         self.pin = int(params("Pin"))
 
         # Allow users to override the 0/1 pin values.
-        try:
-            split = params("Values").split(",")
-            if len(split) != 2:
-                self.log.error("Invalid options for Values: %s, there should "
-                               "only be two values separated by a comma. "
-                               "Defaulting to CLOSED,OPEN")
-                self.values = ["CLOSED", "OPEN"]
-            else:
-                self.values = [split]
-        except NoOptionError:
-            self.values = ["CLOSED", "OPEN"]
+        self.values = parse_values(params, ["CLOSED", "OPEN"])
 
         self.log.debug("Configured %s for CLOSED and %s for OPEN", self.values[0], self.values[1])
 
