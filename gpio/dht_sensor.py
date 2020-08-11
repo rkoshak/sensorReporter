@@ -39,6 +39,24 @@ class DhtSensor(Sensor):
     """
 
     def __init__(self, publishers, params):
+        """Initialize the DHT sensor and collect the first reading.
+        Parameters:
+            - Poll: must be > 0
+            - Pin: GPIO pin where the data pin of the sensor is wired, BMC
+            numbering
+            - Sensor: one of "DHT11", "DHT22" or "AM2302"
+            - HumiDest: destination for the humidity readings
+            - TempDest: destination for the temperature readings
+            - TempUnit: optional parameter, one of "C" or "F", defaults to "C"
+            - Smoothing: optional parameter, if True the average of the last
+            five readings is published, when False only the most recent is
+            published.
+        Raises
+            - NoOptionError: if a required parameter is not present
+            - ValueError: if a parameter has an unsuable value
+            - RuntimeError: if there is a problem connecting to the sensor:w
+
+        """
         super().__init__(publishers, params)
 
         if self.poll <= 0:
