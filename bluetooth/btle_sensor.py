@@ -17,7 +17,7 @@ Classes:
 """
 from bluepy.btle import Scanner, DefaultDelegate
 from core.sensor import Sensor
-from core.utils import parse_values
+from core.utils import parse_values, get_sequential_params
 
 class BtleSensor(Sensor):
     """Uses BluePy to scan for BTLE braodcasts from a device with a given MAC
@@ -38,11 +38,15 @@ class BtleSensor(Sensor):
         """
         super().__init__(publishers, params)
 
-        self.address = params("Address")
-        self.destination = params("Destination")
+        addresses = get_sequential_params(params, "Address")
+        destinations = get_sequential_params(params, "Destination")
+        laststates = [None]
+        if len(addresses) != len(destinations):
+            raise ValueError("List of addresses and destinations do not match up!")
+        self.devices = dict(zip(addresses, destinations))
+        self.states = dict(zip(addresses, laststates))
 
-        self.log.info("Configuring BTLE sensor: Address = %s Destination = %s",
-                      self.address, self.destination)
+        self.log.info("Configuring BTLE sensor")
 
         self.timeout = int(params("Timeout"))
 
@@ -54,8 +58,11 @@ class BtleSensor(Sensor):
         self.values = parse_values(params, ("ON", "OFF"))
         self.log.debug("Using presence/absence values of %s", self.values)
 
+<<<<<<< HEAD
         self.state = None
         self.check_state()
+=======
+>>>>>>> 17a59bcc3e408929fd87e6f20658569f7ae87ba3
 
     def check_state(self):
         """Scans for BTLE packets. If some where found where previously there
@@ -64,6 +71,7 @@ class BtleSensor(Sensor):
         """
         self.log.debug("Looking for %s", self.address)
         scanner = Scanner().withDelegate(DefaultDelegate())
+<<<<<<< HEAD
         devices = scanner.scan(self.timeout)
         found = len([dev for dev in devices if dev.addr == self.address.lower()]) > 0
         self.log.debug("Found packets? %s", found)
@@ -75,3 +83,27 @@ class BtleSensor(Sensor):
         """Publishes the most recent presence state."""
         self._send(self.values[0] if self.state else self.values[1],
                    self.destination)
+=======
+        # Scan for packets and get a list of the addresses found
+        scanneddevs = [dev.addr for dev in scanner.scan(self.timeout)]
+        # Get a list of addresses for which one or more packets were found during
+        # the scan.
+        founddevs = [mac for mac in self.devices if scanneddevs.count(mac) > 0]
+
+        # Publish ON for those addresses where packets were found and the
+        # previous reported state isn't ON.
+        for mac in [mac in founddevs if not self.laststates[mac]]:
+            self.laststates[mac] = True
+            self._send(self.values[0], self.destinations[mac])
+        # Publish OFF for those addresses where no packets where found and the
+        # previous reported state isn't OFF.
+        for mac in [mac in self.devices if mac not in founddevs and self.laststates[mac] or self.laststates[mac] == None]:
+            self.laststates[mac] = False
+            self._send(self.values[1], self.destinations[mac])
+
+    def publish_state(self):
+        """Publishes the most recent presence state."""
+        for mac in self.laststates:
+            self._send(self.values[0] if self.laststates[mac] else self.values[1],
+            self.destinations[mac])
+>>>>>>> 17a59bcc3e408929fd87e6f20658569f7ae87ba3
