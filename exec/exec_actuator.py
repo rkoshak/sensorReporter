@@ -71,7 +71,7 @@ class ExecActuator(Actuator):
                           self.destination, output)
             self._publish(output, self.destination)
         except subprocess.CalledProcessError as ex:
-            self.log.error("Command returned and error code: %s\n%s",
+            self.log.error("Command returned an error code: %s\n%s",
                            ex.returncode, ex.output)
             self._publish("ERROR", self.destination)
         except subprocess.TimeoutExpired:
