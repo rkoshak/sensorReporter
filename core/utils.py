@@ -43,6 +43,6 @@ def parse_values(params, defaults):
         if len(split) != 2:
             return defaults
         else:
-            return [split]
+            return split
     except NoOptionError:
         return defaults

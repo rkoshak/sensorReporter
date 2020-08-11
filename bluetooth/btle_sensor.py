@@ -51,23 +51,27 @@ class BtleSensor(Sensor):
         if self.poll <= self.timeout:
             raise ValueError("Poll must be greater than or equal to Timeout")
 
-        self.values = parse_values(params, ["ON", "OFF"])
+        self.values = parse_values(params, ("ON", "OFF"))
+        self.log.debug("Using presence/absence values of %s", self.values)
 
         self.state = None
+        self.check_state()
 
     def check_state(self):
         """Scans for BTLE packets. If some where found where previously there
         were none the present message is published, and viseversa. Only when
         there is a change in presence is the message published.
         """
+        self.log.debug("Looking for %s", self.address)
         scanner = Scanner().withDelegate(DefaultDelegate())
         devices = scanner.scan(self.timeout)
         found = len([dev for dev in devices if dev.addr == self.address.lower()]) > 0
+        self.log.debug("Found packets? %s", found)
         if self.state != found:
             self.state = found
             self.publish_state()
 
     def publish_state(self):
         """Publishes the most recent presence state."""
-        self._send(self.values[0] if self.state else self.values[1]),
+        self._send(self.values[0] if self.state else self.values[1],
                    self.destination)
