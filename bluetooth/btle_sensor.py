@@ -39,15 +39,12 @@ class BtleSensor(Sensor):
         super().__init__(publishers, params)
 
         addresses = get_sequential_params(params, "Address")
-        self.log.debug("Addresses: %s", addresses)
         destinations = get_sequential_params(params, "Destination")
         laststates = [None] * len(addresses)
         if len(addresses) != len(destinations):
             raise ValueError("List of addresses and destinations do not match up!")
         self.devices = dict(zip(addresses, destinations))
         self.states = dict(zip(addresses, laststates))
-        self.log.debug("Devices %s", self.devices)
-        self.log.debug("States %s", self.states)
 
         self.log.info("Configuring BTLE sensor")
 
@@ -78,20 +75,20 @@ class BtleSensor(Sensor):
         # Publish ON for those addresses where packets were found and the
         # previous reported state isn't ON.
         for mac in [mac for mac in founddevs if not self.states[mac]]:
-            self.log.info("Publishing %s as ON", mac)
+            self.log.debug("Publishing %s as ON", mac)
             self.states[mac] = True
             self._send(self.values[0], self.devices[mac])
         # Publish OFF for those addresses where no packets where found and the
         # previous reported state isn't OFF.
-        for mac in [mac for mac in self.devices if mac not in founddevs and self.states[mac] or self.states[mac] == None]:
-            self.log.info("Publishing %s as OFF", mac)
+        for mac in ([mac for mac in self.devices
+                     if mac not in founddevs and self.states[mac]
+                     or self.states[mac] is None]):
+            self.log.debug("Publishing %s as OFF", mac)
             self.states[mac] = False
             self._send(self.values[1], self.devices[mac])
-
-        self.log.info("Done with poll")
 
     def publish_state(self):
         """Publishes the most recent presence state."""
         for mac in self.states:
             self._send(self.values[0] if self.states[mac] else self.values[1],
-            self.devices[mac])
+                       self.devices[mac])
