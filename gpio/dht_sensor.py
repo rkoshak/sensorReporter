@@ -19,16 +19,6 @@ import board
 import adafruit_dht
 from core.sensor import Sensor
 
-# Will need to be updated for boards with more or less than 25 digital pins.
-# This table should support most Raspberry Pis though.
-#PIN_MAP = {"1": board.D1, "2": board.D2, "3": board.D3, "4": board.D4,
-#           "5": board.D5, "6": board.D6, "7": board.D7, "8": board.D8,
-#           "9": board.D9, "10": board.D10, "11": board.D11, "12": board.D12,
-#           "13": board.D13, "14": board.D14, "15": board.D15, "16": board.D16,
-#           "17": board.D17, "18": board.D18, "19": board.D19, "20": board.D20,
-#           "21": board.D21, "22": board.D22, "23": board.D23, "24": board.D24,
-#           "25": board.D25}
-
 class DhtSensor(Sensor):
     """A polling sensor that reads and reports temperature and humidity. It
     supports DHT22, AM2302, and DHT11 sensors. It requires a poll > 0.
@@ -56,15 +46,19 @@ class DhtSensor(Sensor):
                              .format(self.poll))
 
         pin = params("Pin")
-        #if pin not in PIN_MAP:
-        #    raise ValueError("Unsupported pin numerb {}".format(pin))
+        bpin = None
+        pin_name = "D{}".format(pin)
+        if hasattr(board, pin_name):
+            bpin = getattr(board, pin_name)
+        else:
+            raise ValueError("Unsupported pin number {}".format(pin))
 
         sen_type = params("Sensor")
         if sen_type in ("DHT22", "AM2302"):
             self.log.info("Creating DHT22/AM2302 sensor")
-            self.sensor = adafruit_dht.DHT22(board.D4)
+            self.sensor = adafruit_dht.DHT22(bpin)
         elif sen_type == "DHT11":
-            self.sensor = adafruit_dht.DHT11(board.D4)
+            self.sensor = adafruit_dht.DHT11(bpin)
         else:
             raise ValueError("{} is an unsupported Sensor".format(sen_type))
 
