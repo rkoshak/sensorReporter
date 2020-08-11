@@ -38,6 +38,9 @@ def issafe(arg):
     return arg.find(';') == -1 and arg.find('|') == -1
 
 def parse_values(params, defaults):
+    """Parses a Values parameter which should have only two values separated by
+    a comma. Used to override ON/OFF type messages.
+    """
     try:
         split = params("Values").split(",")
         if len(split) != 2:
@@ -46,3 +49,28 @@ def parse_values(params, defaults):
             return split
     except NoOptionError:
         return defaults
+
+def get_sequential_params(params, name):
+    """Gets a list of values from sequentially named parameters."""
+    values = []
+    i = 1
+    done = False
+    while not done:
+        try:
+            param = "{}{}".format(name, i)
+            values.append(params(param))
+            i += 1
+        except NoOptionError:
+            done = True
+    return values
+
+def get_sequential_param_pairs(params, name1, name2):
+    """Returns a dict of two sets of sequentially named parameters using the
+    value of name1 as the key and the value of name2 of the value.
+    """
+    one = get_sequential_params(params, name1)
+    two = get_sequential_params(params, name2)
+    if len(one) != len(two):
+        raise ValueError("Unequal number of parameters for %s and %s ", name1,
+                         name2)
+    return dict(zip(one, two))
