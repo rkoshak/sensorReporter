@@ -61,11 +61,9 @@ class BtRssiSensor(Sensor):
             raise ValueError("Poll must be greater than 10 seconds.")
 
     def read_inquiry_mode(self, sock):
-        self.log.debug("Saving the old filter")
         # Save the current filter
         old_filter = sock.getsockopt(bt.SOL_HCI, bt.HCI_FILTER, 14)
 
-        self.log.debug("Creating filter for reading inquiry")
         # Setup the filter to receive only events related to the
         # read_inquirey_mode command.
         flt = bt.hci_filter_new()
@@ -75,14 +73,12 @@ class BtRssiSensor(Sensor):
         bt.hci_filter_set_opcode(flt, opcode)
         sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
 
-        self.log.debug("Reading the mode")
         # First read the current inquirey mode.
         bt.hci_send_cmd(sock, bt.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
 
         pkt = sock.recv(255)
         status, mode = struct.unpack("xxxxxxBB", pkt)
 
-        self.log.debug("Restoring the old filter")
         # Restore the old filter
         sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, old_filter)
 
@@ -134,14 +130,12 @@ class BtRssiSensor(Sensor):
         while True:
             pkt = sock.recv(255)
             ptype, event, plen = struct.unpack("BBB", pkt[:3])
-            self.log.debug("Event: {}".format(event))
             if event == bt.EVT_INQUIRY_RESULT_WITH_RSSI:
                 pkt = pkt[3:]
                 nrsp = bluetooth.get_byte(pkt[0])
                 for i in range(nrsp):
                     addr = bt.ba2str(pkt[1+6*i:1+6*i+6])
                     rssi = bluetooth.byte_to_signed_int(bluetooth.get_byte(pkt[1 + 13 * nrsp + i]))
-                    self.log.debug("RSSI %s for %s", rssi, addr)
                     results.append((addr, rssi))
             elif event == bt.EVT_INQUIRY_COMPLETE:
                 break
@@ -155,7 +149,6 @@ class BtRssiSensor(Sensor):
                 nrsp = bluetooth.get_byte(pkt[0])
                 for i in range(nrsp):
                     addr = bt.ba2str(pkt[1+6*1:1+6*i+6])
-                    self.log.info("Result without rssi from %s", addr)
                     results.append((addr, -1))
             else:
                 self.debug("Unrecognized packet type")
@@ -165,15 +158,13 @@ class BtRssiSensor(Sensor):
 
     def get_rssi(self):
         # Open the HCI socket.
-        self.log.debug("Opening the socket")
         try:
             sock = bt.hci_open_dev(0)
-            self.log.debug("Opened the socket")
         except Exception as exc:
             self.log.error("Error accessing bluetooth device: %s\n", exc, traceback.format_exec())
             return
 
-        self.log.info("About to read inquiry mode")
+        # Get the mode.
         try:
             mode = self.read_inquiry_mode(sock)
         except Exception as exc:
@@ -181,24 +172,26 @@ class BtRssiSensor(Sensor):
             sock.close()
             return
 
-        self.log.debug("Inquiry mode is %s", mode)
-
+        # Change the mode.
         if mode != 1:
-            self.log.debug("Writing inquire mode...")
             try:
                 result = self.write_inquiry_mode(sock, 1)
             except Exception as exc:
                 self.log.error("Error writing inquiry mode: %s", exc)
+                sock.close()
                 return
             if result:
                 self.log.error("Error while setting inquiry mode")
-            self.log.debug("Result: %s", result)
+                sock.close()
+                return
 
-        results = device_inquiry_with_rssi(sock)
-        self.close()
+        # Collect rssi packets.
+        results = self.device_inquiry_with_rssi(sock)
+        sock.close()
 
-        found = [rssi for rssi in results if rssi[0] == self.Address]
-        self.log.info("Results = %s", results)
+        # Look through the results for the device we care about.
+        self.log.debug("Results = %s, looking for results for %s", results, self.address.upper())
+        found = [rssi for rssi in results if rssi[0] == self.address.upper()]
 
         # Return the first one.
         return found[0][1] if found else None
@@ -206,6 +199,7 @@ class BtRssiSensor(Sensor):
     def check_state(self):
         value = self.state
         rssi = self.get_rssi()
+        self.log.debug("Device %s has RSSI of %s", self.address.upper(), rssi)
 
         # Update the near/far counts
         def update_count(amt, cnt):
