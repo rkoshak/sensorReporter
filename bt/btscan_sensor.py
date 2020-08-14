@@ -11,35 +11,52 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Contains sensors that look to see if given BT devices are present. Does not
+look for BTLE devices.
+
+Classes:
+    -SimpleBtSensor: Looks for a device by address and if it finds it publishes
+    ON.
+    - BtRssiSensor: Looks for a device by address and it it sees it enough times
+    publishes ON.
+"""
 import struct
 import traceback
 import bluetooth
 import bluetooth._bluetooth as bt
 from core.sensor import Sensor
+from core.utils import get_sequential_params
 
 class SimpleBtSensor(Sensor):
 
     def __init__(self, publishers, params):
         super().__init__(publishers, params)
 
-        self.address = params("Address")
-        self.destination = params("Destination")
+        addresses = get_sequential_params(params, "Address")
+        destinations = get_sequential_params(params, "Destination")
+        laststates = [None] * len(addresses)
+        if len(addresses) != len(destinations):
+            raise ValueError("List of addresses and destinations are not the same length")
+        self.devices = dict(zip(addresses, destinations))
+        self.states = dict(zip(addresses, laststates))
+
         if self.poll <= 25:
             raise ValueError("Poll must be less than 25")
 
-        self.log.info("Configured simple BT sensor for %s, publishing to %s", self.address, self.destination)
-        self.state  = None
+        self.log.info("Configured simple BT sensor")
 
     def check_state(self):
-        result = bluetooth.lookup_name(self.address, timeout=25)
-        self.log.debug("Scanned for %s, result = %s", self.address, result)
-        value = "OFF" if result is None else "ON"
-        if value != self.state:
-            self.state = value
-            self.publish_state()
+        for address in self.devices:
+            result = bluetooth.lookup_name(address, timeout=25)
+            self.log.debug("Scanned for %s, result = %s", address, result)
+            value = "OFF" if result is None else "ON"
+            if value != self.states[address]:
+                self.states[address] = value
+                self._send(value, self.devices[address])
 
     def publish_state(self):
-        self._send(self.state, self.destination)
+        for address in self.devices:
+            self._send(self.states[address], self.devices[address])
 
 class BtRssiSensor(Sensor):
 
