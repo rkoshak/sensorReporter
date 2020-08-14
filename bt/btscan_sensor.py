@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import struct
+import traceback
 import bluetooth
 import bluetooth._bluetooth as bt
 from core.sensor import Sensor
@@ -60,9 +61,11 @@ class BtRssiSensor(Sensor):
             raise ValueError("Poll must be greater than 10 seconds.")
 
     def read_inquiry_mode(self, sock):
+        self.log.debug("Saving the old filter")
         # Save the current filter
         old_filter = sock.getsockopt(bt.SOL_HCI, bt.HCI_FILTER, 14)
 
+        self.log.debug("Creating filter for reading inquiry")
         # Setup the filter to receive only events related to the
         # read_inquirey_mode command.
         flt = bt.hci_filter_new()
@@ -72,12 +75,14 @@ class BtRssiSensor(Sensor):
         bt.hci_filter_set_opcode(flt, opcode)
         sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
 
+        self.log.debug("Reading the mode")
         # First read the current inquirey mode.
         bt.hci_send_cmd(sock, bluez.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
 
         pkt = sock.recv(255)
         status, mode = struct.unpack("xxxxxxBB", pkt)
 
+        self.log.debug("Restoring the old filter")
         # Restore the old filter
         sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, old_filter)
 
@@ -162,15 +167,18 @@ class BtRssiSensor(Sensor):
         # Open the HCI socket.
         self.log.debug("Opening the socket")
         try:
-            hci_sock = bt.hci_open_dev()
+            sock = bt.hci_open_dev(0)
+            self.log.debug("Opened the socket")
         except Exception as exc:
-            self.log.error("Error accessing bluetooth device: %s", exc)
+            self.log.error("Error accessing bluetooth device: %s\n", exc, traceback.format_exec())
             return
 
+        self.log.info("About to read inquiry mode")
         try:
             mode = self.read_inquiry_mode(sock)
         except Exception as exc:
             self.log.error("Error reading inquiry mode: %s", exc)
+            sock.close()
             return
 
         self.log.debug("Inquiry mode is %s", mode)
@@ -187,7 +195,14 @@ class BtRssiSensor(Sensor):
             self.log.debug("Result: %s", result)
 
         results = device_inquiry_with_rssi(sock)
+        self.close()
+
+        found = [rssi for rssi in results if rssi[0] == self.Address]
+
         self.log.info("Results = %s", results)
+
+        # Return the first one.
+        return found[0][1] if found else None
 
     def check_state(self):
         value = self.state
