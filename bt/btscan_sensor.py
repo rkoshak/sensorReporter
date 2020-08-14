@@ -70,14 +70,14 @@ class BtRssiSensor(Sensor):
         # read_inquirey_mode command.
         flt = bt.hci_filter_new()
         opcode = bt.cmd_opcode_pack(bt.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
-        bt.hci_filter-set-ptype(flt, bt.HCI_EVENT_PKT)
+        bt.hci_filter_set_ptype(flt, bt.HCI_EVENT_PKT)
         bt.hci_filter_set_event(flt, bt.EVT_CMD_COMPLETE)
         bt.hci_filter_set_opcode(flt, opcode)
         sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
 
         self.log.debug("Reading the mode")
         # First read the current inquirey mode.
-        bt.hci_send_cmd(sock, bluez.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
+        bt.hci_send_cmd(sock, bt.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
 
         pkt = sock.recv(255)
         status, mode = struct.unpack("xxxxxxBB", pkt)
@@ -137,10 +137,10 @@ class BtRssiSensor(Sensor):
             self.log.debug("Event: {}".format(event))
             if event == bt.EVT_INQUIRY_RESULT_WITH_RSSI:
                 pkt = pkt[3:]
-                nrsp = bt.get_byte(pkt[0])
+                nrsp = bluetooth.get_byte(pkt[0])
                 for i in range(nrsp):
                     addr = bt.ba2str(pkt[1+6*i:1+6*i+6])
-                    rssi = bt.byte_to_signed_int(bt.get_byte(pkt[1 + 13 * nrsp + 1]))
+                    rssi = bluetooth.byte_to_signed_int(bluetooth.get_byte(pkt[1 + 13 * nrsp + i]))
                     self.log.debug("RSSI %s for %s", rssi, addr)
                     results.append((addr, rssi))
             elif event == bt.EVT_INQUIRY_COMPLETE:
@@ -152,7 +152,7 @@ class BtRssiSensor(Sensor):
                     break
             elif event == bt.EVT_INQUIRY_RESULT:
                 pkt = pkt[3:]
-                nrsp = bt.get_byte(pkt[0])
+                nrsp = bluetooth.get_byte(pkt[0])
                 for i in range(nrsp):
                     addr = bt.ba2str(pkt[1+6*1:1+6*i+6])
                     self.log.info("Result without rssi from %s", addr)
@@ -186,7 +186,7 @@ class BtRssiSensor(Sensor):
         if mode != 1:
             self.log.debug("Writing inquire mode...")
             try:
-                result = write_inquiry_mode(sock, 1)
+                result = self.write_inquiry_mode(sock, 1)
             except Exception as exc:
                 self.log.error("Error writing inquiry mode: %s", exc)
                 return
@@ -198,7 +198,6 @@ class BtRssiSensor(Sensor):
         self.close()
 
         found = [rssi for rssi in results if rssi[0] == self.Address]
-
         self.log.info("Results = %s", results)
 
         # Return the first one.
