@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import array
-import fcntl
 import struct
 import bluetooth
 import bluetooth._bluetooth as bt
@@ -61,49 +59,135 @@ class BtRssiSensor(Sensor):
         if self.poll <= 10:
             raise ValueError("Poll must be greater than 10 seconds.")
 
+    def read_inquiry_mode(self, sock):
+        # Save the current filter
+        old_filter = sock.getsockopt(bt.SOL_HCI, bt.HCI_FILTER, 14)
+
+        # Setup the filter to receive only events related to the
+        # read_inquirey_mode command.
+        flt = bt.hci_filter_new()
+        opcode = bt.cmd_opcode_pack(bt.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
+        bt.hci_filter-set-ptype(flt, bt.HCI_EVENT_PKT)
+        bt.hci_filter_set_event(flt, bt.EVT_CMD_COMPLETE)
+        bt.hci_filter_set_opcode(flt, opcode)
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
+
+        # First read the current inquirey mode.
+        bt.hci_send_cmd(sock, bluez.OGF_HOST_CTL, bt.OCF_READ_INQUIRY_MODE)
+
+        pkt = sock.recv(255)
+        status, mode = struct.unpack("xxxxxxBB", pkt)
+
+        # Restore the old filter
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, old_filter)
+
+        return mode
+
+    def write_inquiry_mode(self, sock, mode):
+        old_filter = sock.getsockopt(bt.SOL_HCI, bt.HCI_FILTER, 14)
+
+        # Setup socket filter to receive only events related to the
+        # write_inquire_mode command
+        flt = bt.hci_filter_new()
+        opcode = bt.cmd_opcode_pack(bt.OGF_HOST_CTL, bt.OCF_WRITE_INQUIRY_MODE)
+        bt.hci_filter_set_ptype(flt, bt.HCI_EVENT_PKT)
+        bt.hci_filter_set_event(flt, bt.EVT_CMD_COMPLETE)
+        bt.hci_filter_set_opcode(flt, opcode)
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
+
+        # Send the command
+        bt.hci_send_cmd(sock, bt.OGF_HOST_CTL, bt.OCF_WRITE_INQUIRY_MODE,
+                        struct.pack("B", mode))
+
+        pkt = sock.recv(255)
+        status = struct.unpack("xxxxxxB", pkt)[0]
+
+        # Restore the old filter
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, old_filter)
+
+        return 0 if status else -1
+
+    def device_inquiry_with_rssi(self, sock):
+        # save the old filter
+        old_filter = sock.getsockopt(bt.SOL_HCI, bt.HCI_FILTER, 14)
+
+        # Perform a device inquiry on bluetooth device. The inquiry should last
+        # 8 * 1.28 = 10.24 seconds before the inquiry is performed, bluez should
+        # flush it's cache of previously discovered devices.
+        flt = bt.hci_filter_new()
+        bt.hci_filter_all_events(flt)
+        bt.hci_filter_set_ptype(flt, bt.HCI_EVENT_PKT)
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, flt)
+
+        duration = 4
+        max_responses = 255
+        cmd_pkt = struct.pack("BBBBB", 0x33, 0x8b, 0x9e, duration, max_responses)
+        bt.hci_send_cmd(sock, bt.OGF_LINK_CTL, bt.OCF_INQUIRY, cmd_pkt)
+
+        results = []
+
+        while True:
+            pkt = sock.recv(255)
+            ptype, event, plen = struct.unpack("BBB", pkt[:3])
+            self.log.debug("Event: {}".format(event))
+            if event == bt.EVT_INQUIRY_RESULT_WITH_RSSI:
+                pkt = pkt[3:]
+                nrsp = bt.get_byte(pkt[0])
+                for i in range(nrsp):
+                    addr = bt.ba2str(pkt[1+6*i:1+6*i+6])
+                    rssi = bt.byte_to_signed_int(bt.get_byte(pkt[1 + 13 * nrsp + 1]))
+                    self.log.debug("RSSI %s for %s", rssi, addr)
+                    results.append((addr, rssi))
+            elif event == bt.EVT_INQUIRY_COMPLETE:
+                break
+            elif event == bt.EVT_CMD_STATUS:
+                status, ncmd, opcode = struct.unpack("BBH", pkt[3:7])
+                if status:
+                    self.warning("Something went wrong")
+                    break
+            elif event == bt.EVT_INQUIRY_RESULT:
+                pkt = pkt[3:]
+                nrsp = bt.get_byte(pkt[0])
+                for i in range(nrsp):
+                    addr = bt.ba2str(pkt[1+6*1:1+6*i+6])
+                    self.log.info("Result without rssi from %s", addr)
+                    results.append((addr, -1))
+            else:
+                self.debug("Unrecognized packet type")
+
+        sock.setsockopt(bt.SOL_HCI, bt.HCI_FILTER, old_filter)
+        return results
+
     def get_rssi(self):
         # Open the HCI socket.
         self.log.debug("Opening the socket")
-        hci_sock = bt.hci_open_dev()
-        hci_fd = hci_sock.fileno()
-
-        # Connect to the BT transceiver.
-        bt_sock = bluetooth.BluetoothSocket(bluetooth.L2CAP)
-        bt_sock.settimeout(10)
-        result = bt_sock.connect_ex((self.address, 1)) # PSM 1 = Service Discovery
-
-        rssi = None
         try:
-            # Get ConnInfo
-            self.log.debug("Getting request string")
-            reqstr = struct.pack("6sB17s", bt.str2ba(self.address), bt.ACL_LINK,
-                                 b"\0" * 17)
-            self.log.debug("building the request array")
-            request = array.array("b", reqstr)
-            self.log.debug("parsing the handle")
-            handle = fcntl.ioctl(hci_fd, bt.HCIGETCONNINFO, request, 1)
-            self.log.debug("Unpacking the handle")
-            handle = struct.unpack("8xH14x", request.tostring())[0]
-
-            # Get RSSI
-            self.log.debug("Packing the handle")
-            cmd_pkt = struct.pack('H', handle)
-            self.log.debug("Extracting the rssi")
-            rssi = bt.hci_send_req(hci_sock, bt.OGF_STATUS_PARAM,
-                                   bt.OCF_READ_RSSI, bt.EVT_CMD_COMPLETE, 4,
-                                   cmd_pkt)
-            self.log.debug("Getting the final rssi value")
-            rssi = struct.unpack('b', rssi[3])[0]
-
+            hci_sock = bt.hci_open_dev()
         except Exception as exc:
-            self.log.warning("Error scanning for %s: %s", self.address, exc)
-            rssi = None
-        finally:
-            # Close sockets
-            self.log.debug("Closing the socket")
-            bt_sock.close()
-            hci_sock.close()
-            return rssi
+            self.log.error("Error accessing bluetooth device: %s", exc)
+            return
+
+        try:
+            mode = self.read_inquiry_mode(sock)
+        except Exception as exc:
+            self.log.error("Error reading inquiry mode: %s", exc)
+            return
+
+        self.log.debug("Inquiry mode is %s", mode)
+
+        if mode != 1:
+            self.log.debug("Writing inquire mode...")
+            try:
+                result = write_inquiry_mode(sock, 1)
+            except Exception as exc:
+                self.log.error("Error writing inquiry mode: %s", exc)
+                return
+            if result:
+                self.log.error("Error while setting inquiry mode")
+            self.log.debug("Result: %s", result)
+
+        results = device_inquiry_with_rssi(sock)
+        self.log.info("Results = %s", results)
 
     def check_state(self):
         value = self.state
