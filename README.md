@@ -1,194 +1,131 @@
-NOTE: I've recently updated this to use Python3. I'm also in the middle of a complete rewrite so stay tuned.
+# sensor_reporter
+sensor_reporter is a Python 3 script that bridges sensors and actuators to MQTT or openHAB's REST API.
+It's a modular script that allows for relatively easy implementation of new capabilities with minimal effort.
+If you've used sensorReporter or mqttReporter before, this is a complete rewrite with many breaking changes.
+See the release notes below for details.
 
-# sensorReporter
-A Python script that bridges sensors and actuators to MQTT and/or REST. 
-It was written to support integrating remote sensors with openHAB, but it should support any remote hub that has a simple HTTP GET based REST API or uses MQTT.
+A number of connections, sensors, and actuators are currently supported.
+    - Connection: responsible for publishing sensor readings and actuator results and subscribing for actuator commands.
+    - Actuators: classes that perform some action when a message is received.
+    - Polling Sensors: classes that query some device on a set polling period.
+    - Background Sensors: classes that sense for events in the background and do not require polling.
 
-The script currently supports MQTT and openHAB 1.x's REST API for publishing sensor readings and actuator results.
-It will only work with openHAB 2.x if ClassicUI is installed.
-It will not work with openHAB 3 without modifications.
-It supports MQTT for receiving commands to activate actuators.
+Go into the subfolders for details in each subfolder's README.
 
-The currently supported technologies are: Raspberry PI GPIO sensors and actuators, Bluetooth presence detection sensors, Dash Button presses (deprecated), Roku IP address discovery, executing command line programs, DHT11/22 senors, a hearbeat publisher, and listening for Govee BTLE temp/humi sensors.
+Plug-in | Type | Purpose
+-|-|-|-
+`bt.btle_sensor.BtleSensor` | Background Sensor | Scans for BTLE advertisements from configured devices.
+`bt.btscan_sensor.SimpleBtSensor` | Polling Sensor | Scans for the presence of BT devices with a given addresses.
+`bt.btscan_sensor.BtRssiSensor` | Polling Sensor | Scans for a device with a given address and if it sees it enough reporte it present or absent if it doesn't.
+`bt.govee_sensor.GoveeSensor` | Background Sensor | Receives BTLE packets from Govee H5075 temperature and humidity sensors.
+`exec.exec_actuator.ExecActuator` | Actuator | On command, executes the configured command line command.
+`exec.exec_sensor.ExecSensor` | Polling Sensor | Executes the configured command line and publishes the result.
+`gpio.dht_sensor.DhtSensor` | Polling Sensor | Publishes temperature and humidity readings from DHT11, DHT22, and AM2302 sensors connected to GPIO pins.
+`gpio.rpi_gpio.RpiGpioSensor` | Polling or Background Sensor | Publsihes ON/OFF messages based on the state of a GPIO pin.
+`gpio.rpi_gpio.RpiGpioActuator` | Actuator | Sets a GPIO pin to a given state on command.
+`heartbeat.heartbeat.Heartbeat` | Polling Sensor | Publishes the amount of time sensor_reporter has been up as number of msec and as DD:HH:MM:SS.
+`local.local_conn.LocalConnection` | Connection | Allows sensors to call actuators.
+`mqtt.mqtt_conn.MqttConnection` | Connectioln | Allows Actuators to subscribe and publish and Sensors to publish results.
+`network.arp_sensor.ArpSensor` | Polling Sensor | Periodically gets and parses the ARP table for given mac addresses.
+`network.dash_sensor.DashSensor` | Background Sensor | Watches for Amazon Dash Button ARP packets.
+`openhab_rest.rest_conn.OpenhabREST` | Connection | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.
+`roku.roku_addr.RokuAddressSensor` | Polling Sensor | Periodically requests the addresses of all the Rokus on the subnet.
+
 
 # Architecture
-The main script is sensorReporter.py. this script parses the configuration ini file and implements the main polling loop and thread management. 
-During startup this script reads the ini file and creates instances of the indicated classes and passes them the arguments for that class.
+The main script is `sensor_reporter` which parses a configuration ini file and handles operating system signal handling.
 
-The script has been made generic and easily expanded through plugins. 
-To add a new sensor or actuator simply put the new class file(s) in the same folder, fill out the ini file section and sensorReporter will handle the rest. 
-The same is true for Connections.
+It uses a `core.poll_mgr.PollMgr` manages running a polling loop used by Polling Sensors to control querying the devices.
+
+All connections inherit from `core.connection.Connection`.
+All Actuators inherit from `core.actuator.Actuator` and all sensors inherit from `core.sensor.Sensor`.
+Common code is implemented in the parent classes.
+
+On startup or when receiving a `HUP` (`kill -1`) operating system signal the configuratuion ini file is loaded.
+There is a logging section (see below) where the logging level and where to log to is defined.
+Then there is a separate section for each connection, sensor, and actuator.
+Each individual plug-in will define it's own set of required and optional parameters.
+See the README files in the subfolders for details.
+
+However, some parmeters will be common.
+    - All polling sensors require a Poll parameter indicating how often in seconds to poll the sensor devices
+    - All sections require a Class parameter defining the class to load.
+    - All sensors and actuators require a Connection class containing the name of the Connection to publish/subscribe through. More than one can be defined in a comma separated list.
+    - All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
+
+Sensors are defined in a `[SensorX]` section where `X` is a unique number.
+Connections and Actuators are defined in similarly named sections.
+The number need only be unique, they don't need to be sequential.
 
 # Dependencies
-The core of the script does not have any dependencies beyond running in Python 3. 
-It's been tested with Python 3.7.
-However each plugin may have its own dependencies.
-
-MQTT depends on the Paho library.
-`pip3 install paho-mqtt`
-
-The Native Raspberry Pi GPIO library comes with Raspbian by default and requires sensorReporter be run as root or by as user who is a member of the GPIO group.
-If it's not installed use: 
-`sudo apt-get install rpi.gpio`.
-
-Bluetooth depends on bluez, python-bluez and bluepy (for bluetooth LE scanning).
-```
-sudo apt-get install bluez python-bluez
-pip3 install bluepy
-```
-
-Dash requires scapy and it requires sensorReporter be run as root.
-`sudo pip install scapy`
-
-Roku does not require anything special to be installed.
-
-Execute actuator does not require anything special to be installed.
-
-DHT11/22 requires the Adafruit DHT library.
-`sudo pip3 install Adafruit_DHT`
-
-# Organization
-The config folder contains a sensorReporter start script for upstart systems (e.g raspbian wheezy), and a service file for systemd type systems (e.g raspbian jessey+, Ubuntu 15+). 
-There is an install.sh script which shows the install steps to get the dependencies using using apt-get and pip3 and to copy and enable the start script to init.d or systemd/services so sensorReporter will start as a service during boot. 
-You must edit the commands in the script to match your system. 
-This script is intended to be informational, not to be executed as is.
-
-The main folder has a default.ini with configuration parameters and the Python script itself. 
-The default.ini has example configurations for all of the supported addons with some comments to describe the parameter's meanings.
-
-The services files expect there to be a sensorReporter.ini file
-
-If you place or link the script somewhere other than /opt/sensorReporter you need to update the sensorReporter start script or sensorReporter.service with the correct path.
-
-# Configuration
-default.ini is the primary documentation for each plugin's configuration outside of the code itself. 
-All the supported options and what they mean is documented in the comments.
-
-The configuration file contains zero or more Sensor and/or Actuator sections which specify their Type, the MQTT/REST destination to report to, communciation type (MQTT or REST), and sensor/actuator specific info (e.g. pin, BT address, etc.).
-
-The Logging section allows one to specify where the scripts log file is saved, its max size, and maximum number of old log files to save. 
-When Syslog is enabled all logging goes to the system syslog instead.
-
-The REST section is where one specifies the beggining portion of the URL for the REST API. 
-For openHAB, this is the full REST URL to the Item without the Item name. 
-The Item name is specified as the destination in the sensor/actuator sections.
-
-The MQTT section is where one specifies the user, password, host, and port, for the MQTT Broker. 
-The Topic item in this section is a topic the script listens to report the state of the sensors on command (i.e. any message sent to this topic will cause sensorReporter to publish the current state of all its configured sensors. 
-One also defines a Last Will and Testament topic and message so other servers can monitor when sensorReporter goes offline.
-
-Note that Actuators only support MQTT communicators.
-The REST API communicator cannot receive messages, only publish.
+sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
+Each plugin will have it's own dependency.
+See the readmes in the subfolders for details.
 
 # Usage
-To run the script manually:
+`python3 sensor_reporter configuration.ini`
 
-`sudo python3 sensorReporter sensorReporter.ini`
+# Configuration
+sensor_reporter uses an ini file for configuration.
+The only required section is the logging section.
+However, to do anything useful, there should be at least one Connection and at least one Sensor or Actuator.
+All logging will be published to standard out.
+In addition logging will be published to syslog or to a log file.
 
-If it has been configured as a service, run:
+## Syslog Example
 
-`sudo service sensorReporter start`
-
-or
-
-`sudo systemctl start sensorReporter`
-
-# Behavior
-Some sensors spin off a separate thread to listen for updates.
-These have a polling period of -1.
-These include the Dash Button, Govee, and GPIO sensors.
-
-Other sensors have a polling period.
-The script will poll the sensors once per configured poll period. 
-If the state of the sensor has changed since the last poll the state is published on the configured MQTT/REST destination.
-
-The GPIO sensor pins will report "OPEN" for active pins and "CLOSED" for inactive pins.
-
-The Bluetooth scanner will report "ON" when the device is present and "OFF" when it is not. 
-Bluetooth LE scanning is tested with a Gigaset G-tag but should work with any tag. 
-It checks only for presence of the device, the parameters are not used. 
-If the device is found, a keyword will be reported. 
-The keywords can be modified in the ini file, default values are "ON" and "OFF".
-
-Dash will report "Pressed" when it detects the button press.
-
-The Roku scanner will publish the detected IP address for that Roku.
-
-The exec actuator will publish the result printed by the executed script, or ERROR if the script didn't return a 0 exitcode.
-
-The heartbeat sensor will publish the uptime in milliseconds to destination/number and the uptime in DD:HH:MM:SS to destination/string once per polling period.
-
-Upon receipt of any message on the main incoming destination, the script will publish the current state of all configured polling sensors (sensors with a polling period &gt; 0) on their respective destinations immediately. 
-Those with a 0 polling period will not report their current status.
-
-The script is configured to respond properly to term signals (e.g. &lt;ctrl&gt;-c) so it behaves nicely when run as a service (currently broken when using Dash).
-
-# Bluetooth Specifics
-To discover the address of your Bluetooth device (e.g. a phone), put it in pairing mode, run `inquiry.py` and record the address next to the name of your device. 
-Use this address in the .ini file for your Bluetooth scanning sensors.
-
-`inquiry.py` is part of the pybluez project and can be found at https://code.google.com/p/pybluez/source/browse/examples/simple/inquiry.py
-
-# Dash Button Specifics (deprecated)
-To discover the address of your Dash button, there is a `getMac.py` script in the config folder that will run for a short time and print the MAC address of any device that issues an ARP request while it is running. 
-Run the script and then press the button and it will print that button's address. 
-If you are in a noisy network with lots of ARP requests you may need to do trial and elimination to discover which MAC is for your button. 
-
-Upon receiving your Dash button, follow the configuration steps up to the point where it asks you to choose a product. 
-Close the setup app at this point and whenever you press the button the request will fail (i.e. you won't order anything) but it will be able to join your network and issue the ARP request we use to tell when it is pressed.
-
-The code and approach to using Dash is inspired from the example found at https://medium.com/@edwardbenson/how-i-hacked-amazon-s-5-wifi-button-to-track-baby-data-794214b0bdd8#.kxt3lt5rh
-
-Follow the default.ini example to map the MAC address to a destination. 
-When sensorReporter detects the ARP packet from that button it will send the string "Pressed" to the corresponding destination. 
-For example, if you have an Address1, it will send "Pressed" to Destination1.
-
-Note that in openHAB 2 there is now a Dash binding which you should use instead.
-
-# Roku Specifics
-The "Name" of the Roku is the device's serial number. 
-This can be found printed on the label on the bottom of your Roku device or found in the "My linked devices" section on your roku.com account page.
-
-# DHT Specifics
-Supported DHT sensors is DHT22, it can either run in Advanced Mode or Simple Mode. 
-In Simple mode it just reads data from the sensor, and verifies that it is between bounds and returns the reading. 
-
-In Advanced mode it reads the value and stores last five readings in an array. 
-The returned value is the mean value of the readings in the array. 
-This approach can be used if you encounter some readings that are wrong every now and then.
-  
-Be sure that Adafruits DHT Python library is installed, instructions can be found at
-https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/software-install-updated
-
-# Exec Specitics
-The exec sensor will periodically execute the given shell script and publish the result or 'ERROR' if the script didn't return a 0 exitcode to the configured destination.
-Avoid making the polling period shorter than it takes the script to run in the worst case or else you will run out of threads to run the sensorReporter.
-
-# Govee Temp/Humidity Sensor
-This capability has only been tested with the [H5072](https://www.govee.com/products/36/govee-bluetooth-temperature-humidity-monitor) and is based on the code at https://github.com/Thrilleratplay/GoveeWatcher.
-The Govee sensor requires the bleson library to be installed as well as bluetooth.
-
+```ini
+[Logging]
+Syslog = YES
+Level = INFO
 ```
-sudo apt install bluetooth
-sudo pip3 install bleson
+`Syslog` can be any boolean value.
+When true no other parameters are required.
+`Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter.
+
+## Log File Example
+
+```ini
+[Logging]
+File = /var/log/sensorReporter.log
+MaxSize = 67108864
+NumFiles = 10
+Syslog = NO
+Level = INFO
 ```
-I've only tested it running as root.
-To run as another user that user will have to be added to some groups.
-I don't know what those are as of this writing.
+`File` is the path to the log file.
+`MaxSize` is the maximum size of the log file in bytes before it gets rotated.
+`NumFiles` is the number of old log files to save, older files are automatically deleted
 
-Each sensor has a unique name (e.g. GVH5072_8E33) where the last four digits are the last four digits of the devices BT MAC address.
-A root for the MQTT topics is supplied as an initialization parameter and the rest of the topics take on the format:
+The above parameters are only required if `SysLog` is a false value.
+`Level` is the same as for `Syslog = True` and indicates the default logging level.
 
-```
-<root>/<name>/temp_C  # The temperature in C
-<root>/<name>/temp_F  # The temperature in F
-<root>/<name>/humi    # The humidity as a percent
-<root>/<name>/battery # The percentage left on the battery
-<root>/<name>/rssi    # The signal strength
-```
+# Release Notes
+This current version is a nearly complete rewrite of the previous version with a number of breaking changes.
 
-The sensor reports every two to ten seconds.
+## Breaking Changes
 
-NOTE: This was tested on an RPi 3 with the built in BT and it was only able to receive a reading once every 30 minutes or so.
-On an RPi 1 with a BT 4.0 dongle it receives most of the broadcasts.
-YMMV.
+- Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
+- No longer runnable on Python 2, tested with Python 3.7.
+- All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments
+- All actuators inherit from the `core.actuator.Actuator` class and the constructor now only takes two arguments
+- `bluetooth.py` has been split into three separate sensor classes instead of just the one overly complicated one. There is now the BTLE Sensor, the Simple BT sensor, and the BT RSSI sensor to replace it and support the three modes.
+- Across the board improved error logging and reporting.
+- The set of required and optional parameters has changed for all sensors, actuators, and connections.
+- The DHT Sensor is rewritten to use the new adafruit-blinkie library as the Adafruit_DHT library is deprecated.
+- The RPi GPIO sensor no longer directly supports calling actuators or handlers. Instead the Local connection replaces this capability in a more generic way that works for all sensors. Rather than creating a handler, create an Actuator and connect a sensor to the Actuator by adding a Local connection to both.
+- The LWT topic and message is now hard coded as is the refresh topic. When sensor_reporter connects it publishes ONLINE as a retained message to the LWT topic. When closing down or as a LWT OFFLINE is posted as a retained message.
+- The REST communicator has been made specific to openHAB, but added the ability to work in both directions. sensor_reporter can now receive messages by commanding openHAB Items in addition to updating Items.
+
+## Other changes
+- Logs out to standard out in addition to Syslog or log files.
+- Reogranized singal handleing to make it simpler.
+- Moved the polling to a separate class.
+- If a sensor is still running from a previous poll period, the next poll will be skipped until the sensor polling completes.
+- Bluetooth LE now supports more than one device per sensor.
+- The exec sensor and exec actuator now support timeouts to keep a command line from hanging forever. The exec sensor is hard coded to 10 seconds. The exec sensor has a parameter that can be set in the ini file.
+- Added a Local connection which lets sensors send messages to Actuators. For example, a temperature sensor can turn on an LED light when the temperature is above a threshold.
+- Improved error reporting and added a timeout to the arp sensor.
+- Dash sensor has been rewritten to use the Scapy AsynchSniffer which fixes the problem where the sensor blocks sensor_repoter from exiting on a kill signal.
+- Conforms to pylint PEP-8 where feasable.
+- Signigficatin reduction in duplicated code and hopefully the overall structure and way it works is more straight forward.

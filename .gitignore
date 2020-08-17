@@ -7,3 +7,4 @@ cerberos.ini
 manticore.ini
 iphoned.sh
 *.swp
+__pycache__

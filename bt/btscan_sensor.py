@@ -56,7 +56,7 @@ class SimpleBtSensor(Sensor):
         self.states = dict(zip(addresses, laststates))
 
         if self.poll <= 25:
-            raise ValueError("Poll must be less than 25")
+            raise ValueError("Poll must be more than 25")
 
         self.log.info("Configured simple BT sensor")
 
