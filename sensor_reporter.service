@@ -1,15 +1,14 @@
 [Unit]
-Description=Reports status and sensor readings over MQTT and REST
+Description=Reports status and sensor readings over MQTT and openHAB REST
 Requires=networking.service
 Wants=network-online.target
 After=network.target network-online.target
 
 [Service]
-WorkingDirectory=/opt/sensorReporter
+WorkingDirectory=/opt/sensor_reporter
 User=sensorReporter
 Type=simple
-ExecStart=python3 sensorReporter.py sensorReporter.ini
+ExecStart=python3 sensor_reporter.py sensor_reporter.ini
 
 [Install]
 WantedBy=multi-user.target
-

@@ -65,6 +65,16 @@ See the readmes in the subfolders for details.
 # Usage
 `python3 sensor_reporter configuration.ini`
 
+An example systemd service file is provided for your reference.
+
+1. clone this repo into `/opt/sensor_reporter`
+2. create a `sensorReporter` user
+3. write your config ini file
+4. `sudo -u sensorReporter ln -s <path to config.ini> /opt/sensor_reporter/sensor_reporter.ini`
+5. `sudo cp sensor_reporter.service /etc/systemd/system`
+6. `sudo systemctl enable sensor_reporter.service`
+7. `sudo sytemctl start sensor_reporter`
+
 # Configuration
 sensor_reporter uses an ini file for configuration.
 The only required section is the logging section.

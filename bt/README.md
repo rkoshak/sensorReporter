@@ -67,6 +67,9 @@ Level = DEBUG
 
 A Polling Sensor that polls BT devices by MAC address to determine if they are present or not.
 
+Look at the PyBluez examples for `inquiry.py` for a script that can be used to discover the MAC address of a device.
+Run the script and put the device into pairing mode and the MAC address and device name will be printed out.
+
 ### Dependencies
 
 The sensor uses [PyBluez](https://github.com/pybluez/pybluez) to scan for BT devices.
