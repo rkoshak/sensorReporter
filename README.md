@@ -13,7 +13,7 @@ A number of connections, sensors, and actuators are currently supported.
 Go into the subfolders for details in each subfolder's README.
 
 Plug-in | Type | Purpose
--|-|-|-
+-|-|-
 `bt.btle_sensor.BtleSensor` | Background Sensor | Scans for BTLE advertisements from configured devices.
 `bt.btscan_sensor.SimpleBtSensor` | Polling Sensor | Scans for the presence of BT devices with a given addresses.
 `bt.btscan_sensor.BtRssiSensor` | Polling Sensor | Scans for a device with a given address and if it sees it enough reporte it present or absent if it doesn't.
