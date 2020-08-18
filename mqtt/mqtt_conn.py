@@ -77,16 +77,17 @@ class MqttConnection(Connection):
 
         self.log.info("Attempting to connect to MQTT broker at %s:%s", host, port)
         self.connected = False
-        while not self.connected:
-            try:
-                self.client.connect(host, port=port, keepalive=keepalive)
-                self.connected = True
-            except socket.gaierror:
-                self.log.error("Error connecting to %s:%s", host, port)
-                self.log.debug("Exception: %s", traceback.format_exc())
-                sleep(5)
-
-        self.log.info("Connection to MQTT is successful")
+#        while not self.connected:
+#            try:
+#                self.client.connect(host, port=port, keepalive=keepalive)
+#                self.connected = True
+#            except socket.gaierror:
+#                self.log.error("Error connecting to %s:%s", host, port)
+#                self.log.debug("Exception: %s", traceback.format_exc())
+#                sleep(5)
+#
+#        self.log.info("Connection to MQTT is successful")
+        self._connect()
 
         lwtt = "{}/{}".format(self.root_topic, LWT)
         ref = "{}/{}".format(self.root_topic, REFRESH)
@@ -98,6 +99,19 @@ class MqttConnection(Connection):
 
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
+
+    def _connect(self):
+        while not self.connected:
+            try:
+                self.client.connect(host, port=port, keepalive=keepalive)
+                self.connected = True
+            except socket.gaierror:
+                self.log.error("Error connecting to %s:%s", host, port)
+                self.log.debug("Exception: %s", traceback.format_exc())
+                sleep(5)
+
+        self.log.info("Connection to MQTT is successful")
+
 
     def publish(self, message, destination):
         """Publishes message to destination, logging if there is an error."""
@@ -177,3 +191,4 @@ class MqttConnection(Connection):
                      5: "not authorized"}
             self.log.error("Unexpected disconnect code %s: %s, reconnecting",
                            retcode, codes[retcode])
+            self._connect()
