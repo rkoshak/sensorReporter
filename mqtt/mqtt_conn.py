@@ -57,14 +57,14 @@ class MqttConnection(Connection):
         self.log.info("Initializing MQTT Connection...")
 
         # Get the parameters, raises NoOptionError if one doesn't exist
-        host = params("Host")
-        port = int(params("Port"))
+        self.host = params("Host")
+        self.port = int(params("Port"))
         client_name = params("Client")
         self.root_topic = params("RootTopic")
         tls = params("TLS").lower()
         user = params("User")
         passwd = params("Password")
-        keepalive = int(params("Keepalive"))
+        self.keepalive = int(params("Keepalive"))
 
         # Initialize the client
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
@@ -75,18 +75,9 @@ class MqttConnection(Connection):
         self.client.on_disconnect = self.on_disconnect
         self.client.username_pw_set(user, passwd)
 
-        self.log.info("Attempting to connect to MQTT broker at %s:%s", host, port)
+        self.log.info("Attempting to connect to MQTT broker at %s:%s", self.host, self.port)
         self.connected = False
-        while not self.connected:
-            try:
-                self.client.connect(host, port=port, keepalive=keepalive)
-                self.connected = True
-            except socket.gaierror:
-                self.log.error("Error connecting to %s:%s", host, port)
-                self.log.debug("Exception: %s", traceback.format_exc())
-                sleep(5)
-
-        self.log.info("Connection to MQTT is successful")
+        self._connect()
 
         lwtt = "{}/{}".format(self.root_topic, LWT)
         ref = "{}/{}".format(self.root_topic, REFRESH)
@@ -98,6 +89,19 @@ class MqttConnection(Connection):
 
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
+
+    def _connect(self):
+        while not self.connected:
+            try:
+                self.client.connect(self.host, port=self.port, keepalive=self.keepalive)
+                self.connected = True
+            except socket.gaierror:
+                self.log.error("Error connecting to %s:%s", self.host, self.port)
+                self.log.debug("Exception: %s", traceback.format_exc())
+                sleep(5)
+
+        self.log.info("Connection to MQTT is successful")
+
 
     def publish(self, message, destination):
         """Publishes message to destination, logging if there is an error."""
@@ -177,3 +181,4 @@ class MqttConnection(Connection):
                      5: "not authorized"}
             self.log.error("Unexpected disconnect code %s: %s, reconnecting",
                            retcode, codes[retcode])
+            self._connect()
