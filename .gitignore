@@ -8,3 +8,4 @@ manticore.ini
 iphoned.sh
 *.swp
 __pycache__
+.vscode/settings.json
