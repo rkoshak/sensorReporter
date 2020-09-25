@@ -66,6 +66,8 @@ class MqttConnection(Connection):
         passwd = params("Password")
         self.keepalive = int(params("Keepalive"))
 
+        self.msg_processor = msg_processor
+
         # Initialize the client
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
         if tls in ('yes', 'true', '1'):
@@ -73,6 +75,8 @@ class MqttConnection(Connection):
             self.client.tls_set("./certs/ca.crt")
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
+        self.client.on_subscribe = self.on_subscribe
+        self.client.on_publish = self.on_publish
         self.client.username_pw_set(user, passwd)
 
         self.log.info("Attempting to connect to MQTT broker at %s:%s", self.host, self.port)
@@ -113,7 +117,7 @@ class MqttConnection(Connection):
                 self.log.warning("MQTT is not currently connected! Ignoring message")
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
-            rval = self.client.publish(full_topic, message, retain=retain)
+            rval = self.client.publish(full_topic, message, retain=retain, qos=0)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
                 self.log.error("Error puiblishing update %s to %s", message, full_topic)
             else:
@@ -126,6 +130,7 @@ class MqttConnection(Connection):
         """Closes the connection to the MQTT broker."""
         self.log.info("Disconnecting from MQTT")
         self._publish_mqtt(OFFLINE, LWT, True)
+        self.client.loop_stop()
         self.client.disconnect()
 
     def register(self, destination, handler):
@@ -134,7 +139,7 @@ class MqttConnection(Connection):
         the message.
         """
         full_topic = "{}/{}".format(self.root_topic, destination)
-        self.log.info("Registering for messages on %s", full_topic)
+        self.log.info("Registering for messages on '%s'", full_topic)
 
         def on_message(client, userdata, msg):
             self.log.debug("Received message client %s userdata %s and msg %s",
@@ -142,7 +147,7 @@ class MqttConnection(Connection):
             handler(msg.payload.decode("utf-8"))
 
         self.registered[full_topic] = on_message
-        self.client.subscribe(full_topic)
+        self.client.subscribe(full_topic, qos=0)
         self.client.message_callback_add(full_topic, on_message)
 
     def on_connect(self, client, userdata, flags, retcode):
@@ -161,9 +166,10 @@ class MqttConnection(Connection):
 
         # Resubscribe on connection
         for reg in self.registered:
-            self.client.subscribe(self.registered[reg])
+            self.log.info("on_connect: Resubscribing to %s", reg)
+            self.client.subscribe(reg)
 
-        self.registered[refresh]("connected")
+        self.msg_processor("connected") # causes sensors to republish their states
 
     def on_disconnect(self, client, userdata, retcode):
         """Called when the client disconnects from the broker. If the reason was
@@ -182,3 +188,12 @@ class MqttConnection(Connection):
             self.log.error("Unexpected disconnect code %s: %s, reconnecting",
                            retcode, codes[retcode])
             self._connect()
+
+    def on_publish(self, client, userdata, retcode):
+        """Called when a message is published. """
+        self.log.debug("on_publish: Successfully published message %s, %s, %s", client, userdata, retcode)
+
+    def on_subscribe(self, client, userdata, retcode, qos):
+        """Called when a topic is subscribed to. """
+        self.log.debug("on_subscribe: Successfully subscribed %s, %s, %s, %s", client, userdata, retcode, qos)
+

@@ -221,6 +221,9 @@ def on_message(msg):
     Calls report on the poll_mgr.
     """
     try:
+        if not poll_mgr:
+            logger.info("Received a request for current sensor states before poll_mgr has been created, ignoring.")
+            return
         if msg:
             logger.info("Message: {}".format(msg))
         logger.info("Getting current sensor states...")
