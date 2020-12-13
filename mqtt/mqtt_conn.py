@@ -16,6 +16,7 @@
 
 Classes: MqttConnection
 """
+from configparser import NoOptionError
 import socket
 import ssl
 import traceback
@@ -68,15 +69,15 @@ class MqttConnection(Connection):
         self.root_topic = params("RootTopic")
         try:
             tls = params("TLS").lower()
-        except:
+        except NoOptionError:
             tls = False
         try:
             ca_cert = params("CAcert")
-        except:
+        except NoOptionError:
             ca_cert = "./certs/ca.crt"
         try:
             tls_insecure = params("TLSinsecure").lower()
-        except:
+        except NoOptionError:
             tls_insecure = False
         user = params("User")
         passwd = params("Password")
