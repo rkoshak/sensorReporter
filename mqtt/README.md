@@ -24,9 +24,9 @@ Parameter | Required | Restrictions | Purpose
 `Port` | X | Integer | Port number the MQTT broker is listening on.
 `Keepalive` | X | Seconds | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed.
 `RootTopic` | X | Valid MQTT topic, no wild cards | Serves as the root topic for all the messages published. For example, if an RpiGpioSensor has a destination "back-door", the actual topic published to will be `<RootTopic>/back-door`.
-`TLS` | | Boolean | If set to `True`, will use TLS encryption in the connection to the MQTT broker.
-
-When `TLS` is `True`, it will look for the Certificate Authority's certificate that signed the MQTT Broker's sertificate in `./certs/ca.crt`.
+`TLS` | | Boolean | If set to `True`, will use TLS encryption in the connection to the MQTT broker.  
+`CAcert` | | String | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.  
+`TLSinsecure` | | Boolean | Optional parameter to configure verification of the server hostname in the server certificate. Default is `False`.  
 
 There are two hard coded topics the Connection will use:
 
