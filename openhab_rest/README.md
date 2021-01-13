@@ -18,7 +18,7 @@ $ sudo pip3 install sseclient-py
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `mqtt.mqtt_conn.MqttConnection` |
+`Class` | X | `openhab_rest.rest_conn.OpenhabREST` |
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
 `Name` | X | | Unique to sensor_reporter | Name for the connection, used in the list of Connections for Actuators and Sensors.
 `URL` | X | http URL | The base URL and port of the openHAB instance.
