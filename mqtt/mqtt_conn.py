@@ -109,7 +109,8 @@ class MqttConnection(Connection):
         lwtt = "{}/{}".format(self.root_topic, LWT)
         ref = "{}/{}".format(self.root_topic, REFRESH)
 
-        self.log.info("LWT topic is %s, subscribing to refresh topic %s", lwtt, ref)
+        self.log.info(
+            "LWT topic is %s, subscribing to refresh topic %s", lwtt, ref)
         self.client.will_set(lwtt, OFFLINE, qos=2, retain=True)
         self.register(REFRESH, msg_processor)
 
@@ -119,12 +120,15 @@ class MqttConnection(Connection):
     def _connect(self):
         while not self.connected:
             try:
-                self.client.connect(self.host, port=self.port, keepalive=self.keepalive)
+                self.client.connect(self.host, port=self.port,
+                                    keepalive=self.keepalive)
                 self.connected = True
-            except socket.gaierror:
-                self.log.error("Error connecting to %s:%s", self.host, self.port)
+            except socket.error:
+                self.log.error("Error connecting to %s:%s",
+                               self.host, self.port)
                 self.log.debug("Exception: %s", traceback.format_exc())
                 sleep(5)
+                self.connected = False
 
         self.log.info("Connection to MQTT is successful")
 
@@ -135,12 +139,15 @@ class MqttConnection(Connection):
     def _publish_mqtt(self, message, topic, retain):
         try:
             if not self.connected:
-                self.log.warning("MQTT is not currently connected! Ignoring message")
+                self.log.warning(
+                    "MQTT is not currently connected! Ignoring message")
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
-            rval = self.client.publish(full_topic, message, retain=retain, qos=0)
+            rval = self.client.publish(
+                full_topic, message, retain=retain, qos=0)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
-                self.log.error("Error puiblishing update %s to %s", message, full_topic)
+                self.log.error(
+                    "Error puiblishing update %s to %s", message, full_topic)
             else:
                 self.log.debug(
                     "Published message %s to %s retain=%s", message, full_topic, retain
@@ -203,7 +210,8 @@ class MqttConnection(Connection):
             self.log.info("on_connect: Resubscribing to %s", reg)
             self.client.subscribe(reg)
 
-        self.msg_processor("connected")  # causes sensors to republish their states
+        # causes sensors to republish their states
+        self.msg_processor("connected")
 
     def on_disconnect(self, client, userdata, retcode):
         """Called when the client disconnects from the broker. If the reason was
