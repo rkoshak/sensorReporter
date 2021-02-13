@@ -110,6 +110,16 @@ Level = INFO
 The above parameters are only required if `SysLog` is a false value.
 `Level` is the same as for `Syslog = True` and indicates the default logging level.
 
+## Sections for Components
+
+Note that sensor_reporter requires the section names to start with the type of the plugin.
+Possible values are:
+* Connection
+* Actuator
+* Sensor
+
+A sensor section could thus be named `Sensor_Heartbeat` or `Actuator1`.
+
 # Release Notes
 This current version is a nearly complete rewrite of the previous version with a number of breaking changes.
 
