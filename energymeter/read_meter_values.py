@@ -16,23 +16,21 @@
 Classes: PafalReader
 """
 from core.sensor import Sensor
-from pafal_reader.energymeter import pafalConnector
+from energymeter.em_connections import Pafal20ec3grConnector
 import sys
 
-_SERIAL_DEVICE_DEFAULT = "/dev/ttyUSB0"
 
-
-class PafalReader(Sensor):
+class Pafal20ec3gr(Sensor):
     """Polling sensor that publishes current values of the attached
-    smart meter.
+    energy meter.
     """
 
     def __init__(self, publishers, params):
         """Expects the following parameters:
-        - "Bezug": ddd
-        - "Lieferung": ddd
+        - "Import_Dst": Destination for import value
+        - "Export_Dst": Destination for export value
         - "Poll": cannot be < 60
-        - "SerialDevice": the serial device to read from
+        - "SerialDevice": the serial device file to read from
 
         Raises:
         - NoOptionError - if an expected parameter doesn't exist
@@ -40,26 +38,26 @@ class PafalReader(Sensor):
         """
         super().__init__(publishers, params)
 
-        self.dst_bezug = params("Bezug_Dst")
-        self.dst_lieferung = params("Lieferung_Dst")
+        self.dst_import = params("Import_Dst")
+        self.dst_export = params("Export_Dst")
         self.serdevstring = params("SerialDevice")
 
         if self.poll < 60:
             raise ValueError("PafalReader requires a poll >= 60")
 
-        self.serdev = pafalConnector( logger = self.log, devicePort=self.serdevstring )
+        self.serdev = Pafal20ec3grConnector( logger = self.log, devicePort=self.serdevstring )
 
-        self.log.info("Configuring PafalReader: Bezug to %s and Lieferung to %s with "
-                      "interval %s, %i publishers", self.dst_bezug, self.dst_lieferung, self.poll, len(publishers))
+        self.log.info("Configuring PafalReader: import to %s and export to %s with "
+                      "interval %s, %i publishers", self.dst_import, self.dst_export, self.poll, len(publishers))
 
     def publish_state(self):
         """Collects data from Pafal and publishes it.
         """
 
-        # 0.0.0 -> Smart Meter No
+        # 0.0.0 -> Energy Meter No
         # 0.2.0 -> Firmware
-        # 1.8.0*00 -> Bezug
-        # 2.8.0*00 -> Lieferung
+        # 1.8.0*00 -> Import
+        # 2.8.0*00 -> Export
         try:
             result = self.serdev.readData( {
                 "0.0.0": [False],
@@ -83,8 +81,8 @@ class PafalReader(Sensor):
             # Nothing read...
             return
 
-        self.log.debug("Successful read from Pafal. Smart Meter '{num}' with firmware '{fw}'."
-            "Bezug {bezug}, Lieferung {liefer}".format(
+        self.log.debug("Successful read from Pafal. Energy meter '{num}' with firmware '{fw}'."
+            "Import {bezug}, Export {liefer}".format(
                 num = result.get("0.0.0", "<not available>"),
                 fw = result.get("0.2.0", "<not available>"),
                 bezug = "<not available>" if result.get("1.8.0*00", None) is None else "{:.3f}".format(result["1.8.0*00"]),
@@ -92,7 +90,13 @@ class PafalReader(Sensor):
             ))
 
         if not result.get("1.8.0*00", None) is None:
-            self._send(str(result["1.8.0*00"]), self.dst_bezug)
+            self._send(str(result["1.8.0*00"]), self.dst_import)
         
         if not result.get("2.8.0*00", None) is None:
-            self._send(str(result["2.8.0*00"]), self.dst_lieferung)
+            self._send(str(result["2.8.0*00"]), self.dst_export)
+
+    def cleanup(self):
+        """Called when shutting down the sensor, give it a chance to clean up
+        and release resources."""
+        self.log.info("Disconnecting from serial device")
+        self.serdev.close()

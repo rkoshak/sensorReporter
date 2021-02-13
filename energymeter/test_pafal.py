@@ -13,7 +13,7 @@
 # limitations under the License.
 """Simple script to test connection to the pafal smart meter.
 """
-from energymeter import pafalConnector
+from em_connections import Pafal20ec3grConnector
 import argparse
 
 _SERIAL_DEVICE_DEFAULT = "/dev/ttyUSB0"
@@ -36,7 +36,7 @@ if args.port:
 
 
 print("Setting up class ...")
-serdev = pafalConnector( devicePort=myPort )
+serdev = Pafal20ec3grConnector( devicePort=myPort )
 
 print("Requesting data ...")
 result = serdev.readData( {
@@ -47,7 +47,11 @@ result = serdev.readData( {
 } )
 
 print("Result:")
-print(result)
+print("Meter number: " +    result.get("0.0.0", "<could not be acquired>"))
+print("Meter firmware: " +  result.get("0.2.0", "<could not be acquired>"))
+print("Total import: " +    str(result.get("1.8.0*00", "<could not be acquired>")))
+print("Total export: " +    str(result.get("2.8.0*00", "<could not be acquired>")))
+
 
 print("Closing connection")
 serdev.close()

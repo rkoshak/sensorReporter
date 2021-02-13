@@ -29,6 +29,7 @@ Plug-in | Type | Purpose
 `network.arp_sensor.ArpSensor` | Polling Sensor | Periodically gets and parses the ARP table for given mac addresses.
 `network.dash_sensor.DashSensor` | Background Sensor | Watches for Amazon Dash Button ARP packets.
 `openhab_rest.rest_conn.OpenhabREST` | Connection | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.
+`energymeter.read_meter_values.Pafal20ec3gr` | Polling Sensor | Periodically reads out an energymeter using serial device. Currently only Pafal 20ec3gr supported.
 `roku.roku_addr.RokuAddressSensor` | Polling Sensor | Periodically requests the addresses of all the Rokus on the subnet.
 
 
