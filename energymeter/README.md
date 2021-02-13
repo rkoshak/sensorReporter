@@ -45,3 +45,10 @@ Import_Dst = Energy_ImportedTotalkWh
 Export_Dst = Energy_ExportedTotalkWh
 Level = INFO
 ```
+
+# Energy Meter Test script
+
+Using the script `test_pafal.py` one can check for the connection to the energy meter.
+```
+python3 energymeter/test_pafal.py --port /dev/ttyUSB0
+```
