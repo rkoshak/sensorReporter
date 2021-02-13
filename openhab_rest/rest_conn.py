@@ -78,7 +78,7 @@ class OpenhabREST(Connection):
         """Publishes the passed in state to the passed in Item as an update."""
         try:
             self.log.debug("Publishing message %s to %s", state, item)
-            response = requests.put("{}/rest/items/{}/state"
+            response = requests.post("{}/rest/items/{}"
                                     .format(self.openhab_url, item),
                                     data=state, timeout=10)
             response.raise_for_status()
