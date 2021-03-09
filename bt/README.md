@@ -215,7 +215,7 @@ sensor_reporter must be run as root.
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.btle_sensor.GoveeSensor` |
+`Class` | X | `bt.govee_sensor.GoveeSensor` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Destination` | X | | The root destination to publish to. NOTE: Not currently compatible with the openHAB Connection.
