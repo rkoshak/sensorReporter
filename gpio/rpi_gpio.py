@@ -174,7 +174,7 @@ class RpiGpioActuator(Actuator):
             elif msg == "OFF":
                 out = GPIO.LOW
 
-            if not out:
+            if out == None:
                 self.log.error("Bad command %s", msg)
             else:
                 self.log.info("Setting pin %d to %s", self.pin,
