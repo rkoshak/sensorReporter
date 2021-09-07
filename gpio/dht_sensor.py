@@ -18,6 +18,7 @@ from configparser import NoOptionError
 import board
 import adafruit_dht
 from core.sensor import Sensor
+from distutils.util import strtobool
 
 class DhtSensor(Sensor):
     """A polling sensor that reads and reports temperature and humidity. It

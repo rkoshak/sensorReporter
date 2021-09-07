@@ -23,7 +23,7 @@ import RPi.GPIO as GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values
-from distutils.utils import strtobool 
+from distutils.util import strtobool 
 
 # Set to use BCM numbering.
 GPIO.setmode(GPIO.BCM)
@@ -165,10 +165,10 @@ class RpiGpioActuator(Actuator):
 
         # Toggle on then off.
         if self.toggle:
-            self.log.info("Toggling pin %s HIGH to LOW", self.pin)
-            GPIO.output(self.pin, not self.init_state)
+            self.log.info("Toggling pin %s %s to %s", self.pin, self.highlow_to_str(self.init_state), self.highlow_to_str(not self.init_state))
+            GPIO.output(self.pin, int(not self.init_state))
             sleep(.5)
-            self.log.info("Toggling pin %s LOW to HIGH", self.pin)
+            self.log.info("Toggling pin %s %s to %s", self.pin, self.highlow_to_str(not self.init_state), self.highlow_to_str(self.init_state))
             GPIO.output(self.pin, self.init_state)
 
         # Turn ON/OFF based on the message.
@@ -185,3 +185,10 @@ class RpiGpioActuator(Actuator):
                 self.log.info("Setting pin %d to %s", self.pin,
                               "HIGH" if out == GPIO.HIGH else "LOW")
                 GPIO.output(self.pin, out)
+    
+    @staticmethod            
+    def highlow_to_str(output):
+        if output:
+            return "HIGH"
+        else:
+            return "LOW"
