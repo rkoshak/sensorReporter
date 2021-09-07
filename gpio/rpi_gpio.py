@@ -23,6 +23,7 @@ import RPi.GPIO as GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values
+from distutils.utils import strtobool 
 
 # Set to use BCM numbering.
 GPIO.setmode(GPIO.BCM)
@@ -145,8 +146,11 @@ class RpiGpioActuator(Actuator):
         except NoOptionError:
             pass
         GPIO.output(self.pin, out)
-
-        self.toggle = bool(params("Toggle"))
+        
+        try:
+            self.toggle = strtobool(params("Toggle"))
+        except NoOptionError:
+            self.toggle = False
 
         self.log.info("Configued RpoGpuiActuator: pin %d on destination %s with "
                       "toggle %s", self.pin, self.cmd_src, self.toggle)

@@ -93,7 +93,7 @@ class DhtSensor(Sensor):
             self.temp_unit = "C"
 
         try:
-            self.smoothing = bool(params("Smoothing"))
+            self.smoothing = strtobool(params("Smoothing"))
         except NoOptionError:
             self.smoothing = False
 
