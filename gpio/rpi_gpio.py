@@ -143,7 +143,6 @@ class RpiGpioActuator(Actuator):
         out = GPIO.LOW
         try:
             self.init_state = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
-            # out = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
         except NoOptionError:
             pass
         GPIO.output(self.pin, self.init_state)
