@@ -142,10 +142,11 @@ class RpiGpioActuator(Actuator):
 
         out = GPIO.LOW
         try:
-            out = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
+            self.init_state = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
+            # out = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
         except NoOptionError:
             pass
-        GPIO.output(self.pin, out)
+        GPIO.output(self.pin, self.init_state)
         
         try:
             self.toggle = strtobool(params("Toggle"))
@@ -165,10 +166,10 @@ class RpiGpioActuator(Actuator):
         # Toggle on then off.
         if self.toggle:
             self.log.info("Toggling pin %s HIGH to LOW", self.pin)
-            GPIO.output(self.pin, GPIO.LOW)
+            GPIO.output(self.pin, not self.init_state)
             sleep(.5)
             self.log.info("Toggling pin %s LOW to HIGH", self.pin)
-            GPIO.output(self.pin, GPIO.HIGH)
+            GPIO.output(self.pin, self.init_state)
 
         # Turn ON/OFF based on the message.
         else:
