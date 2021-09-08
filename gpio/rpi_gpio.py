@@ -148,7 +148,7 @@ class RpiGpioActuator(Actuator):
         GPIO.output(self.pin, self.init_state)
         
         try:
-            self.toggle = strtobool(params("Toggle"))
+            self.toggle = bool(strtobool(params("Toggle")))
         except NoOptionError:
             self.toggle = False
 
@@ -164,10 +164,12 @@ class RpiGpioActuator(Actuator):
 
         # Toggle on then off.
         if self.toggle:
-            self.log.info("Toggling pin %s %s to %s", self.pin, self.highlow_to_str(self.init_state), self.highlow_to_str(not self.init_state))
+            self.log.info("Toggling pin %s %s to %s",
+                          self.pin, self.highlow_to_str(self.init_state), self.highlow_to_str(not self.init_state))
             GPIO.output(self.pin, int(not self.init_state))
             sleep(.5)
-            self.log.info("Toggling pin %s %s to %s", self.pin, self.highlow_to_str(not self.init_state), self.highlow_to_str(self.init_state))
+            self.log.info("Toggling pin %s %s to %s",
+                          self.pin, self.highlow_to_str(not self.init_state), self.highlow_to_str(self.init_state))
             GPIO.output(self.pin, self.init_state)
 
         # Turn ON/OFF based on the message.
@@ -187,6 +189,12 @@ class RpiGpioActuator(Actuator):
     
     @staticmethod            
     def highlow_to_str(output):
+        """Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
+        
+        Parameter: - "output": the GPIO constant (HIGH or LOW)
+        
+        Returns string HIGH/LOW
+        """
         if output:
             return "HIGH"
         else:
