@@ -46,7 +46,7 @@ Class = network.arp_sensor.ArpSensor
 Poll = 10
 Connection = openHAB
 MAC = aa:bb:cc:dd:ee:ff
-Destination = my-phone
+Destination = my_phone
 Level = DEBUG
 ```
 

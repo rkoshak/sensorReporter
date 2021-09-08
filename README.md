@@ -92,7 +92,7 @@ Level = INFO
 ```
 `Syslog` can be any boolean value.
 When true no other parameters are required.
-`Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter.
+`Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter. Allowed values: `DEBUG, INFO, WARNING, ERROR`
 
 ## Log File Example
 

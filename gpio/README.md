@@ -81,7 +81,7 @@ Parameter | Required | Restrictions | Purpose
 `Poll` |  | Positive number | How often to call the command. When not present the sensor will watch the pin in the background and report as it starts to change state.
 `PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
 `EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
-`Destination` | X | | Location to publish the pin state as ON/OFF.
+`Destination` | X | | Location/openHAB string item to publish the pin state as OPEN/CLOSED.
 
 ### Example Config
 
@@ -103,16 +103,16 @@ Connection = openHAB
 Pin = 17
 PUD = UP
 EventDetection = BOTH
-Destination = back-door
+Destination = back_door
 Level = DEBUG
 
 [Sensor2]
 Class = gpio.rpi_gpio.RpiGpioSensor
 Connection = openHAB
 Poll = 1
-Pin = 17
+Pin = 18
 PUD = UP
-Destination = back-door
+Destination = back_door
 Level = DEBUG
 ```
 
@@ -137,10 +137,10 @@ Parameter | Required | Restrictions | Purpose
 `Class` | X | `btle_sensor.exec_actuator.ExecSensor` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`CommandSrc` | X | | Destination where commands are received, expects ON/OFF. If Toggle is set all messages trigger a toggle.
+`CommandSrc` | X | | Destination/openHAB switch item where commands are received, expects ON/OFF. If Toggle is set all messages trigger a toggle.
 `Pin` | X | GPIO Pin in BCM numbering
 `InitialState` | | ON or OFF | Optional, when set to ON the pin's state is initialized to HIGH.
-`Toggle` | | Boolean | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW.
+`Toggle` | | Boolean | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.
 
 ### Example Config
 
@@ -160,7 +160,7 @@ Level = INFO
 Class = gpio.rpi_gpio.RpiGpioActuator
 Connection = openHAB
 CommandSrc = GarageDoorCmd
-Pin = 17
+Pin = 19
 InitialState = ON
 Toggle = True
 Level = DEBUG
