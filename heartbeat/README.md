@@ -16,7 +16,7 @@ Parameter | Required | Restrictions | Purpose
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number in seconds | How often to publish the uptime.
 `Num-Dest` | X | | Destination/openHAB number item to publish the uptime in milliseconds.
-`Str-Dest` | X | | Destinationt/openHAB string item to pubnlish dd:hh:mm:ss.
+`Str-Dest` | X | | Destinationt/openHAB string item to publish dd:hh:mm:ss.
 
 ## Example Config
 
