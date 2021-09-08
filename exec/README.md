@@ -22,10 +22,10 @@ Parameter | Required | Restrictions | Purpose
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
 `Command` | X | `;` and `#` are not allowed. | A valid command line command.
 `CommandSrc` | X | The Communicator destination/openHAB string item to listen to for incoming commands.
-`ResultsDest` | X | The Communicator destination/openHAB string item to publsih the output of the command.
+`ResultsDest` | X | The Communicator destination/openHAB string item to publsih the output/stdout of the command.
 `Timeout` | X | The maximum number of seconds to wait for the command to finish.
 
-When the command returns an error, `ERROR` is publsihed.
+When the command returns an error, `ERROR` is published.
 
 ### Example Config
 
