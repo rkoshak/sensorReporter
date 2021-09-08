@@ -42,9 +42,13 @@ Level = INFO
 Class = heartbeat.heartbeat.Heartbeat
 Connection = openHAB
 Poll = 60
-Num-Dest = heartbeat/num
-Str-Dest = heartbeat/str
+Num-Dest = heartbeat_num
+Str-Dest = heartbeat_str
 Level = INFO
 ```
 
 To detect when a sensor_reporter goes offline, use the Heartbeat and a timer in openHAB to detect when the heartbeat stops.
+
+
+## OpenHAB Setup
+Login in openHAB as Admin and add an new item for every sensor/actor to use with sensor_reporter. Obviously the item names in openHAB and in the sensor_reporter config have to be the identical. Item lable can be chosen freely. The item type vary, see the plugin readme's for more information.
