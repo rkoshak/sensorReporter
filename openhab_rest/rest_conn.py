@@ -22,6 +22,7 @@ from threading import Thread
 import requests
 import sseclient
 from core.connection import Connection
+from configparser import NoOptionError
 
 class OpenhabREST(Connection):
     """Publishes a state to a given openHAB Item. Expects there to be a URL
@@ -44,10 +45,30 @@ class OpenhabREST(Connection):
         self.openhab_url = params("URL")
         self.refresh_item = params("RefreshItem")
         self.registered[self.refresh_item] = msg_processor
+        
+        # optional OpenHAB Verison and optional API-Token for connections with authentication
+        try:
+            self.OH_version = float(params("openHAB-Version"))
+        except NoOptionError:
+            self.log.info("No openHAB-Version specified, falling back to version 2.0")
+            self.OH_version = 2.0
+        if self.OH_version >= 3.0:
+            try:
+                self.api_token = params("API-Token")
+            except NoOptionError:
+                self.log.info("No API-Token specified, openHAB authentication disabled")
+                self.api_token = ""
 
         # Subscribe to SSE events and start processing the events
-        stream = requests.get("{}/rest/events".format(self.openhab_url),
-                              stream=True)
+        # if API-Token is provided and supported then include it in the request
+        if self.OH_version >= 3.0 and bool(self.api_token):
+            header = {'Authorization': 'Bearer ' + self.api_token }
+            stream = requests.get("{}/rest/events".format(self.openhab_url),
+                                  headers=header, stream=True)
+            
+        else:
+            stream = requests.get("{}/rest/events".format(self.openhab_url),
+                                  stream=True)
         self.client = sseclient.SSEClient(stream)
 
         self.thread = Thread(target=self._get_messages)
@@ -67,7 +88,11 @@ class OpenhabREST(Connection):
             # See if this is an event we care about. Commands on registered Items.
             decoded = json.loads(event.data)
             if decoded["type"] == "ItemCommandEvent":
-                item = decoded["topic"].replace("smarthome/items/", "").replace("/command", "")
+                # openHAB 2.x locates the items on a different url
+                if self.OH_version < 3.0:
+                    item = decoded["topic"].replace("smarthome/items/", "").replace("/command", "")
+                else:
+                    item = decoded["topic"].replace("openhab/items/", "").replace("/command", "")
                 if item in self.registered:
                     payload = json.loads(decoded["payload"])
                     msg = payload["value"]
@@ -78,9 +103,21 @@ class OpenhabREST(Connection):
         """Publishes the passed in state to the passed in Item as an update."""
         try:
             self.log.debug("Publishing message %s to %s", state, item)
-            response = requests.put("{}/rest/items/{}/state"
+            # openHAB 2.x doesn't need the Content-Type header
+            if self.OH_version < 3.0:
+                response = requests.put("{}/rest/items/{}/state"
                                     .format(self.openhab_url, item),
                                     data=state, timeout=10)
+            else:
+                # define header for OH3 communication and authentication
+                header = {'Content-Type': 'text/plain'}
+                if bool(self.api_token):
+                    header['Authorization'] = "Bearer " + self.api_token
+                
+                response = requests.put("{}/rest/items/{}/state"
+                                    .format(self.openhab_url, item),
+                                    headers=header, data=state, timeout=10)
+                
             response.raise_for_status()
         except ConnectionError:
             self.log.error("Failed to connect to %s\n%s", self.openhab_url,
