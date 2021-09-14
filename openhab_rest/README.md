@@ -23,6 +23,8 @@ Parameter | Required | Restrictions | Purpose
 `Name` | X | | Unique to sensor_reporter | Name for the connection, used in the list of Connections for Actuators and Sensors.
 `URL` | X | http URL | The base URL and port of the openHAB instance.
 `RefreshItem` | X | | Name of a Switch Item; sending an ON command to the Item will cause sensor_reporter to publish the most recent state of all the sensors.
+`openHAB-Version` | | float | Version of the OpenHAB installation to connect to as floating point figure. Default is '2.0'.
+`API-Token` | | | The API token generated on the [web interface](https://www.openhab.org/docs/configuration/apitokens.html). Only needed if 'settings > API-security > implicit user role (advanced settings)' is disabled. If no API token is specified sensor_reporter tries to connect without authentication
 
 ## Example Configs
 
@@ -36,6 +38,8 @@ Class = openhab_rest.rest_conn.OpenhabREST
 Name = openHAB
 URL = http://localhost:8080
 RefreshItem = Test_Refresh
+openHAB-Version = 3.1
+API-Token = <API-Token generated from openHAB profil page>
 Level = INFO
 
 [Sensor1]
@@ -51,4 +55,4 @@ To detect when a sensor_reporter goes offline, use the Heartbeat and a timer in 
 
 
 ## OpenHAB Setup
-Login in openHAB as Admin and add an new item for every sensor/actor to use with sensor_reporter. Obviously the item names in openHAB and in the sensor_reporter config have to be the identical. Item lable can be chosen freely. The item type vary, see the plugin readme's for more information.
+Login in openHAB as Admin and add an new point (settings > model > add point) for every sensor/actor to use with sensor_reporter. You can add the point straight away to the [semantic model](https://www.openhab.org/docs/tutorial/model.html) of your smart home or do it later. Obviously the point names in openHAB and in the sensor_reporter config have to be the identical. Point lable can be chosen freely. The point type vary, see the plugin readme's for more information.
