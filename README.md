@@ -83,9 +83,9 @@ However, to do anything useful, there should be at least one Connection and at l
 All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
-*Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read write permissions.
+*Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read and write permissions.
 
-`sudo chown sensorReporter:sensorReporter sensor_reporter.ini`
+`sudo chown sensorReporter:sensorReporter sensor_reporter.ini`  
 `sudo chmod 600 sensor_reporter.ini`
 
 ## Syslog Example
