@@ -56,9 +56,11 @@ class OpenhabREST(Connection):
             try:
                 self.api_token = params("API-Token")
             except NoOptionError:
-                self.log.info("No API-Token specified, openHAB authentication disabled")
                 self.api_token = ""
-
+                
+            if not bool(self.api_token):
+                self.log.info("No API-Token specified, connecting to openHAB without authentication")
+                
         # Subscribe to SSE events and start processing the events
         # if API-Token is provided and supported then include it in the request
         if self.OH_version >= 3.0 and bool(self.api_token):
