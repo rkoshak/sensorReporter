@@ -55,4 +55,8 @@ To detect when a sensor_reporter goes offline, use the Heartbeat and a timer in 
 
 
 ## OpenHAB Setup
-Login in openHAB as Admin and add a new point (settings > model > add point) for every sensor/actor to use with sensor_reporter. You can add the point straight away to the [semantic model](https://www.openhab.org/docs/tutorial/model.html) of your smart home or do it later. Obviously the point names in openHAB and in the sensor_reporter config have to be the identical. Point lable can be chosen freely. The point type vary, see the plugin readme's for more information.
+Login in openHAB as Admin and add a new point (settings > model > add point) for every sensor/actor to use with sensor_reporter.
+You can add the point straight away to the [semantic model](https://www.openhab.org/docs/tutorial/model.html) of your smart home or do it later.
+Obviously the point names in openHAB and in the sensor_reporter config have to be the identical.
+Point lable can be chosen freely.
+The point type vary, see the plugin readme's for more information.
