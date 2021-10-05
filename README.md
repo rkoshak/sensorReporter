@@ -83,6 +83,11 @@ However, to do anything useful, there should be at least one Connection and at l
 All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
+*Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read and write permissions.
+
+`sudo chown sensorReporter:sensorReporter sensor_reporter.ini`  
+`sudo chmod 600 sensor_reporter.ini`
+
 ## Syslog Example
 
 ```ini
@@ -92,7 +97,7 @@ Level = INFO
 ```
 `Syslog` can be any boolean value.
 When true no other parameters are required.
-`Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter.
+`Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter. Allowed values: `DEBUG, INFO, WARNING, ERROR`
 
 ## Log File Example
 

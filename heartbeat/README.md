@@ -15,8 +15,8 @@ Parameter | Required | Restrictions | Purpose
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number in seconds | How often to publish the uptime.
-`Num-Dest` | X | | Destination to publish the uptime in milliseconds.
-`Str-Dest` | X | | Destinationt to pubnlish dd:hh:mm:ss.
+`Num-Dest` | X | | Destination/openHAB number item to publish the uptime in milliseconds.
+`Str-Dest` | X | | Destinationt/openHAB string item to publish dd:hh:mm:ss.
 
 ## Example Config
 
@@ -36,7 +36,7 @@ Level = INFO
 Class = heartbeat.heartbeat.Heartbeat
 Connection = openHAB
 Poll = 60
-Num-Dest = heartbeat/num
-Str-Dest = heartbeat/str
+Num-Dest = heartbeat_num
+Str-Dest = heartbeat_str
 Level = INFO
 ```
