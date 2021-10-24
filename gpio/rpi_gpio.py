@@ -24,6 +24,7 @@ from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values
 from distutils.util import strtobool 
+import datetime
 
 # Set to use BCM numbering.
 GPIO.setmode(GPIO.BCM)
@@ -61,6 +62,9 @@ class RpiGpioSensor(Sensor):
 
         pud = GPIO.PUD_UP if params("PUD") == "UP" else GPIO.PUD_DOWN
         GPIO.setup(self.pin, GPIO.IN, pull_up_down=pud)
+        
+        #remember expacted state for contact closed
+        self.state_when_closed = GPIO.LOW if pud == GPIO.PUD_UP else GPIO.HIGH
 
         # Set up event detection.
         try:
@@ -88,6 +92,27 @@ class RpiGpioSensor(Sensor):
         if self.poll > 0 and event_detection != "NONE":
             raise ValueError("Event detection is {} but polling is {}"
                              .format(event_detection, self.poll))
+            
+        # read optional button press config
+        try:
+            self.dest_short_press = params("Short_Press-Dest")
+            try:
+                #expect threshold in seconds
+                self.short_press_time = float(params("Short_Press-Threshold"))
+            except NoOptionError:
+                self.short_press_time = 0
+                
+            try:
+                self.dest_long_press = params("Long_Press-Dest")
+                try:
+                    self.long_press_time = float(params("Long_Press-Threshold"))
+                except NoOptionError:
+                    self.long_press_time = 0
+                    self.log.error("No 'Long_Press-Threshold' configured for Long_Press-Dest: %s", self.dest_long_press)
+            except NoOptionError:
+                self.long_press_time = 0
+        except NoOptionError:
+            self.dest_short_press = None
 
         self.log.info("Configured RpiGpioSensor: pin %d on destination %s with PUD %s"
                       " and event detection %s", self.pin, self.destination, pud,
@@ -107,12 +132,42 @@ class RpiGpioSensor(Sensor):
             self.log.info("Pin %s changed from %s to %s", self.pin, self.state, value)
             self.state = value
             self.publish_state()
+            self.check_button_press()
 
     def publish_state(self):
         """Publishes the current state of the pin."""
         msg = self.values[0] if self.state == GPIO.LOW else self.values[1]
         self._send(msg, self.destination)
 
+    def check_button_press(self):
+        """checks the duration the contact was closed and rises the event configured with that duration"""
+        #if dest_short_press is not configured exit
+        if self.dest_short_press is None:
+            return
+        
+        #get time during button was closed
+        if self.state == self.state_when_closed:
+            self.high_time = datetime.datetime.now()
+        else:
+            time_delta_seconds = (datetime.datetime.now() - self.high_time).total_seconds()
+            if time_delta_seconds > self.short_press_time:
+                if self.long_press_time != 0 and time_delta_seconds > self.long_press_time:
+                    self.log.info("Long button press occured on Pin %s (%s) was pressed for %s seconds", self.pin, self.dest_long_press, time_delta_seconds)
+                    self.publish_button_state(is_short_press = False)
+                else:
+                    self.log.info("Short button press occured on Pin %s (%s) was pressed for %s seconds", self.pin, self.dest_short_press, time_delta_seconds)
+                    self.publish_button_state(is_short_press = True)
+    
+    def publish_button_state(self, is_short_press):
+        """send update to destination depending on button press duration"""
+        current_time_str = str(datetime.datetime.now())
+        #convert datetime to fromat: add T bewteen date and time
+        curr_time_java = current_time_str[:10] + "T" + current_time_str[11:]
+        if is_short_press:
+            self._send(curr_time_java, self.dest_short_press)
+        else:
+            self._send(curr_time_java, self.dest_long_press)
+                
     def cleanup(self):
         """Disconnects from the GPIO subsystem."""
         GPIO.cleanup()
@@ -184,7 +239,7 @@ class RpiGpioActuator(Actuator):
                 self.log.error("Bad command %s", msg)
             else:
                 self.log.info("Setting pin %d to %s", self.pin,
-                              "HIGH" if out == GPIO.HIGH else "LOW")
+                              self.highlow_to_str(out))
                 GPIO.output(self.pin, out)
     
     @staticmethod            

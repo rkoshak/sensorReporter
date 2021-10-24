@@ -81,7 +81,12 @@ Parameter | Required | Restrictions | Purpose
 `Poll` |  | Positive number | How often to call the command. When not present the sensor will watch the pin in the background and report as it starts to change state.
 `PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
 `EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
-`Destination` | X | | Location/openHAB string item to publish the pin state as OPEN/CLOSED.
+`Destination` | X | | Location/openHAB string item to publish the pin state as OPEN/CLOSED (default).
+`Values` | | | Values to replace OPEN,CLOSED message as comma separeted list. Eg. `OFF,ON`
+`Short_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin. Eg. with `PUD = DOWN` LOW > HIGH > LOW and the duration between the edges is between `Short_Press-Threshold` and `Long_Press-Threshold`. Works best with `EventDetection = BOTH`
+`Short_Press-Threshold` | | float | Devines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
+`Long_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`
+`Long_Press-Threshold` | | float | Devines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered
 
 ### Example Config
 
@@ -104,7 +109,10 @@ Pin = 17
 PUD = UP
 EventDetection = BOTH
 Destination = back_door
-Level = DEBUG
+Short_Press-Dest = back_door_short
+Long_Press-Dest = back_door_long
+Long_Press-Threshold = 1.2
+Level = INFO
 
 [Sensor2]
 Class = gpio.rpi_gpio.RpiGpioSensor
@@ -112,7 +120,8 @@ Connection = openHAB
 Poll = 1
 Pin = 18
 PUD = UP
-Destination = back_door
+Destination = front_door
+Values = OFF,ON
 Level = DEBUG
 ```
 
