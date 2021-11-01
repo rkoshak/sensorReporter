@@ -23,6 +23,7 @@ import traceback
 from time import sleep
 import paho.mqtt.client as mqtt
 from core.connection import Connection
+import datetime
 
 LWT = "status"
 REFRESH = "refresh"
@@ -116,6 +117,9 @@ class MqttConnection(Connection):
 
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
+        
+        #init dictionary for publish actuator status
+        self.filter = {} 
 
     def _connect(self):
         while not self.connected:
@@ -134,6 +138,16 @@ class MqttConnection(Connection):
 
     def publish(self, message, destination):
         """Publishes message to destination, logging if there is an error."""
+        self._publish_mqtt(message, destination, False)
+        
+    def publish_actuator_state(self, message, destination):
+        """Publish the actuator update in a way we can filter the loop back anwser of the mqtt server"""
+        #remember full_topic, msg and timestamp for later filtering of own messages
+        full_topic = "{}/{}".format(self.root_topic, destination)
+        if full_topic not in self.filter:
+            self.filter[full_topic] = {}
+        self.filter[full_topic][message] = datetime.datetime.now() 
+        
         self._publish_mqtt(message, destination, False)
 
     def _publish_mqtt(self, message, topic, retain):
@@ -173,13 +187,28 @@ class MqttConnection(Connection):
         self.log.info("Registering for messages on '%s'", full_topic)
 
         def on_message(client, userdata, msg):
-            self.log.debug(
-                "Received message client %s userdata %s and msg %s",
+            message = msg.payload.decode("utf-8")
+            #filter messages which have been send via publish_actuator_state, to ignore own actuator status updates
+            #if a filter entry for the recived topic and message exists check if it is not older than x seconds
+            handle_msg = True
+            if msg.topic in self.filter:
+                if message in self.filter[msg.topic]:
+                    timeSend = self.filter[msg.topic][message]
+                    if (datetime.datetime.now() - timeSend).total_seconds() < 1:
+                        handle_msg = False
+                    self.filter[msg.topic].pop(message, None)
+            
+            if handle_msg:
+                self.log.debug(
+                "Received message client %s userdata %s and msg: %s",
                 client,
                 userdata,
-                msg,
-            )
-            handler(msg.payload.decode("utf-8"))
+                message
+                )
+                
+                handler(message)
+            else:
+                self.log.debug("Filtered msg (%s) for topic: %s", message, msg.topic)
 
         self.registered[full_topic] = on_message
         self.client.subscribe(full_topic, qos=0)

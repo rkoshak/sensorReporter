@@ -129,6 +129,11 @@ class OpenhabREST(Connection):
         except requests.exceptions.HTTPError as ex:
             self.log.error("Received and unsuccessful response code %s", ex)
 
+    def publish_actuator_state(self, message, destination):
+        """Handle actuator state updates the same way as usual publishing of messages
+        since openHAB won't send an status update to all subcribers"""
+        self.publish(message, destination)
+
     def disconnect(self):
         """Stops the event processing loop."""
         self.log.info("Disconnecting from openHAB SSE")

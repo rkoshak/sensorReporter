@@ -46,6 +46,11 @@ class Connection(ABC):
         in message to the passed in destination.
         """
 
+    @abstractmethod
+    def publish_actuator_state(self, message, destination):
+        """Abstract method to allow that an actuator publishes its state after change
+        on the same destionation than it received the command without triggering an infinite loop"""
+
     def disconnect(self):
         """Disconnect from the connection and release any resources."""
 

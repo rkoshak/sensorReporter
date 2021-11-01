@@ -108,3 +108,6 @@ class LocalConnection(Connection):
                 self.log.error("'%s' cannot be parsed to float!", message)
         else:
             self.log.debug("There is no handler registered for %s", destination)
+            
+    def publish_actuator_state(self, message, destination):
+        """Do nothing since the local connection doesn't need updates of the actuator state """

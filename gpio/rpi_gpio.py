@@ -195,33 +195,75 @@ class RpiGpioActuator(Actuator):
         self.pin = int(params("Pin"))
         GPIO.setup(self.pin, GPIO.OUT)
 
-        out = GPIO.LOW
+        try:
+            self.invert = bool(strtobool(params("InvertOut")))
+        except NoOptionError:
+            self.invert = False
+            
+        try:
+            self.toggle_cmd_src = params("ToggleCommandSrc")
+            super()._register(self.toggle_cmd_src, self.on_message)
+        except NoOptionError:
+            pass
+
         try:
             self.init_state = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
         except NoOptionError:
-            pass
+            self.init_state = GPIO.LOW
         GPIO.output(self.pin, self.init_state)
         
         try:
             self.toggle = bool(strtobool(params("Toggle")))
         except NoOptionError:
             self.toggle = False
-
+            
+        #remember the current output state
+        if self.toggle:
+            self.currentState = None
+        else:
+            if self.invert:
+                self.currentState = not self.init_state
+            else:
+                self.currentState = self.init_state
+        
+        self.lastToggle = None
+        
         self.log.info("Configued RpoGpuiActuator: pin %d on destination %s with "
                       "toggle %s", self.pin, self.cmd_src, self.toggle)
+        
+        #publish inital state to cmd_src #TODO test function
+        self._publish_actuator_state("ON" if self.currentState else "OFF", self.cmd_src)
 
     def on_message(self, msg):
         """Called when the actuator receives a message. If Toggle is not enabled
         sets the pin to HIGH if the message is ON and LOW if the message is OFF.
-        """
-        self.log.info("Received command on %s: %s Toggle = %s Pin = %d",
-                      self.cmd_src, msg, self.toggle, self.pin)
+        """     
+        # ignore command echo which occure with multiple connections: do nothing when the command (msg) equals the current state, ignor this on toggle mode
+        if not self.toggle and not msg == "TOGGLE":
+            if msg == "ON" or msg == "OFF":
+                if self.currentState == strtobool(msg):
+                    self.log.info("Revieved command for %s = %s which is equal to current output state. Ignoring command!", self.cmd_src, msg)
+                    return
+            elif len(msg) == 26 and msg[10] == "T":
+                # If the string has length 26 and the char at index 10 is T then its porbably a java date time string
+                if msg == self.lastToggle:
+                    # filter datetime to make sure no double switching occures
+                    self.log.info("Revieved toggle command for %s = %s with the same timestamp as before. Ignoring command!", self.toggle_cmd_src, msg)
+                    return
+                else:
+                    # remember msg to filter double messages with same timestamp, set msg to Toggle for correct handling later on
+                    self.lastToggle = msg
+                    msg = "TOGGLE"
+        
+        self.log.info("Received command on %s: %s, Toggle = %s, Invert = %s, Pin = %d",
+                      self.cmd_src, msg, self.toggle, self.invert, self.pin)
 
         # Toggle on then off.
         if self.toggle:
             self.log.info("Toggling pin %s %s to %s",
                           self.pin, self.highlow_to_str(self.init_state), self.highlow_to_str(not self.init_state))
             GPIO.output(self.pin, int(not self.init_state))
+            # TODO switch the output back in separate function to unblock input on local connection!?
             sleep(.5)
             self.log.info("Toggling pin %s %s to %s",
                           self.pin, self.highlow_to_str(not self.init_state), self.highlow_to_str(self.init_state))
@@ -234,13 +276,22 @@ class RpiGpioActuator(Actuator):
                 out = GPIO.HIGH
             elif msg == "OFF":
                 out = GPIO.LOW
+            elif msg == "TOGGLE":
+                out = int(not self.currentState)
 
             if out == None:
                 self.log.error("Bad command %s", msg)
             else:
+                self.currentState = out
+                if self.invert:
+                    out = int(not out)
+                    
                 self.log.info("Setting pin %d to %s", self.pin,
                               self.highlow_to_str(out))
                 GPIO.output(self.pin, out)
+                
+                #publish own state back to remote connections
+                self._publish_actuator_state("ON" if self.currentState else "OFF", self.cmd_src)
     
     @staticmethod            
     def highlow_to_str(output):

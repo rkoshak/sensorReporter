@@ -19,7 +19,7 @@ $ sudo pip3 install adafruit-circuitpython-dht
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecSensor` |
+`Class` | X | `gpio.dht_sensor.DhtSensor` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
@@ -81,12 +81,13 @@ Parameter | Required | Restrictions | Purpose
 `Poll` |  | Positive number | How often to call the command. When not present the sensor will watch the pin in the background and report as it starts to change state.
 `PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
 `EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
+`Pin` | X | GPIO Pin in BCM numbering
 `Destination` | X | | Location/openHAB string item to publish the pin state as OPEN/CLOSED (default).
 `Values` | | | Values to replace OPEN,CLOSED message as comma separeted list. Eg. `OFF,ON`
 `Short_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin. Eg. with `PUD = DOWN` LOW > HIGH > LOW and the duration between the edges is between `Short_Press-Threshold` and `Long_Press-Threshold`. Works best with `EventDetection = BOTH`
-`Short_Press-Threshold` | | float | Devines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
+`Short_Press-Threshold` | | decimal number | Devines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
 `Long_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`
-`Long_Press-Threshold` | | float | Devines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered
+`Long_Press-Threshold` | | decimal number | Devines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered
 
 ### Example Config
 
@@ -128,6 +129,7 @@ Level = DEBUG
 ## `gpio.rpi_gpio.RpiGpioActuator`
 
 Commands a GPIO pin to go high, low, or if configured with a toggle it goes high for half a second and then goes to low.
+A recieved command will be send back on all configured connections to the configured `CommandSrc`, to keep them up to date.
 
 ### Dependencies
 
@@ -143,13 +145,15 @@ $ sudo pip3 install RPI.GPIO
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecSensor` |
+`Class` | X | `gpio.rpi_gpio.RpiGpioActuator` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `CommandSrc` | X | | Destination/openHAB switch item where commands are received, expects ON/OFF. If Toggle is set all messages trigger a toggle.
+`ToggleCommandSrc` | | | Destination/openHAB  string/datetime item where toggle commands are recieverd. This is intended to be used for direct connections to a sensor via the Short_Press-Dest/Long_Press-Dest parameter. Expects the string TOGGLE or the current time as java formated datetime value e.g. `2021-10-31T17:03:20.829945`. When one of those are recieved output of the actuator will get toggled e.g. from LOW to HIGH until further commands. The actuator expects changing datetime values, same ones are ignored. If the parameter `Toggle` is configured to TRUE this parameter is ignored.
 `Pin` | X | GPIO Pin in BCM numbering
 `InitialState` | | ON or OFF | Optional, when set to ON the pin's state is initialized to HIGH.
 `Toggle` | | Boolean | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.
+`InvertOut` | | Boolean | Inverts the output when set to `True`. When inverted sending `ON` to the actuator will set the output to LOW, `OFF` will set the output to HIGH.
 
 ### Example Config
 
@@ -163,7 +167,6 @@ Class = openhab_rest.rest_conn.OpenhabREST
 Name = openHAB
 URL = http://localhost:8080
 RefreshItem = Test_Refresh
-Level = INFO
 
 [Actuator0]
 Class = gpio.rpi_gpio.RpiGpioActuator
@@ -173,4 +176,40 @@ Pin = 19
 InitialState = ON
 Toggle = True
 Level = DEBUG
+```
+
+### Example Config #2
+Useing a local connection to toggle an actuator, which is also connected to openHAB. 
+The actuator shows alway the correct status in openHAB, even it is toggled locally.
+
+```ini
+[Logging]
+Syslog = YES
+Level = INFO
+
+[Connection_openHAB]
+Class = openhab_rest.rest_conn.OpenhabREST
+Name = openHAB
+URL = http://localhost:8080
+RefreshItem = Test_Refresh
+
+[Connection0]
+Class = local.local_conn.LocalConnection
+Name = local
+
+[Sensor1]
+Class = gpio.rpi_gpio.RpiGpioSensor
+Connection = local
+Pin = 17
+PUD = UP
+EventDetection = BOTH
+Destination = some_lightswitch
+Short_Press-Dest = toggle_garage_light
+
+[Actuator0]
+Class = gpio.rpi_gpio.RpiGpioActuator
+Connection = local,openHAB
+CommandSrc = garage_light
+ToggleCommandSrc = toggle_garage_light
+Pin = 19
 ```

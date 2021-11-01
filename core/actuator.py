@@ -78,3 +78,10 @@ class Actuator(ABC):
         """
         for conn in self.connections:
             conn.publish(message, destination)
+            
+    def _publish_actuator_state(self, message, destination):
+        """This method will pulisch the given message as a actuator update
+        the only difference to _publish is that looped back messages from this command
+        will be ignored by sensor reporter """
+        for conn in self.connections:
+            conn.publish_actuator_state(message, destination)
