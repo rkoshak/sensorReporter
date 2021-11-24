@@ -84,8 +84,12 @@ class LocalConnection(Connection):
         except NoOptionError:
             pass
 
-    def publish(self, message, destination):
+    def publish(self, message, destination, filter_echo=False):
         """Send the message or, if defined, translate the message to ON or OFF."""
+        if filter_echo:
+            # ignore msg since the local connection doesn't need updates of the actuator state
+            return
+
         if destination in self.registered:
             try:
                 send = message
@@ -108,6 +112,3 @@ class LocalConnection(Connection):
                 self.log.error("'%s' cannot be parsed to float!", message)
         else:
             self.log.debug("There is no handler registered for %s", destination)
-            
-    def publish_actuator_state(self, message, destination):
-        """Do nothing since the local connection doesn't need updates of the actuator state """

@@ -41,15 +41,12 @@ class Connection(ABC):
         set_log_level(params, self.log)
 
     @abstractmethod
-    def publish(self, message, destination):
+    def publish(self, message, destination, filter_echo=False):
         """Abstarct method that must be overriden. When called, send the passed
         in message to the passed in destination.
-        """
 
-    @abstractmethod
-    def publish_actuator_state(self, message, destination):
-        """Abstract method to allow that an actuator publishes its state after change
-        on the same destionation than it received the command without triggering an infinite loop"""
+        Parameter filter_echo is intended to activate a filter for looped back messages
+        """
 
     def disconnect(self):
         """Disconnect from the connection and release any resources."""

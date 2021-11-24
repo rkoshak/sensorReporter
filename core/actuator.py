@@ -72,16 +72,16 @@ class Actuator(ABC):
         resources.
         """
 
-    def _publish(self, message, destination):
+    def _publish(self, message, destination, filter_echo=False):
         """Protected method that will publish the passed in message to the
         passed in destination to all the passed in connections.
+
+        Parameter filter_echo is intended to activate a filter for looped back messages
         """
         for conn in self.connections:
-            conn.publish(message, destination)
-            
-    def _publish_actuator_state(self, message, destination):
-        """This method will pulisch the given message as a actuator update
-        the only difference to _publish is that looped back messages from this command
-        will be ignored by sensor reporter """
-        for conn in self.connections:
-            conn.publish_actuator_state(message, destination)
+            conn.publish(message, destination, filter_echo)
+
+    def publish_actuator_state(self):
+        """Called to publish the current state of the actuator to the publishers.
+        The default implementation is a pass.
+        """

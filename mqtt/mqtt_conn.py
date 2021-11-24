@@ -117,9 +117,9 @@ class MqttConnection(Connection):
 
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
-        
+
         #init dictionary for publish actuator status
-        self.filter = {} 
+        self.filter = {}
 
     def _connect(self):
         while not self.connected:
@@ -136,18 +136,16 @@ class MqttConnection(Connection):
 
         self.log.info("Connection to MQTT is successful")
 
-    def publish(self, message, destination):
+    def publish(self, message, destination, filter_echo=False):
         """Publishes message to destination, logging if there is an error."""
-        self._publish_mqtt(message, destination, False)
-        
-    def publish_actuator_state(self, message, destination):
-        """Publish the actuator update in a way we can filter the loop back anwser of the mqtt server"""
-        #remember full_topic, msg and timestamp for later filtering of own messages
-        full_topic = "{}/{}".format(self.root_topic, destination)
-        if full_topic not in self.filter:
-            self.filter[full_topic] = {}
-        self.filter[full_topic][message] = datetime.datetime.now() 
-        
+        if filter_echo:
+            # remember full_topic, msg and timestamp for later filtering
+            # of looped back anwser of the mqtt server
+            full_topic = "{}/{}".format(self.root_topic, destination)
+            if full_topic not in self.filter:
+                self.filter[full_topic] = {}
+            self.filter[full_topic][message] = datetime.datetime.now()
+
         self._publish_mqtt(message, destination, False)
 
     def _publish_mqtt(self, message, topic, retain):
@@ -188,16 +186,18 @@ class MqttConnection(Connection):
 
         def on_message(client, userdata, msg):
             message = msg.payload.decode("utf-8")
-            #filter messages which have been send via publish_actuator_state, to ignore own actuator status updates
-            #if a filter entry for the recived topic and message exists check if it is not older than x seconds
+            # filter messages which have been send via publish_actuator_state,
+            # to ignore own actuator status updates
+            # if a filter entry for the recived topic and
+            # message exists check if it is not older than x seconds
             handle_msg = True
             if msg.topic in self.filter:
                 if message in self.filter[msg.topic]:
-                    timeSend = self.filter[msg.topic][message]
-                    if (datetime.datetime.now() - timeSend).total_seconds() < 1:
+                    time_send = self.filter[msg.topic][message]
+                    if (datetime.datetime.now() - time_send).total_seconds() < 1:
                         handle_msg = False
                     self.filter[msg.topic].pop(message, None)
-            
+
             if handle_msg:
                 self.log.debug(
                 "Received message client %s userdata %s and msg: %s",
@@ -205,7 +205,7 @@ class MqttConnection(Connection):
                 userdata,
                 message
                 )
-                
+
                 handler(message)
             else:
                 self.log.debug("Filtered msg (%s) for topic: %s", message, msg.topic)

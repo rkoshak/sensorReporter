@@ -97,6 +97,9 @@ class PollManager:
             conn.disconnect()
 
     def report(self):
-        """Calls publish_state on all the sensors."""
+        """Calls publish_state on all the sensors and actuators."""
         for sen in self.sensors.values():
             sen.publish_state()
+
+        for act in self.actuators:
+            act.publish_actuator_state()
