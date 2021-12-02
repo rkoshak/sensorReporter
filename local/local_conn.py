@@ -84,8 +84,12 @@ class LocalConnection(Connection):
         except NoOptionError:
             pass
 
-    def publish(self, message, destination):
+    def publish(self, message, destination, filter_echo=False):
         """Send the message or, if defined, translate the message to ON or OFF."""
+        if filter_echo:
+            # ignore msg since the local connection doesn't need updates of the actuator state
+            return
+
         if destination in self.registered:
             try:
                 send = message

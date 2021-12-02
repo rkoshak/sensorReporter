@@ -101,8 +101,11 @@ class OpenhabREST(Connection):
                     self.log.info("Received command from %s: %s", item, msg)
                     self.registered[item](msg)
 
-    def publish(self, state, item):
-        """Publishes the passed in state to the passed in Item as an update."""
+    def publish(self, state, item, filter_echo=False):
+        """Publishes the passed in state to the passed in Item as an update.
+
+        Handle filter_echo=Ture the same way as usual publishing of messages
+        since openHAB won't send an status update to all subcribers"""
         try:
             self.log.debug("Publishing message %s to %s", state, item)
             # openHAB 2.x doesn't need the Content-Type header

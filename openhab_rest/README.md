@@ -60,3 +60,5 @@ You can add the point straight away to the [semantic model](https://www.openhab.
 Obviously the point names in openHAB and in the sensor_reporter config have to be the identical.
 Point lable can be chosen freely.
 The point type vary, see the plugin readme's for more information.
+
+Note: on a setup with an sensor and an actuator with the same destination, the actuator will not get triggered thru openHAB when an update on the destination happens. Use a local/mqtt connection for direct sensor actuator connections.

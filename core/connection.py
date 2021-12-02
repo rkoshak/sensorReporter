@@ -41,9 +41,11 @@ class Connection(ABC):
         set_log_level(params, self.log)
 
     @abstractmethod
-    def publish(self, message, destination):
+    def publish(self, message, destination, filter_echo=False):
         """Abstarct method that must be overriden. When called, send the passed
         in message to the passed in destination.
+
+        Parameter filter_echo is intended to activate a filter for looped back messages
         """
 
     def disconnect(self):
