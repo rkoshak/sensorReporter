@@ -72,7 +72,7 @@ Depends on RPi.GPIO.
 $ sudo pip3 install RPI.GPIO
 ```
 
-### Parameters
+### Basic parameters
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
@@ -82,13 +82,30 @@ Parameter | Required | Restrictions | Purpose
 `Poll` |  | Positive number | How often to call the command. When not present the sensor will watch the pin in the background and report as it starts to change state.
 `PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
 `EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
-`Pin` | X | GPIO Pin in BCM numbering
+`Pin` | X | IO Pin | Pin to use as sensor input, using the pin numbering defined in `PinNumbering` (see below).
 `Destination` | X | | Location/openHAB string item to publish the pin state.
-`Values` | | | Values to replace the default state message as comma separeted list. Eg. `OFF,ON` (default is OPEN,CLOSED)
-`Short_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin. Eg. with `PUD = DOWN` LOW > HIGH > LOW and the duration between the edges is between `Short_Press-Threshold` and `Long_Press-Threshold`. Works best with `EventDetection = BOTH`
+
+
+### Advanced parameters
+For a valid configuration the basic parameters marked as required are necessary, avanced parameters are optional
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`Values` | | | Values to replace the default state message as comma separeted list. Eg. `OFF,ON` (default is CLOSED,OPEN)
+`Short_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin (eg. LOW, HIGH, LOW) and the duration of the button press is between `Short_Press-Threshold` and `Long_Press-Threshold`. For the recommended setup see example config #2 at the bottom of the page
 `Short_Press-Threshold` | | decimal number | Defines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
 `Long_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`
 `Long_Press-Threshold` | | decimal number | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level.
+`Btn_Pressed_State` | | LOW or HIGH | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State = LOW`)
+
+### Global parameters
+Can only be set for all GPIO devices (sensors and actuators).
+Global parametes are set in the `[DEFAULT]` section.
+See example at the bottom of the page.
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
 
 ### Example Config
 
@@ -102,7 +119,6 @@ Class = openhab_rest.rest_conn.OpenhabREST
 Name = openHAB
 URL = http://localhost:8080
 RefreshItem = Test_Refresh
-Level = INFO
 
 [Sensor1]
 Class = gpio.rpi_gpio.RpiGpioSensor
@@ -114,7 +130,6 @@ Destination = back_door
 Short_Press-Dest = back_door_short
 Long_Press-Dest = back_door_long
 Long_Press-Threshold = 1.2
-Level = INFO
 
 [Sensor2]
 Class = gpio.rpi_gpio.RpiGpioSensor
@@ -152,14 +167,23 @@ Parameter | Required | Restrictions | Purpose
 `CommandSrc` | X | | Destination/openHAB switch item where commands are received, expects ON/OFF. If Toggle is set all messages trigger a toggle.
 `ToggleCommandSrc` | | | Destination/openHAB string item where toggle commands are recieverd. This is intended to be used for direct connections to a sensor via the Short_Press-Dest/Long_Press-Dest parameter. Expects the string TOGGLE, when recieved the output of the actuator will get toggled e.g. from LOW to HIGH until further commands. If the parameter `SimulateButton` is configured to TRUE this parameter is ignored. If not configured no ToggleCommandSrc will be registerd.
 `ToggleDebounce` | | decimal number | The interval in seconds during which repeated toggle commands are ignored (Default 0.05 seconds)
-`Pin` | X | GPIO Pin in BCM numbering
+`Pin` | X | IO Pin | Pin to use as actuator output, using the pin numbering defined in `PinNumbering` (see below).
 `InitialState` | | ON or OFF | Optional, when set to ON the pin's state is initialized to HIGH.
 `SimulateButton` | | Boolean | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.
 `InvertOut` | | Boolean | Inverts the output when set to `True`. When inverted sending `ON` to the actuator will set the output to LOW, `OFF` will set the output to HIGH.
 
+### Global parameters
+Can only be set for all GPIO devices (sensors and actuators). Global parametes are set in the `[DEFAULT]` section
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
+
 ### Example Config
 
 ```ini
+[DEFAULT]
+PinNumbering=BOARD
+
 [Logging]
 Syslog = YES
 Level = INFO
@@ -174,7 +198,7 @@ RefreshItem = Test_Refresh
 Class = gpio.rpi_gpio.RpiGpioActuator
 Connection = openHAB
 CommandSrc = GarageDoorCmd
-Pin = 19
+Pin = 35
 InitialState = ON
 Toggle = True
 Level = DEBUG
@@ -207,6 +231,7 @@ PUD = UP
 EventDetection = BOTH
 Destination = some_lightswitch
 Short_Press-Dest = toggle_garage_light
+Btn_Pressed_State = HIGH
 
 [Actuator0]
 Class = gpio.rpi_gpio.RpiGpioActuator
@@ -215,3 +240,7 @@ CommandSrc = garage_light
 ToggleCommandSrc = toggle_garage_light
 Pin = 19
 ```
+
+Circuit diagram
+
+![example2](circuit_diagram/example2_circuit.png)

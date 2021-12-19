@@ -19,15 +19,32 @@ Classes:
 """
 from time import sleep
 from configparser import NoOptionError
+from distutils.util import strtobool
+import datetime
 from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values
-from distutils.util import strtobool
-import datetime
 
-# Set to use BCM numbering.
-GPIO.setmode(GPIO.BCM)
+def set_gpio_mode(params, log):
+    """Set GPIO mode (BCM or BOARD) for all Sensors and Actuators
+    put a Warning if it was changed or set multible times
+    Parameters:
+        - params : the lamda function that stores the config values for a sensor
+        - log    : the self.log instance of the calling sensor
+    """
+    try:
+        gpio_mode = GPIO.BCM if params("PinNumbering") == "BCM" else GPIO.BOARD
+    except NoOptionError:
+        gpio_mode = GPIO.BCM
+
+    try:
+        GPIO.setmode(gpio_mode)
+    except ValueError:
+        log.error("GPIO PinNumbering was set differently before"
+                    " make sure is is only set in the [DEFAULT] section.")
+        return "Err: not set"
+    return "BCM" if gpio_mode == GPIO.BCM else "BOARD"
 
 class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
@@ -41,7 +58,7 @@ class RpiGpioSensor(Sensor):
         CLOSED and second one is OPEN.
 
         Parameters:
-            - "Pin": the GPIO pin in BCM numbering
+            - "Pin": the IO pin in BCM/BOARD numbering
             - "Values": Alternative values to publish for 0 and 1, defaults to
             CLOSED and OPEN for 0 and 1 respectively.
             - "PUD": Pull up or down setting, if "UP" uses PULL_UP, all other
@@ -53,7 +70,10 @@ class RpiGpioSensor(Sensor):
         """
         super().__init__(publishers, params)
 
+        self.gpio_mode = set_gpio_mode(params, self.log)
+
         self.pin = int(params("Pin"))
+        self.destination = params("Destination")
 
         # Allow users to override the 0/1 pin values.
         self.values = parse_values(params, ["CLOSED", "OPEN"])
@@ -61,10 +81,12 @@ class RpiGpioSensor(Sensor):
         self.log.debug("Configured %s for CLOSED and %s for OPEN", self.values[0], self.values[1])
 
         pud = GPIO.PUD_UP if params("PUD") == "UP" else GPIO.PUD_DOWN
-        GPIO.setup(self.pin, GPIO.IN, pull_up_down=pud)
-
-        #remember expacted state for contact closed
-        self.state_when_closed = GPIO.LOW if pud == GPIO.PUD_UP else GPIO.HIGH
+        try:
+            GPIO.setup(self.pin, GPIO.IN, pull_up_down=pud)
+        except ValueError as err:
+            self.log.error("Could not setup GPIO Pin %d (%s), destination %s. "
+                           "Make sure the pin number is correct. Error Message: %s",
+                           self.pin, self.gpio_mode, self.destination, err)
 
         # Set up event detection.
         try:
@@ -85,7 +107,6 @@ class RpiGpioSensor(Sensor):
                                   callback=lambda channel: self.check_state())
 
         self.state = GPIO.input(self.pin)
-        self.destination = params("Destination")
 
         if self.poll < 0 and event_detection == "NONE":
             raise ValueError("Event detection is NONE but polling is OFF")
@@ -93,7 +114,64 @@ class RpiGpioSensor(Sensor):
             raise ValueError("Event detection is {} but polling is {}"
                              .format(event_detection, self.poll))
 
-        # read optional button press config
+        self.btn = ButtonPressCfg(params, self.log, pud)
+
+        self.log.info("Configued RpiGpioSensor: pin %d (%s) on destination %s with PUD %s",
+                      self.pin, self.gpio_mode, self.destination,
+                      "UP" if pud == GPIO.PUD_UP else "DOWN")
+
+        self.publish_state()
+
+    def check_state(self):
+        """Checks the current state of the pin and if it's different from the
+        last state publishes it. With event detection this method gets called
+        when the GPIO pin changed states. When polling this method gets called
+        on each poll.
+        """
+        value = GPIO.input(self.pin)
+        if value != self.state:
+            self.log.info("Pin %s (%s) changed from %s to %s (= %s)",
+                          self.pin, self.gpio_mode, self.state, value, self.values[value])
+            self.state = value
+            self.publish_state()
+            self.btn.check_button_press(self)
+
+    def publish_state(self):
+        """Publishes the current state of the pin."""
+        msg = self.values[0] if self.state == GPIO.LOW else self.values[1]
+        self._send(msg, self.destination)
+
+    def publish_button_state(self, is_short_press):
+        """send update to destination depending on button press duration"""
+        current_time_str = str(datetime.datetime.now())
+        #convert datetime to fromat: add T bewteen date and time
+        curr_time_java = current_time_str[:10] + "T" + current_time_str[11:]
+        if is_short_press:
+            self._send(curr_time_java, self.btn.dest_short_press)
+        else:
+            self._send(curr_time_java, self.btn.dest_long_press)
+
+    def cleanup(self):
+        """Disconnects from the GPIO subsystem."""
+        self.log.debug("Cleaning up GPIO inputs, invoked via Pin %d (%s)",
+                       self.pin, self.gpio_mode)
+        GPIO.remove_event_detect(self.pin)
+        # make sure cleanup runs only once
+        if GPIO.getmode() is not None:
+            GPIO.cleanup()
+
+class ButtonPressCfg():
+    """ stores all button related parameters
+    """
+    def __init__(self, params, log, pud):
+        """ read optional button press  related parametes from the config
+
+            Parameters:
+            - params : the lamda function that stores the config values for a sensor
+            - log    : the self.log instance of the calling sensor
+            - pud    : the configured value for the pull up /
+                       down resistor either GPIO.PUD_UP or GPIO.PUD_DOWN
+        """
         try:
             self.dest_short_press = params("Short_Press-Dest")
             self.high_time = None
@@ -109,75 +187,52 @@ class RpiGpioSensor(Sensor):
                     self.long_press_time = float(params("Long_Press-Threshold"))
                 except NoOptionError:
                     self.long_press_time = 0
-                    self.log.error("No 'Long_Press-Threshold' configured for Long_Press-Dest: %s",
+                    log.error("No 'Long_Press-Threshold' "
+                                   "configured for Long_Press-Dest: %s",
                                     self.dest_long_press)
             except NoOptionError:
                 self.long_press_time = 0
         except NoOptionError:
             self.dest_short_press = None
 
-        self.log.info("Configured RpiGpioSensor: pin %d on destination %s with PUD %s"
-                      " and event detection %s", self.pin, self.destination, pud,
-                      event_detection)
+        try:
+            self.state_when_pressed = GPIO.LOW if params("Btn_Pressed_State")=="LOW" else GPIO.HIGH
+        except NoOptionError:
+            #remember expacted state for contact closed
+            self.state_when_pressed = GPIO.LOW if pud == GPIO.PUD_UP else GPIO.HIGH
 
-        # We've a first reading so publish it.
-        self.publish_state()
-
-    def check_state(self):
-        """Checks the current state of the pin and if it's different from the
-        last state publishes it. With event detection this method gets called
-        when the GPIO pin changed states. When polling this method gets called
-        on each poll.
-        """
-        value = GPIO.input(self.pin)
-        if value != self.state:
-            self.log.info("Pin %s changed from %s to %s", self.pin, self.state, value)
-            self.state = value
-            self.publish_state()
-            self.check_button_press()
-
-    def publish_state(self):
-        """Publishes the current state of the pin."""
-        msg = self.values[0] if self.state == GPIO.LOW else self.values[1]
-        self._send(msg, self.destination)
-
-    def check_button_press(self):
+    def check_button_press(self, caller):
         """checks the duration the contact was closed and
-         rises the event configured with that duration"""
+         rises the event configured with that duration
+
+         Parameter:
+             - caller : the object of the caller
+                        so self.log and self.publish_button_state can be accessed
+         """
         #if dest_short_press is not configured exit
         if self.dest_short_press is None:
             return
 
         #get time during button was closed
-        if self.state == self.state_when_closed:
+        if caller.state == self.state_when_pressed:
             self.high_time = datetime.datetime.now()
+        elif self.high_time is None:
+            caller.log.warning("Expected contact closed before release."
+                               " 'Btn_Pressed_State' is probably configured wrong"
+                               " for Pin: %s, Destination: %s", caller.pin, caller.destination)
         else:
             time_delta_seconds = (datetime.datetime.now() - self.high_time).total_seconds()
             if time_delta_seconds > self.short_press_time:
                 if self.long_press_time != 0 and time_delta_seconds > self.long_press_time:
-                    self.log.info("Long button press occured on Pin %s (%s)"
+                    caller.log.info("Long button press occured on Pin %s (%s)"
                                   " was pressed for %s seconds",
-                                  self.pin, self.dest_long_press, time_delta_seconds)
-                    self.publish_button_state(is_short_press = False)
+                                  caller.pin, self.dest_long_press, time_delta_seconds)
+                    caller.publish_button_state(is_short_press = False)
                 else:
-                    self.log.info("Short button press occured on Pin %s (%s)"
+                    caller.log.info("Short button press occured on Pin %s (%s)"
                                   " was pressed for %s seconds",
-                                  self.pin, self.dest_short_press, time_delta_seconds)
-                    self.publish_button_state(is_short_press = True)
-
-    def publish_button_state(self, is_short_press):
-        """send update to destination depending on button press duration"""
-        current_time_str = str(datetime.datetime.now())
-        #convert datetime to fromat: add T bewteen date and time
-        curr_time_java = current_time_str[:10] + "T" + current_time_str[11:]
-        if is_short_press:
-            self._send(curr_time_java, self.dest_short_press)
-        else:
-            self._send(curr_time_java, self.dest_long_press)
-
-    def cleanup(self):
-        """Disconnects from the GPIO subsystem."""
-        GPIO.cleanup()
+                                  caller.pin, self.dest_short_press, time_delta_seconds)
+                    caller.publish_button_state(is_short_press = True)
 
 class RpiGpioActuator(Actuator):
     """Allows for setting a GPIO pin to high or low on command. Also supports
@@ -199,8 +254,10 @@ class RpiGpioActuator(Actuator):
             half a second, then back to LOW.
         """
         super().__init__(connections, params)
+
+        self.gpio_mode = set_gpio_mode(params, self.log)
+
         self.pin = int(params("Pin"))
-        GPIO.setup(self.pin, GPIO.OUT)
 
         try:
             self.invert = bool(strtobool(params("InvertOut")))
@@ -217,7 +274,14 @@ class RpiGpioActuator(Actuator):
             self.init_state = GPIO.HIGH if params("InitialState") == "ON" else GPIO.LOW
         except NoOptionError:
             self.init_state = GPIO.LOW
-        GPIO.output(self.pin, self.init_state)
+
+        try:
+            GPIO.setup(self.pin, GPIO.OUT)
+            GPIO.output(self.pin, self.init_state)
+        except ValueError as err:
+            self.log.error("Could not setup GPIO Pin %d (%s), CommandSrc %s. "
+                           "Make sure the pin number is correct. Error Message: %s",
+                           self.pin, self.gpio_mode, self.cmd_src, err)
 
         try:
             self.sim_button = bool(strtobool(params("SimulateButton")))
@@ -243,8 +307,8 @@ class RpiGpioActuator(Actuator):
             else:
                 self.current_state = self.init_state
 
-        self.log.info("Configued RpoGpuiActuator: pin %d on destination %s with "
-                      "SimulateButton %s", self.pin, self.cmd_src, self.sim_button)
+        self.log.info("Configued RpiGpioActuator: pin %d (%s) on destination %s with "
+                      "SimulateButton %s", self.pin, self.gpio_mode, self.cmd_src, self.sim_button)
 
         # publish inital state to cmd_src
         self.publish_actuator_state()
@@ -279,20 +343,22 @@ class RpiGpioActuator(Actuator):
                 self.last_toggle = time_now
                 msg = "TOGGLE"
 
-        self.log.info("Received command on %s: %s, SimulateButton = %s, Invert = %s, Pin = %d",
-                      self.cmd_src, msg, self.sim_button, self.invert, self.pin)
+        self.log.info("Received command on %s: %s, SimulateButton = %s, Invert = %s, Pin = %d (%s)",
+                      self.cmd_src, msg, self.sim_button, self.invert, self.pin, self.gpio_mode)
 
         # SimulateButton on then off.
         if self.sim_button:
-            self.log.info("Toggling pin %s %s to %s",
-                          self.pin, self.highlow_to_str(self.init_state),
+            self.log.info("Toggling pin %s (%s) %s to %s",
+                          self.pin, self.gpio_mode,
+                          self.highlow_to_str(self.init_state),
                           self.highlow_to_str(not self.init_state))
             GPIO.output(self.pin, int(not self.init_state))
             #  "sleep" will block a local connecten and therefore
             # distort the time detection of button press event's
             sleep(.5)
-            self.log.info("Toggling pin %s %s to %s",
-                          self.pin, self.highlow_to_str(not self.init_state),
+            self.log.info("Toggling pin %s (%s) %s to %s",
+                          self.pin, self.gpio_mode,
+                          self.highlow_to_str(not self.init_state),
                           self.highlow_to_str(self.init_state))
             GPIO.output(self.pin, self.init_state)
 
@@ -313,7 +379,8 @@ class RpiGpioActuator(Actuator):
                 if self.invert:
                     out = int(not out)
 
-                self.log.info("Setting pin %d to %s", self.pin,
+                self.log.info("Setting pin %d (%s) to %s",
+                              self.pin, self.gpio_mode,
                               self.highlow_to_str(out))
                 GPIO.output(self.pin, out)
 
@@ -326,6 +393,14 @@ class RpiGpioActuator(Actuator):
 
         #publish own state, make sure the echo gets filtered
         self._publish(msg, self.cmd_src, filter_echo=True)
+
+    def cleanup(self):
+        """Disconnects from the GPIO subsystem."""
+        self.log.debug("Cleaning up GPIO outputs, invoked via Pin %d (%s)",
+                       self.pin, self.gpio_mode)
+        # make sure cleanup runs only once
+        if GPIO.getmode() is not None:
+            GPIO.cleanup()
 
     @staticmethod
     def highlow_to_str(output):
