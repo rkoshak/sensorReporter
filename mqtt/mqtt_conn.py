@@ -18,7 +18,6 @@ Classes: MqttConnection
 """
 from configparser import NoOptionError
 import socket
-import ssl
 import traceback
 from time import sleep
 import paho.mqtt.client as mqtt
@@ -152,7 +151,8 @@ class MqttConnection(Connection):
         try:
             if not self.connected:
                 self.log.warning(
-                    "MQTT is not currently connected! Ignoring message")
+                    "MQTT is not currently connected!"
+                    " Ignoring message: %s, for topic: %s" , message, topic)
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
             rval = self.client.publish(
@@ -240,7 +240,7 @@ class MqttConnection(Connection):
             self.client.subscribe(reg)
 
         # causes sensors to republish their states
-        self.msg_processor("connected")
+        self.msg_processor("MQTT connected")
 
     def on_disconnect(self, client, userdata, retcode):
         """Called when the client disconnects from the broker. If the reason was
@@ -255,17 +255,10 @@ class MqttConnection(Connection):
 
         self.connected = False
         if retcode != 0:
-            codes = {
-                1: "incorrect protocol version",
-                2: "invalid client identifier",
-                3: "server unavailable",
-                4: "bad username or password",
-                5: "not authorized",
-            }
             self.log.error(
-                "Unexpected disconnect code %s: %s, reconnecting",
+                "Unexpected disconnect code %s: %s reconnecting",
                 retcode,
-                codes[retcode],
+                mqtt.error_string(retcode),
             )
             self._connect()
 
