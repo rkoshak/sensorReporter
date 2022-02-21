@@ -53,6 +53,11 @@ Level = INFO
 
 To detect when a sensor_reporter goes offline, use the Heartbeat and a timer in openHAB to detect when the heartbeat stops.
 
+This connection has a passive disconnect detection.
+Whenever a message to openHAB is send the reception of the message is checked.
+If there is no message reception detected eg. after the restart of openHAB, sensor_reporter will automatically reconnect.
+To make full use of this feature a Heartbeat every 60s is recommended.
+
 
 ## OpenHAB Setup
 Login in openHAB as Admin and add a new point (settings > model > add point) for every sensor/actor to use with sensor_reporter.

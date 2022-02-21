@@ -56,6 +56,8 @@ def reload_configuration(signum, frame, config_file):
     global poll_mgr
     if poll_mgr:
         poll_mgr.stop()
+        #cleanup poll_mgr compleatly befor starting over
+        poll_mgr = None
         poll_mgr = create_poll_manager(config_file)
         register_sig_handlers(config_file, poll_mgr)
         poll_mgr.start()
@@ -129,7 +131,8 @@ def init_logger(config):
         stdout_handler.setFormatter(formatter)
         root_logger.addHandler(stdout_handler)
 
-    logger.info("Setting logging level to {}".format(config.get("Logging", "Level", fallback="INFO")))
+    logger.info("Setting logging level to {}"
+                .format(config.get("Logging", "Level", fallback="INFO")))
 
 def create_connection(config, section):
     """Creates a Connection using reflection based on the passed in section of
@@ -222,7 +225,8 @@ def on_message(msg):
     """
     try:
         if not poll_mgr:
-            logger.info("Received a request for current sensor states before poll_mgr has been created, ignoring.")
+            logger.info("Received a request for current sensor states"
+                        " before poll_mgr has been created, ignoring.")
             return
         if msg:
             logger.info("Message: {}".format(msg))
