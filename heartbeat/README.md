@@ -2,6 +2,7 @@
 
 The Heartbeat sensor is a utility to report the sensor_reporter uptime.
 This reliable scheduled reporting could be used as a heartbeat and the messages can be used to see how long sensor_reporter has been online.
+To detect if sensor_reporter is offline, the linked item on openHAB can use the [expire parameter](https://www.openhab.org/docs/configuration/items.html#parameter-expire), which can be set via 'add metadata > expiration timer' in the item settings. 
 
 ## Dependencies
 

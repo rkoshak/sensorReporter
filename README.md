@@ -5,10 +5,10 @@ If you've used sensorReporter or mqttReporter before, this is a complete rewrite
 See the release notes below for details.
 
 A number of connections, sensors, and actuators are currently supported.
-    - Connection: responsible for publishing sensor readings and actuator results and subscribing for actuator commands.
-    - Actuators: classes that perform some action when a message is received.
-    - Polling Sensors: classes that query some device on a set polling period.
-    - Background Sensors: classes that sense for events in the background and do not require polling.
+- Connection: responsible for publishing sensor readings and actuator results and subscribing for actuator commands.
+- Actuators: classes that perform some action when a message is received.
+- Polling Sensors: classes that query some device on a set polling period.
+- Background Sensors: classes that sense for events in the background and do not require polling.
 
 Go into the subfolders for details in each subfolder's README.
 
@@ -49,10 +49,11 @@ Each individual plug-in will define it's own set of required and optional parame
 See the README files in the subfolders for details.
 
 However, some parmeters will be common.
-    - All polling sensors require a Poll parameter indicating how often in seconds to poll the sensor devices
-    - All sections require a Class parameter defining the class to load.
-    - All sensors and actuators require a Connection class containing the name of the Connection to publish/subscribe through. More than one can be defined in a comma separated list.
-    - All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
+- All polling sensors require a Poll parameter indicating how often in seconds to poll the sensor devices
+- All sections require a Class parameter defining the class to load.
+- All sensors and actuators require a Connection class containing the name of the Connection to publish/subscribe through. More than one can be defined in a comma separated list.
+- All actuators require a CommandSrc, which has to be unique for the configured connection. E. g. if the CommandSrc `switch2` is used by several actuators only the last one will work.
+- All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
 
 Sensors are defined in a `[SensorX]` section where `X` is a unique number.
 Connections and Actuators are defined in similarly named sections.
@@ -67,14 +68,21 @@ See the readmes in the subfolders for details.
 `python3 sensor_reporter configuration.ini`
 
 An example systemd service file is provided for your reference.
+The following steps describe how to setup the service:
 
 1. clone this repo into `/opt/sensor_reporter`
-2. create a `sensorReporter` user
-3. write your config ini file
-4. `sudo -u sensorReporter ln -s <path to config.ini> /opt/sensor_reporter/sensor_reporter.ini`
-5. `sudo cp sensor_reporter.service /etc/systemd/system`
-6. `sudo systemctl enable sensor_reporter.service`
-7. `sudo sytemctl start sensor_reporter`
+2. create a `sensorReporter` system user:  `sudo adduser --system --force-badname --home /opt/sensor_reporter sensorReporter`
+3. write your config ini file and save it to `/opt/sensor_reporter/sensor_reporter.ini`
+4. change owner of the ini file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.ini`
+5. limit read write to owner:  `sudo chmod 600 sensor_reporter.ini`
+6. install service file:  `sudo cp sensor_reporter.service /etc/systemd/system`
+7. set service to autostart:  `sudo systemctl enable sensor_reporter.service`
+8. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
+
+Some plugins will reqire additional steps, see readmes in the subfolders for details.
+
+To reload a modifierd sensor_reporter.ini use the command:  `sudo sytemctl reload sensor_reporter.service`
+
 
 # Configuration
 sensor_reporter uses an ini file for configuration.
@@ -85,7 +93,7 @@ In addition logging will be published to syslog or to a log file.
 
 *Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read and write permissions.
 
-`sudo chown sensorReporter:sensorReporter sensor_reporter.ini`  
+`sudo chown sensorReporter:nogroup sensor_reporter.ini`  
 `sudo chmod 600 sensor_reporter.ini`
 
 ## Syslog Example
@@ -103,7 +111,7 @@ When true no other parameters are required.
 
 ```ini
 [Logging]
-File = /var/log/sensorReporter.log
+File = /var/log/sensor_reporter/sensorReporter.log
 MaxSize = 67108864
 NumFiles = 10
 Syslog = NO
@@ -115,6 +123,10 @@ Level = INFO
 
 The above parameters are only required if `SysLog` is a false value.
 `Level` is the same as for `Syslog = True` and indicates the default logging level.
+
+Make sure the user `sensorReporter` has write access:
+1. `sudo mkdir /var/log/sensor_reporter`
+2. `sudo chown sensorReporter:nogroup /var/log/sensor_reporter`
 
 ## Sections for Components
 

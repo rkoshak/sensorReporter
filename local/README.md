@@ -11,6 +11,7 @@ Any sensor that has the Local Connection listed will publish it's readings to th
 Any sensor that needs to react to that sensor's reading would also list the Local Connection and will use the same destination.
 
 Local Connection allows some simple less than, greater than,and equals logic.
+Toggle events, e.g. from a RpiGpioSensor will get forwarded in any case.
 
 ## Parameters
 
@@ -25,8 +26,9 @@ Parameter | Required | Restrictions | Purpose
 
 One of `OnEq`, `OnGt`, or `OnLt` need to be present and `True`.
 If more than one is present and `True` the first one marked as `True` is selected in the order listed (e.g. if `OnGt` and `OnLt` are both `True`, `OnGt` will be used and `OnLt` will be ignored).
+Toggle events a evaluated before `OnEq`, `OnGt` and `OnLt`.
 
-If none of the three optional parameters are supplied, the Connection will not do anything.
+If none of the three optional parameters are supplied, the recieved messages will get forwarded unchanged.
 
 ## Example Configs
 

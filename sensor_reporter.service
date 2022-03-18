@@ -9,6 +9,7 @@ WorkingDirectory=/opt/sensor_reporter
 User=sensorReporter
 Type=simple
 ExecStart=python3 sensor_reporter.py sensor_reporter.ini
+ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
