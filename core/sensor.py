@@ -27,7 +27,7 @@ class Sensor(ABC):
     publish_state should be overridden.
     """
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """
         Sets all the passed in arguments as data members. If params("Poll")
         exists self.poll will be set to that. If not it is initialized to -1.
@@ -39,14 +39,14 @@ class Sensor(ABC):
         from.
         """
         self.log = logging.getLogger(type(self).__name__)
-        self.publishers = publishers
-        self.params = params
-        try:
-            self.poll = float(params("Poll"))
-        except NoOptionError:
-            self.poll = -1
+        self.connections = self.publishers = publishers
+        self.dev_cfg = dev_cfg
+        #Sensor Name is specified in sensor_reporter.py > creat_device()
+        self.name = dev_cfg.get('Name')
+        self.poll = float(dev_cfg.get("Poll", -1))
+
         self.last_poll = None
-        set_log_level(params, self.log)
+        set_log_level(dev_cfg, self.log)
 
 
     def check_state(self):
@@ -60,10 +60,10 @@ class Sensor(ABC):
         implementation is a pass.
         """
 
-    def _send(self, msg, dest):
+    def _send(self, message, comm):
         """Sends msg to the dest on all publishers."""
-        for conn in self.publishers:
-            conn.publish(msg, dest)
+        for conn in comm.keys():
+            self.connections[conn].publish(message, comm[conn])
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up

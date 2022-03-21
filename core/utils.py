@@ -15,11 +15,7 @@ def set_log_level(params, logger):
     levels. Sets the level of the passed in logger based on the params Level
     property.
     """
-    level = None
-    try:
-        level = params("Level")
-    except NoOptionError:
-        pass
+    level = params.get("Level")
 
     levels = {
         "CRITICAL": logging.CRITICAL,

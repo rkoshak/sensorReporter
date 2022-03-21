@@ -17,7 +17,6 @@ this instance of sensor_reporter.
 Classes:
     - LocalConnection: allows sensors to call local actuators.
 """
-from configparser import NoOptionError
 from core.connection import Connection
 from core.utils import is_toggle_cmd
 
@@ -41,11 +40,11 @@ class LocalConnection(Connection):
     actuator to use this Connection.
     """
 
-    def __init__(self, msg_processor, params):
+    def __init__(self, msg_processor, conn_cfg):
         """Initializes a local connection. Supports a few simple comparisons
         which can cause the incoming message to be translated to ON/OFF.
 
-        Params:
+        conn_cfg:
             - "OnEq": any message that matches will be converted to "ON" and all
             other messages will result in "OFF".
             - "OnGT": assumes the message is a number, if the incoming message
@@ -64,33 +63,26 @@ class LocalConnection(Connection):
         The mqg_processor parameter is ignored, this connection cannot cause
         sensor_reporter to republish the sensor values.
         """
-        super().__init__(msg_processor, params)
+        super().__init__(msg_processor, conn_cfg)
 
-        self.eq = None
         self.gt = None
         self.lt = None
 
-        try:
-            self.eq = params("OnEq")
-        except NoOptionError:
-            pass
+        self.eq = conn_cfg.get("OnEq")
         try:
             if not self.eq:
-                self.gt = float(params("OnGT"))
-        except NoOptionError:
+                self.gt = float(conn_cfg["OnGT"])
+        except KeyError:
             pass
         try:
             if not self.eq and not self.gt:
-                self.lt = float(params("OnLT"))
-        except NoOptionError:
+                self.lt = float(conn_cfg["OnLT"])
+        except KeyError:
             pass
 
-    def publish(self, message, destination, filter_echo=False):
+    def publish(self, message, comm):
         """Send the message or, if defined, translate the message to ON or OFF."""
-        if filter_echo:
-            # ignore msg since the local connection doesn't need updates of the actuator state
-            return
-
+        destination = comm.get('StatusDest')
         if destination in self.registered:
             try:
                 send = message
@@ -114,5 +106,8 @@ class LocalConnection(Connection):
                 self.registered[destination](send)
             except ValueError:
                 self.log.error("'%s' cannot be parsed to float!", message)
+        elif destination is None:
+            #make 'StatusDest' optional
+            return
         else:
             self.log.debug("There is no handler registered for %s", destination)

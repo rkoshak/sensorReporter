@@ -17,7 +17,7 @@ None, though the user that sensor_reporter is running needs permission to execut
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecActuator` |
+`Class` | X | `exec.exec_actuator.ExecActuator` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
 `Command` | X | `;` and `#` are not allowed. | A valid command line command.
@@ -64,7 +64,7 @@ None, though the user that sensor_reporter is running needs permission to execut
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecSensor` |
+`Class` | X | `exec.exec_sensor.ExecSensor` |
 `Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command

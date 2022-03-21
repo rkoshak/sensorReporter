@@ -25,7 +25,7 @@ class Connection(ABC):
     implementation for all methods except publish which must be overridden.
     """
 
-    def __init__(self, msg_processor, params):
+    def __init__(self, msg_processor, conn_cfg):
         """Stores the passed in arguments as data members.
 
         Arguments:
@@ -36,24 +36,22 @@ class Connection(ABC):
         """
         self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
-        self.params = params
+        self.conn_cfg = conn_cfg
         self.registered = {}
-        set_log_level(params, self.log)
+        set_log_level(conn_cfg, self.log)
 
     @abstractmethod
-    def publish(self, message, destination, filter_echo=False):
+    def publish(self, message, comm):
         """Abstarct method that must be overriden. When called, send the passed
         in message to the passed in destination.
-
-        Parameter filter_echo is intended to activate a filter for looped back messages
         """
 
     def disconnect(self):
         """Disconnect from the connection and release any resources."""
 
-    def register(self, destination, handler):
+    def register(self, comm, handler):
         """Set up the passed in handler to be called for any message on the
-        destination.
+        destination. Default implementation assumes topic CommandSrc
         """
-        self.log.info("Registering destination %s", destination)
-        self.registered[destination] = handler
+        self.log.info("Registering destination %s", comm['CommandSrc'])
+        self.registered[comm['CommandSrc']] = handler

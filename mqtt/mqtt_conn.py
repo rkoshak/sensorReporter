@@ -16,7 +16,6 @@
 
 Classes: MqttConnection
 """
-from configparser import NoOptionError
 import socket
 import traceback
 from time import sleep
@@ -33,7 +32,7 @@ OFFLINE = "OFFLINE"
 class MqttConnection(Connection):
     """Connects to and enables subscription and publishing to MQTT."""
 
-    def __init__(self, msg_processor, params):
+    def __init__(self, msg_processor, conn_cfg):
         """Establishes the MQTT connection and starts the MQTT thread. Exepcts
         the following parameters in params:
         - "Host": hostname or IP address of the MQTT broker
@@ -59,39 +58,30 @@ class MqttConnection(Connection):
         RootTopic/refresh is the topic listened to so external clients can send
         messages to sensor_reporter
         """
-        super().__init__(msg_processor, params)
+        super().__init__(msg_processor, conn_cfg)
         self.log.info("Initializing MQTT Connection...")
 
-        # Get the parameters, raises NoOptionError if one doesn't exist
-        self.host = params("Host")
-        self.port = int(params("Port"))
-        client_name = params("Client")
-        self.root_topic = params("RootTopic")
-        try:
-            tls = params("TLS").lower()
-        except NoOptionError:
-            tls = False
-        try:
-            ca_cert = params("CAcert")
-        except NoOptionError:
-            ca_cert = "./certs/ca.crt"
-        try:
-            tls_insecure = params("TLSinsecure").lower()
-        except NoOptionError:
-            tls_insecure = False
-        user = params("User")
-        passwd = params("Password")
-        self.keepalive = int(params("Keepalive"))
+        # Get the parameters, raises KeyError if one doesn't exist
+        self.host = conn_cfg["Host"]
+        self.port = int(conn_cfg["Port"])
+        client_name = conn_cfg["Client"]
+        self.root_topic = conn_cfg["RootTopic"]
+
+        tls = conn_cfg.get("TLS", False)
+        ca_cert = conn_cfg.get("CAcert", "./certs/ca.crt")
+        tls_insecure = conn_cfg.get("TLSinsecure", False)
+
+        user = conn_cfg["User"]
+        passwd = conn_cfg["Password"]
+        self.keepalive = int(conn_cfg["Keepalive"])
 
         self.msg_processor = msg_processor
 
         # Initialize the client
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
-        if tls in ("yes", "true", "1"):
+        if tls:
             self.log.debug("TLS is true, CA cert is: {}".format(ca_cert))
             self.client.tls_set(ca_cert)
-            if tls_insecure in ("yes", "true", "1"):
-                tls_insecure = True
             self.log.debug("TLS insecure is {}".format(tls_insecure))
             self.client.tls_insecure_set(tls_insecure)
         self.client.on_connect = self.on_connect
@@ -112,13 +102,10 @@ class MqttConnection(Connection):
         self.log.info(
             "LWT topic is %s, subscribing to refresh topic %s", lwtt, ref)
         self.client.will_set(lwtt, OFFLINE, qos=2, retain=True)
-        self.register(REFRESH, msg_processor)
+        self.register({ 'CommandSrc':REFRESH }, msg_processor)
 
         self.client.loop_start()
         self._publish_mqtt(ONLINE, LWT, True)
-
-        #init dictionary for publish actuator status
-        self.filter = {}
 
     def _connect(self):
         while not self.connected:
@@ -135,17 +122,13 @@ class MqttConnection(Connection):
 
         self.log.info("Connection to MQTT is successful")
 
-    def publish(self, message, destination, filter_echo=False):
+    def publish(self, message, comm):
         """Publishes message to destination, logging if there is an error."""
-        if filter_echo:
-            # remember full_topic, msg and timestamp for later filtering
-            # of looped back anwser of the mqtt server
-            full_topic = "{}/{}".format(self.root_topic, destination)
-            if full_topic not in self.filter:
-                self.filter[full_topic] = {}
-            self.filter[full_topic][message] = datetime.datetime.now()
-
-        self._publish_mqtt(message, destination, False)
+        destination = comm.get('StatusDest')
+        retain = comm.get('Retain', False)
+        #make 'StatusDest' optional
+        if destination:
+            self._publish_mqtt(message, destination, retain)
 
     def _publish_mqtt(self, message, topic, retain):
         try:
@@ -176,39 +159,25 @@ class MqttConnection(Connection):
         self.client.loop_stop()
         self.client.disconnect()
 
-    def register(self, destination, handler):
+    def register(self, comm, handler):
         """Registers a handler to be called on messages received on topic
         appended to the root_topic. Handler is expected to take one argument,
         the message.
         """
+        destination = comm['CommandSrc']
         full_topic = "{}/{}".format(self.root_topic, destination)
         self.log.info("Registering for messages on '%s'", full_topic)
 
         def on_message(client, userdata, msg):
             message = msg.payload.decode("utf-8")
-            # filter messages which have been send via publish_actuator_state,
-            # to ignore own actuator status updates
-            # if a filter entry for the recived topic and
-            # message exists check if it is not older than x seconds
-            handle_msg = True
-            if msg.topic in self.filter:
-                if message in self.filter[msg.topic]:
-                    time_send = self.filter[msg.topic][message]
-                    if (datetime.datetime.now() - time_send).total_seconds() < 1:
-                        handle_msg = False
-                    self.filter[msg.topic].pop(message, None)
 
-            if handle_msg:
-                self.log.debug(
-                "Received message client %s userdata %s and msg: %s",
+            self.log.debug(
+                "Received message client %s userdata %s and msg %s",
                 client,
                 userdata,
-                message
-                )
-
-                handler(message)
-            else:
-                self.log.debug("Filtered msg (%s) for topic: %s", message, msg.topic)
+                message,
+            )
+            handler(message)
 
         self.registered[full_topic] = on_message
         self.client.subscribe(full_topic, qos=0)
