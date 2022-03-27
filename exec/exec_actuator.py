@@ -32,10 +32,11 @@ class ExecActuator(Actuator):
         """Sets up the actuator to call the command scripts. Expects the
         following parameters.
         - "Command": the command line to execute
-        - "CommandSrc": the destination subscribed to, messages to this topic are
-        turned into command line arguments; if "NA" it's treated as no arguments.
-        - "ResultsDest": the destination to publish the output from the command;
-        ERROR is published if the command returned a non-zero return code.
+        - "Connections": holds the dictionarys with the configured connections
+           for each actuator. Will subscribe to the specified Topic, messages to this topic are
+           turned into command line arguments; if "NA" it's treated as no arguments.
+           The command result is published to the specified return topic;
+           ERROR is published if the command returned a non-zero return code.
         - "Timeout": The number of seconds to let the command run before timing
         out.
         """
@@ -44,8 +45,8 @@ class ExecActuator(Actuator):
         self.command = dev_cfg["Command"]
         self.timeout = int(dev_cfg["Timeout"])
 
-        self.log.info("Configuring Exec Actuator: Command = %s, Communication Topics = %s",
-                      self.command, self.comm)
+        self.log.info("Configuring Exec Actuator: %s,  Command = %s, Communication Topics = %s",
+                      self.name, self.command, self.comm)
 
     def on_message(self, msg):
         """When a message is received on the "Command" destination this method
@@ -66,7 +67,7 @@ class ExecActuator(Actuator):
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
                                              timeout=self.timeout).rstrip()
-            self.log.info("%s: command result: %s",
+            self.log.info("%s command result: %s",
                           self.name, output)
             self._publish(output, self.comm)
         except subprocess.CalledProcessError as ex:

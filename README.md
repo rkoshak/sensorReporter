@@ -61,11 +61,16 @@ The number need only be unique, they don't need to be sequential.
 
 # Dependencies
 sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
+It uses PyYAML for parsing the configuration file:
+
+```
+$ sudo pip3 install PyYAML
+```
 Each plugin will have it's own dependency.
 See the readmes in the subfolders for details.
 
 # Usage
-`python3 sensor_reporter configuration.ini`
+`python3 sensor_reporter configuration.yml`
 
 An example systemd service file is provided for your reference.
 The following steps describe how to setup the service:
@@ -85,23 +90,23 @@ To reload a modifierd sensor_reporter.ini use the command:  `sudo sytemctl reloa
 
 
 # Configuration
-sensor_reporter uses an ini file for configuration.
+sensor_reporter uses an YAML file for configuration.
 The only required section is the logging section.
 However, to do anything useful, there should be at least one Connection and at least one Sensor or Actuator.
 All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
-*Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read and write permissions.
+*Security advice:* make sure your sensor_reporter.yml is owned by the user `sensorReporter` and only that user has read and write permissions.
 
 `sudo chown sensorReporter:nogroup sensor_reporter.ini`  
 `sudo chmod 600 sensor_reporter.ini`
 
 ## Syslog Example
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 ```
 `Syslog` can be any boolean value.
 When true no other parameters are required.
@@ -116,6 +121,13 @@ MaxSize = 67108864
 NumFiles = 10
 Syslog = NO
 Level = INFO
+```yaml
+Logging:
+    File: /var/log/sensorReporter.log
+    MaxSize: 67108864
+    NumFiles: 10
+    Syslog: no
+    Level: INFO
 ```
 `File` is the path to the log file.
 `MaxSize` is the maximum size of the log file in bytes before it gets rotated.
@@ -143,6 +155,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
+- The configuration file now expectes YAML syntax insted of a ini file - March 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
 - All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments

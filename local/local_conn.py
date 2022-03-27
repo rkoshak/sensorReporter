@@ -82,7 +82,7 @@ class LocalConnection(Connection):
 
     def publish(self, message, comm):
         """Send the message or, if defined, translate the message to ON or OFF."""
-        destination = comm.get('StatusDest')
+        destination = comm.get('StateDest')
         if destination in self.registered:
             try:
                 send = message

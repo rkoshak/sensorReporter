@@ -21,7 +21,6 @@ import traceback
 from time import sleep
 import paho.mqtt.client as mqtt
 from core.connection import Connection
-import datetime
 
 LWT = "status"
 REFRESH = "refresh"
@@ -67,6 +66,7 @@ class MqttConnection(Connection):
         client_name = conn_cfg["Client"]
         self.root_topic = conn_cfg["RootTopic"]
 
+        #optional parameters
         tls = conn_cfg.get("TLS", False)
         ca_cert = conn_cfg.get("CAcert", "./certs/ca.crt")
         tls_insecure = conn_cfg.get("TLSinsecure", False)
@@ -124,7 +124,7 @@ class MqttConnection(Connection):
 
     def publish(self, message, comm):
         """Publishes message to destination, logging if there is an error."""
-        destination = comm.get('StatusDest')
+        destination = comm.get('StateDest')
         retain = comm.get('Retain', False)
         #make 'StatusDest' optional
         if destination:

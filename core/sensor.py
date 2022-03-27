@@ -19,7 +19,6 @@ Classes: Sensor
 
 from abc import ABC
 import logging
-from configparser import NoOptionError
 from core.utils import set_log_level
 
 class Sensor(ABC):
@@ -35,11 +34,11 @@ class Sensor(ABC):
 
         Arguments:
         - publishers: list of Connection objects to report to.
-        - params: parameters from the section in the .ini file the sensor is created
+        - dev_cfg: parameters from the section in the yaml file the sensor is created
         from.
         """
         self.log = logging.getLogger(type(self).__name__)
-        self.connections = self.publishers = publishers
+        self.publishers = publishers
         self.dev_cfg = dev_cfg
         #Sensor Name is specified in sensor_reporter.py > creat_device()
         self.name = dev_cfg.get('Name')
@@ -63,7 +62,7 @@ class Sensor(ABC):
     def _send(self, message, comm):
         """Sends msg to the dest on all publishers."""
         for conn in comm.keys():
-            self.connections[conn].publish(message, comm[conn])
+            self.publishers[conn].publish(message, comm[conn])
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up

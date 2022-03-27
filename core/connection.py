@@ -32,7 +32,7 @@ class Connection(ABC):
         - msg_processor: Connections will subscribe to a destination for
         communication to the program overall, not an individual actuator or
         sensor. This is the method that gets called when a message is received.
-        - params: set of properties from the loaded ini file.
+        - conn_cfg: set of properties from the loaded yaml file.
         """
         self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
@@ -51,7 +51,7 @@ class Connection(ABC):
 
     def register(self, comm, handler):
         """Set up the passed in handler to be called for any message on the
-        destination. Default implementation assumes topic CommandSrc
+        destination. Default implementation assumes topic 'CommandSrc'
         """
         self.log.info("Registering destination %s", comm['CommandSrc'])
         self.registered[comm['CommandSrc']] = handler

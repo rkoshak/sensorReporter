@@ -26,29 +26,40 @@ Parameter | Required | Restrictions | Purpose
 `openHAB-Version` | | float | Version of the OpenHAB server to connect to as floating point figure. Default is '2.0'.
 `API-Token` | | | The API token generated on the [web interface](https://www.openhab.org/docs/configuration/apitokens.html). Only needed if 'settings > API-security > implicit user role (advanced settings)' is disabled. If no API token is specified sensor_reporter tries to connect without authentication.
 
+### Actuator / sensor relatet parameters
+
+To use an actuator or a sensor (a device) with a connection it has to define this in the devices 'Connections:' parameter with a dictionary of connection names and connection related parameters.
+The openHAB REST connection uses following parameters:
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`Item` | yes | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands
+
 ## Example Configs
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-openHAB-Version = 3.1
-API-Token = <API-Token generated from openHAB profil page>
-Level = INFO
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
+    openHAB-Version: 3.2
+    API-Token: <API-Token generated from openHAB profil page>
+    Level: INFO
 
-[Sensor1]
-Class = heartbeat.heartbeat.Heartbeat
-Connection = openHAB
-Poll = 60
-Num-Dest = heartbeat_num
-Str-Dest = heartbeat_str
-Level = INFO
+SensorHeartbeart:
+    Class: heartbeat.heartbeat.Heartbeat
+    Connections:
+       openHAB:
+           Item: heartbeat_num
+    HeartbeartStrConns:
+       openHAB:
+           Item: heartbeat_str
+    Poll: 60
 ```
 
 To detect when a sensor_reporter goes offline, use the Heartbeat and a timer in openHAB to detect when the heartbeat stops.

@@ -33,17 +33,17 @@ class Actuator(ABC):
 
         Arguments:
         - connections: List of the connections
-        - params: lambda that returns value for the passed in key
-            "CommandSrc": required, where command to run the actuator come from
-            "ResultDest": optional, where the results from the command are
-            published.
+        - dev_cfg: dictionary that holds the device specific config
+            "Connections": required, holds the dictionarys with the configured connections
+            will subscribe to the topic and report the status
+            to the return topic if it is specified
         Raises:
-        - configurationparser.NoOptionError if "CommandSrc" doesn't exist.
+        - KeyError if "Connections" doesn't exist.
         """
         self.log = logging.getLogger(type(self).__name__)
         self.dev_cfg = dev_cfg
         self.connections = connections
-        self.comm = dev_cfg.get('Connections')
+        self.comm = dev_cfg['Connections']
         #Actuator Name is specified in sensor_reporter.py > creat_device()
         self.name = dev_cfg.get('Name')
         set_log_level(dev_cfg, self.log)

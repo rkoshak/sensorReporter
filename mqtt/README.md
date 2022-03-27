@@ -33,29 +33,40 @@ There are two hard coded topics the Connection will use:
 - `<RootTopic>/status`: the LWT topic; "ONLINE" will be published when the MQTT connection is established and "OFFLINE" published when disconnecting and as the LWT message.
 - `<RootTopic>/refresh`: any message received on this topic will cause the sensor_reporter to immediately publish the most recent sensor readings. Note: it does not actually go out to the device, it only reports the most recent reading.
 
+### Actuator / sensor relatet parameters
+
+To use an actuator or a sensor (a device) with a connection it has to define this in the devices 'Connections:' parameter with a dictionary of connection names and connection related parameters.
+The MQTT connection uses following parameters:
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
+`StateDest` |  |  | optional return topic to publish the current device state / sensor readings. If not present the state won't get published.
+
 ## Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = mqtt.mqtt_conn.MqttConnection
-Name = MQTT
-Client = test
-User = user
-Password = password
-Host = localhost
-Port = 1883
-Keepalive = 10
-RootTopic = sensor_reporter
-TLS = NO
-Level = DEBUG
+Connection1:
+    Class: mqtt.mqtt_conn.MqttConnection
+    Name: MQTT
+    Client: test
+    User: user
+    Password: password
+    Host: localhost
+    Port: 1883
+    Keepalive: 10
+    RootTopic: sensor_reporter
+    TLS: no
+    Level: DEBUG
 
-[Sensor0]
-Class = govee.govee_sensor.GoveeSensor
-Destination = govee
-Connection = MQTT
-Level = INFO
+SensorGovee:
+    Class: govee.govee_sensor.GoveeSensor
+    Connections:
+        MQTT:
+            StateDest: govee/state
+    Level: INFO
 ```

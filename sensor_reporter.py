@@ -26,7 +26,7 @@ Functions:
     - create_device: Creates a Sensor or Actuator based on the config in the .ini
     - create_poll_manager: Parses the .ini file and creates the logger,
     connections, sensors, and actuators and polling manager based on the config
-    in the .ini.
+    in the yaml.
     - on_message: called when a connection receives a message on the
     sensor_reporter's topic
     - register_sig_handlers: Registers the reload_configuration and
@@ -37,10 +37,9 @@ Functions:
 import signal
 import sys
 import traceback
-import yaml
-import logging
 import logging.handlers
 import importlib
+import yaml
 from core.poll_mgr import PollManager
 from core.utils import set_log_level
 
@@ -83,7 +82,7 @@ def register_sig_handlers(config_file, poll_mgr):
                   lambda s, f: terminate_process(s, f, poll_mgr))
 
 def init_logger(logger_cfg):
-    """Initializes the logger based on the properties in the .ini file's Logging
+    """Initializes the logger based on the properties in the yaml file's Logging
     section.
 
     Properties:
@@ -136,7 +135,7 @@ def init_logger(logger_cfg):
 
 def create_connection(conn_cfg, section):
     """Creates a Connection using reflection based on the passed in section of
-    the .ini file.
+    the yaml file.
     """
     try:
         name = conn_cfg.get("Name")
@@ -153,7 +152,7 @@ def create_connection(conn_cfg, section):
 
 def create_device(dev_cfg, section, connections):
     """Creates a Sensor or Actuator using reflection based on the passed in
-    section of the .ini file.
+    section of the yaml file.
     """
     try:
         logger.info("Creating device for {}".format(section))
@@ -165,12 +164,16 @@ def create_device(dev_cfg, section, connections):
         try:
             dev_conns = {c:connections[c] for c in dev_cfg["Connections"].keys()}
         except KeyError as ex:
-            # catch typos at startup
-            logger.error("Error creating device {}!"
-                         " Probably the name of the connection {} is misspelled."
-                         .format(section, ex))
-        #remember section name for logger messages within a device
-        dev_cfg['Name'] = section.replace('Actuator', '').replace('Sensor','')
+            # catch connection name typos at startup
+            if "Connections" in ex.args:
+                logger.error("Section 'Connections' missing for device {}".format(section))
+            else:
+                logger.error("Error creating device {}!"
+                             " Probably the name of the connection {} is misspelled."
+                             .format(section, ex))
+        if 'Name' not in dev_cfg:
+            #remember section name for logger messages within a device
+            dev_cfg['Name'] = section.replace('Actuator', '').replace('Sensor','')
 
         return device(dev_conns, dev_cfg)
     except:

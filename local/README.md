@@ -30,71 +30,85 @@ Toggle events a evaluated before `OnEq`, `OnGt` and `OnLt`.
 
 If none of the three optional parameters are supplied, the recieved messages will get forwarded unchanged.
 
+### Actuator / sensor relatet parameters
+
+To use an actuator or a sensor (a device) with a connection it has to define this in the devices 'Connections:' parameter with a dictionary of connection names and connection related parameters.
+The local connection uses following parameters:
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
+`StateDest` |  |  | optional return topic to publish the current device state / sensor readings. If not present the state won't get published.
+
 ## Example Configs
 
 ### Turn on an LED on GPIO pin 17 when GPIO pin 4 is HIGH
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+   Syslog: yes
+   Level: INFO
 
-[Connection0]
-Class = local.local_conn.LocalConnection
-Level = INFO
-Name = local
-OnEq = ON
+Connection0:
+    Class: local.local_conn.LocalConnection
+    Level: INFO
+    Name: local
+    OnEq: ON
 
-[Sensor0]
-Class = gpio.rpi_gpio.RpiGpioSensor
-Connection = local
-Pin = 4
-PUD = UP
-EventDetection = BOTH
-Destination = back-door
-Level = DEBUG
+SensorGaragePushbutton:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections:
+        local:
+            StateDest: back-door
+    Pin: 4
+    PUD: UP
+    EventDetection: BOTH
+    Level: DEBUG
 
-[Actuator0]
-Class = gpio.rpi_gpio.RpiGpioActuator
-Connection = loacl
-CommandSrc = back-door
-Pin = 17
-InitialState = OFF
-Toggle = True
-Level = DEBUG
+ActuatorGaragedoor:
+    Class: gpio.rpi_gpio.RpiGpioActuator
+    Connections:
+        local:
+            CommandSrc: back-door
+    Pin: 17
+    InitialState: OFF
+    Toggle: true
+    Level: DEBUG
 ```
 
-### Execute a Script when Temp > 32
+### Execute a Script when Temperatur < 32
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection0]
-Class = local.local_conn.LocalConnection
-Level = INFO
-Name = local
-OnLt = 32
+Connection0:
+    Class: local.local_conn.LocalConnection
+    Name: local_conn
+    OnLt: 32
 
-[Sensor0]
-Class = gpio.dht_sensor.DhtSensor
-Connection = openHAB
-Poll = 2
-Sensor = AM2302
-Pin = 1
-HumiDest = humidity
-TempDest = temperature
-TempUnit = F
-Smoothing = False
-Level = DEBUG
+SensorEnvSensor:
+    Class: gpio.dht_sensor.DhtSensor
+    Connections:
+        local_conn:
+            StateDest: temperature
+    HumidityConns:
+        local_conn:
+            StateDest: humidity
+    Poll: 2
+    Sensor: AM2302
+    Pin: 1
+    TempUnit: F
+    Smoothing: False
+    Level: DEBUG
 
-[Actuator0]
-Class = exec.exec_actuator.ExecActuator
-Connection = openHAB
-Command = echo "It's too cold!"
-CommandSrc = temperature
-ResultsDest = results
-Timeout = 10
-Level = INFO
+ActuatorEcho:
+    Class: exec.exec_actuator.ExecActuator
+    Connections:
+        local_conn:
+            CommandSrc: temperature
+            StateDest: results
+    Command: echo "It's too cold!"
+    Timeout: 10
 ```
