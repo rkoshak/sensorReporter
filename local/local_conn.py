@@ -19,6 +19,7 @@ Classes:
 """
 from configparser import NoOptionError
 from core.connection import Connection
+from core.utils import is_toggle_cmd
 
 class LocalConnection(Connection):
     """A special connection that can link Sensors and Actuators to other
@@ -93,7 +94,10 @@ class LocalConnection(Connection):
         if destination in self.registered:
             try:
                 send = message
-                if self.eq and message == self.eq:
+                # forward TOGGLE and ISO formated time messages
+                if is_toggle_cmd(message):
+                    send = "TOGGLE"
+                elif self.eq and message == self.eq:
                     send = "ON"
                 elif self.eq:
                     send = "OFF"

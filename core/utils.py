@@ -74,3 +74,14 @@ def get_sequential_param_pairs(params, name1, name2):
         raise ValueError("Unequal number of parameters for %s and %s ", name1,
                          name2)
     return dict(zip(one, two))
+
+def is_toggle_cmd(msg):
+    """Returns true it the input (msg) is equal
+    to the string "TOGGLE" or is a ISO 8601 formatted date time
+    """
+    is_toggle = msg == "TOGGLE"
+    # datetime from sensor_reporter RpiGpioSensor (e.g. 2021-10-24T16:23:41.500792)
+    is_dt = len(msg) == 26 and msg[10] == "T"
+    # datetime from openHAB (e.g. 2022-02-27T17:58:45.165491+0100)
+    is_dt_timezone = len(msg) == 31 and msg[10] == "T"
+    return is_toggle or is_dt or is_dt_timezone
