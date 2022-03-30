@@ -34,7 +34,7 @@ Plug-in | Type | Purpose
 
 
 # Architecture
-The main script is `sensor_reporter` which parses a configuration ini file and handles operating system signal handling.
+The main script is `sensor_reporter` which parses a configuration YAML file and handles operating system signal handling.
 
 It uses a `core.poll_mgr.PollMgr` manages running a polling loop used by Polling Sensors to control querying the devices.
 
@@ -42,7 +42,7 @@ All connections inherit from `core.connection.Connection`.
 All Actuators inherit from `core.actuator.Actuator` and all sensors inherit from `core.sensor.Sensor`.
 Common code is implemented in the parent classes.
 
-On startup or when receiving a `HUP` (`kill -1`) operating system signal the configuratuion ini file is loaded.
+On startup or when receiving a `HUP` (`kill -1`) operating system signal the configuratuion YAML file is loaded.
 There is a logging section (see below) where the logging level and where to log to is defined.
 Then there is a separate section for each connection, sensor, and actuator.
 Each individual plug-in will define it's own set of required and optional parameters.
@@ -77,16 +77,16 @@ The following steps describe how to setup the service:
 
 1. clone this repo into `/opt/sensor_reporter`
 2. create a `sensorReporter` system user:  `sudo adduser --system --force-badname --home /opt/sensor_reporter sensorReporter`
-3. write your config ini file and save it to `/opt/sensor_reporter/sensor_reporter.ini`
-4. change owner of the ini file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.ini`
-5. limit read write to owner:  `sudo chmod 600 sensor_reporter.ini`
+3. write your config file and save it to `/opt/sensor_reporter/sensor_reporter.yml`
+4. change owner of the config file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.yml`
+5. limit read write to owner:  `sudo chmod 600 sensor_reporter.yml`
 6. install service file:  `sudo cp sensor_reporter.service /etc/systemd/system`
 7. set service to autostart:  `sudo systemctl enable sensor_reporter.service`
 8. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
 
 Some plugins will reqire additional steps, see readmes in the subfolders for details.
 
-To reload a modifierd sensor_reporter.ini use the command:  `sudo sytemctl reload sensor_reporter.service`
+To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`
 
 
 # Configuration
@@ -98,8 +98,8 @@ In addition logging will be published to syslog or to a log file.
 
 *Security advice:* make sure your sensor_reporter.yml is owned by the user `sensorReporter` and only that user has read and write permissions.
 
-`sudo chown sensorReporter:nogroup sensor_reporter.ini`  
-`sudo chmod 600 sensor_reporter.ini`
+`sudo chown sensorReporter:nogroup sensor_reporter.yml`  
+`sudo chmod 600 sensor_reporter.yml`
 
 ## Syslog Example
 
@@ -114,16 +114,9 @@ When true no other parameters are required.
 
 ## Log File Example
 
-```ini
-[Logging]
-File = /var/log/sensor_reporter/sensorReporter.log
-MaxSize = 67108864
-NumFiles = 10
-Syslog = NO
-Level = INFO
 ```yaml
 Logging:
-    File: /var/log/sensorReporter.log
+    File: /var/log/sensor_reporter/sensorReporter.log
     MaxSize: 67108864
     NumFiles: 10
     Syslog: no
@@ -155,7 +148,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
-- The configuration file now expectes YAML syntax insted of a ini file - March 2022
+- The configuration file is now in YAML syntax insted of a ini file - March 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
 - All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments
