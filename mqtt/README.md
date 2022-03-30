@@ -41,7 +41,8 @@ The MQTT connection uses following parameters:
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
-`StateDest` |  |  | optional return topic to publish the current device state / sensor readings. If not present the state won't get published.
+`StateDest` |  |  | return topic to publish the current device state / sensor readings. If not present the state won't get published.
+`Retain` |  | boolean | If True, MQTT will publish messages with the retain flag. Default is False.
 
 ## Example Config
 
@@ -67,6 +68,7 @@ SensorGovee:
     Class: govee.govee_sensor.GoveeSensor
     Connections:
         MQTT:
-            StateDest: govee/state
+            StateDest: govee
+            Retain: yes
     Level: INFO
 ```
