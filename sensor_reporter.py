@@ -41,7 +41,7 @@ import logging.handlers
 import importlib
 import yaml
 from core.poll_mgr import PollManager
-from core.utils import set_log_level
+from core.utils import set_log_level, spread_default_parameters
 
 logger = logging.getLogger("sensor_reporter")
 poll_mgr = None
@@ -206,6 +206,7 @@ def create_poll_manager(config_file):
     actuators = []
     for (section, dev_cfg) in config.items():
         if section.startswith("Actuator"):
+            spread_default_parameters(config, dev_cfg)
             actuator = create_device(dev_cfg, section, connections)
             if actuator:
                 actuators.append(actuator)
@@ -216,6 +217,7 @@ def create_poll_manager(config_file):
     sensors = {}
     for (section, dev_cfg) in config.items():
         if section.startswith("Sensor"):
+            spread_default_parameters(config, dev_cfg)
             sensor = create_device(dev_cfg, section, connections)
             if sensor:
                 sensors[section] = sensor

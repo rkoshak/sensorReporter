@@ -17,6 +17,7 @@ poll and reports the results.
 """
 import subprocess
 import time
+import yaml
 from core.sensor import Sensor
 from core.utils import issafe
 
@@ -30,19 +31,19 @@ class ExecSensor(Sensor):
         super().__init__(publishers, dev_cfg)
 
         self.script = dev_cfg["Script"]
-        self.destination = dev_cfg["Connections"]
         self.start_time = time.time()
 
         self.cmd_args = [arg for arg in self.script.split(' ') if issafe(arg)]
         self.results = ""
 
-        self.log.info("Configured exec_sensor '%s' to call script '%s' at interval %s "
-                      "reports to connections: %s ",
-                      self.name, self.script, self.poll, self.destination)
+        self.log.info("Configured exec_sensor %s to call script '%s' at interval %s ",
+                      self.name, self.script, self.poll)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
 
     def check_state(self):
         """Calls the script and saves and publishes the result."""
-        self.log.debug("%s executing with arguments %s", self.name, self.cmd_args)
+        self.log.debug("%s executed with arguments %s", self.name, self.cmd_args)
 
         try:
             self.results = subprocess.check_output(self.cmd_args, shell=False,
@@ -62,4 +63,4 @@ class ExecSensor(Sensor):
 
     def publish_state(self):
         """Publishes the most recent results from the script."""
-        self._send(self.results, self.destination)
+        self._send(self.results, self.comm)

@@ -39,6 +39,12 @@ class Actuator(ABC):
             to the return topic if it is specified
         Raises:
         - KeyError if "Connections" doesn't exist.
+
+        Important Parameters:
+        - self.comm: communication dictionary, with information where to publish
+                     contains connection named dictionarys for each connection
+        - self.log: The log instance for this device
+        - self.name: device name, usful for log entries
         """
         self.log = logging.getLogger(type(self).__name__)
         self.dev_cfg = dev_cfg
@@ -70,12 +76,20 @@ class Actuator(ABC):
         resources.
         """
 
-    def _publish(self, message, comm):
+    def _publish(self, message, comm, trigger=None):
         """Protected method that will publish the passed in message to the
-        passed in destination to all the passed in connections.
-        """
+        passed in comm(unicators). Optionally specifie the event trigger
+        so the connection can decide where to publish.
+
+        Arguments:
+        - message: the message to publish
+        - comm: communication dictionary, with information where to publish
+                contains connection named dictionarys for each connection,
+                containing the connection related parameters
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm to look for the return topic"""
         for conn in comm.keys():
-            self.connections[conn].publish(message, comm[conn])
+            self.connections[conn].publish(message, comm[conn], trigger)
 
     def publish_actuator_state(self):
         """Called to publish the current state of the actuator to the publishers.

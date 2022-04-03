@@ -28,12 +28,34 @@ Parameter | Required | Restrictions | Purpose
 
 ### Actuator / sensor relatet parameters
 
-To use an actuator or a sensor (a device) with a connection it has to define this in the devices 'Connections:' parameter with a dictionary of connection names and connection related parameters.
+To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The openHAB REST connection uses following parameters:
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Item` | yes | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands
+
+### Dictionary of connectors layout
+To configure a openHAB REST connection in a sensor / actuator use following layout:
+
+```yaml
+Connections:
+    <connection_name>:
+        <sensor_output_1>:
+            Item: <some Item_name>
+        <sensor_output_2>:
+            Item: <some Item_name2>
+    <connection_name2>:
+        #etcetera
+```
+The available outputs are described at the sensor / actuator readme.
+Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
+
+```yaml
+Connections:
+    <connection_name>:
+        Item: <some Item_name>
+```
 
 ## Example Configs
 
@@ -55,10 +77,10 @@ SensorHeartbeart:
     Class: heartbeat.heartbeat.Heartbeat
     Connections:
        openHAB:
-           Item: heartbeat_num
-    HeartbeartStrConns:
-       openHAB:
-           Item: heartbeat_str
+           FormatSeconds:
+               Item: heartbeat_num
+           FormatString:
+               Item: heartbeat_str
     Poll: 60
 ```
 

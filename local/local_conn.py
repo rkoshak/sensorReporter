@@ -80,9 +80,19 @@ class LocalConnection(Connection):
         except KeyError:
             pass
 
-    def publish(self, message, comm):
-        """Send the message or, if defined, translate the message to ON or OFF."""
-        destination = comm.get('StateDest')
+    def publish(self, message, comm_conn, trigger=None):
+        """Send the message or, if defined, translate the message to ON or OFF.
+
+        Arguments:
+        - message: the message to process / publish
+        - comm_conn: dictionary containing only the parameters for the called connection,
+                     e. g. information where to publish
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm_conn to look for the return topic"""
+        #if trigger is in the communication dict parse it's contens
+        local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
+
+        destination = local_comm.get('StateDest')
         if destination in self.registered:
             try:
                 send = message

@@ -36,9 +36,17 @@ class Sensor(ABC):
         - publishers: list of Connection objects to report to.
         - dev_cfg: parameters from the section in the yaml file the sensor is created
         from.
+
+        Important Parameters:
+        - self.comm: communication dictionary, with information where to publish
+                     contains connection named dictionarys for each connection
+        - self.log: The log instance for this device
+        - self.poll: The poll interval in seconds
+        - self.name: device name, usful for log entries
         """
         self.log = logging.getLogger(type(self).__name__)
         self.publishers = publishers
+        self.comm = dev_cfg['Connections']
         self.dev_cfg = dev_cfg
         #Sensor Name is specified in sensor_reporter.py > creat_device()
         self.name = dev_cfg.get('Name')
@@ -59,10 +67,19 @@ class Sensor(ABC):
         implementation is a pass.
         """
 
-    def _send(self, message, comm):
-        """Sends msg to the dest on all publishers."""
+    def _send(self, message, comm, trigger=None):
+        """Sends message the the comm(unicators). Optionally specifie the event trigger
+        so the connection can decide where to publish.
+
+        Arguments:
+        - message: the message to publish
+        - comm: communication dictionary, with information where to publish
+                contains connection named dictionarys for each connection,
+                containing the connection related parameters
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm to look for the return topic"""
         for conn in comm.keys():
-            self.publishers[conn].publish(message, comm[conn])
+            self.publishers[conn].publish(message, comm[conn], trigger)
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up

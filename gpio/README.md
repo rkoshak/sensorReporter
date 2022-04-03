@@ -20,41 +20,49 @@ $ sudo pip3 install adafruit-circuitpython-dht
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.dht_sensor.DhtSensor` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 different outputs, see below. Look at connection readme's for 'Actuator / sensor relatet parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
 `Sensor` | X | `DHT11`, `DHT22`, or `AM2302` | The type of the sensor.
 `Pin` | X | | GPIO data pin in BMC numbering.
-`HumiDest` | X | | Where to publish the humidity.
-`TempDest` | X | | Where to publishd the temperature.
 `TempUnit` | X | `F` or `C` | The temperature units
 `Smoothing` | | Boolean | When `True`, publishes the average of the last five readings instead of each individual reading.
 
+### Outputs
+The DhtSensor has 2 different outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relatet parameters' for details).
+
+Output | Purpose
+-|-
+`Temperature` | Where to publish the humidity.
+`Humidity` | Where to publishd the temperature.
+
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Sensor1]
-Class = gpio.dht_sensor.DhtSensor
-Connection = openHAB
-Poll = 2
-Sensor = AM2302
-Pin = 7
-HumiDest = humidity
-TempDest = temperature
-TempUnit = F
-Smoothing = False
-Level = DEBUG
+SensorOutdoorClima:
+    Class: gpio.dht_sensor.DhtSensor
+    Connections:
+        openHAB:
+            Temperature:
+                Item: temperature
+            Humidity:
+                Item: humidity
+    Poll: 2
+    Sensor: AM2302
+    Pin: 7
+    TempUnit: F
+    Smoothing: False
+    Level: DEBUG
 ```
 
 ## `gpio.rpi_gpio.RpiGpioSensor`
@@ -78,13 +86,12 @@ $ sudo pip3 install RPI.GPIO
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.rpi_gpio.RpiGpioSensor` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`Poll` |  | Positive number | How often to call the command. When not present the sensor will watch the pin in the background and report as it starts to change state.
-`PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
-`EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 3 different outputs, see below. Look at connection readme's for 'Actuator / sensor relatet parameters' for details.
 `Pin` | X | IO Pin | Pin to use as sensor input, using the pin numbering defined in `PinNumbering` (see below).
-`Destination` | X | | Location/openHAB string item to publish the pin state.
+`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
+`Poll` | | Positive decimal number | The interval in seconds to check for a change of the pin state. If the new state is present for a shorter time then the specified time noting is reported. Can be used as debounce. When not present `EventDetection` must be configured.
+`EventDetection` | | RISING, FALLING, or BOTH | When present, Poll is ignored. Indicates which GPIO event to listen for in the background.
+`PUD` | | The Pull UP/DOWN for the pin | Defaults to "DOWN"
 
 
 ### Advanced parameters
@@ -92,60 +99,75 @@ For a valid configuration the basic parameters marked as required are necessary,
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Values` | | | Values to replace the default state message as comma separeted list. Eg. `OFF,ON` (default is CLOSED,OPEN)
-`Short_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin (eg. LOW, HIGH, LOW) and the duration of the button press is between `Short_Press-Threshold` and `Long_Press-Threshold`. For the recommended setup see example config #2 at the bottom of the page
+`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'OFF' <new line> - 'ON'` (default is CLOSED,OPEN)
 `Short_Press-Threshold` | | decimal number | Defines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
-`Long_Press-Dest` | | | Location/openHAB string/datetime item to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`
 `Long_Press-Threshold` | | decimal number | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level.
 `Btn_Pressed_State` | | LOW or HIGH | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State = LOW`)
 
 ### Global parameters
 Can only be set for all GPIO devices (sensors and actuators).
-Global parametes are set in the `[DEFAULT]` section.
+Global parametes are set in the `DEFAULT` section.
 See example at the bottom of the page.
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
 
+### Outputs
+The RpiGpioSensor has 3 different outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relatet parameters' for details).
+
+Output | Purpose
+-|-
+`Switch` | Where the ON/OFF messages are published. When using with the openHAB connection configure a contact/string item at openHAB.
+`ShortButtonPress` | Location to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin (eg. LOW, HIGH, LOW) and the duration of the button press is between Short_Press-Threshold and Long_Press-Threshold. For the recommended setup see example config #​2 at the bottom of the page. When using with the openHAB connection configure a datetime/string item at openHAB.
+`LongButtonPress` | Location to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`. When using with the openHAB connection configure a datetime/string item at openHAB.
+
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Sensor1]
-Class = gpio.rpi_gpio.RpiGpioSensor
-Connection = openHAB
-Pin = 17
-PUD = UP
-EventDetection = BOTH
-Destination = back_door
-Short_Press-Dest = back_door_short
-Long_Press-Dest = back_door_long
-Long_Press-Threshold = 1.2
+SensorBackDoor:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections: 
+        openHAB:
+            Switch:
+                Item: back_door
+            ShortButtonPress:
+                Item: back_door_short
+            LongButtonPress:
+                Item: back_door_long
+    Pin: 17
+    PUD: UP
+    EventDetection: BOTH
+    Long_Press-Threshold: 1.2
 
-[Sensor2]
-Class = gpio.rpi_gpio.RpiGpioSensor
-Connection = openHAB
-Poll = 1
-Pin = 18
-PUD = UP
-Destination = front_door
-Values = OFF,ON
-Level = DEBUG
+SensorFrontDoor:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections:
+        openHAB:
+            Switch:
+                Items: front_door
+    Poll: 1
+    Pin: 18
+    PUD: UP
+    Values:
+        - 'OFF'
+        - 'ON'
+    Level: DEBUG
 ```
 
 ## `gpio.rpi_gpio.RpiGpioActuator`
 
-Commands a GPIO pin to go high, low, or if configured with a toggle it goes high for half a second and then goes to low.
+Commands a GPIO pin to go high, low, or if configured with SimulateButton it goes high for half a second and then goes to low.
 A recieved command will be sent back on all configured connections to the configured `CommandSrc`, to keep them up to date.
 
 ### Dependencies
@@ -164,83 +186,94 @@ $ sudo pip3 install RPI.GPIO
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.rpi_gpio.RpiGpioActuator` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`CommandSrc` | X | | Destination/openHAB switch item where commands are received, expects ON/OFF. If Toggle is set all messages trigger a toggle.
-`ToggleCommandSrc` | | | Destination/openHAB string item where toggle commands are recieverd. This is intended to be used for direct connections to a sensor via the Short_Press-Dest/Long_Press-Dest parameter. Expects the string TOGGLE, when recieved the output of the actuator will get toggled e.g. from LOW to HIGH until further commands. If the parameter `SimulateButton` is configured to TRUE this parameter is ignored. If not configured no ToggleCommandSrc will be registerd.
-`ToggleDebounce` | | decimal number | The interval in seconds during which repeated toggle commands are ignored (Default 0.15 seconds)
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relatet parameters' for details. When using with the openHAB connection configure a switch/string item at openHAB.
 `Pin` | X | IO Pin | Pin to use as actuator output, using the pin numbering defined in `PinNumbering` (see below).
-`InitialState` | | ON or OFF | Optional, when set to ON the pin's state is initialized to HIGH.
+`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
+`ToggleDebounce` | | decimal number | The interval in seconds during which repeated toggle commands are ignored (default 0.15 seconds)
+`InitialState` | | ON or OFF | Optional, when set to ON the pin's state is initialized to HIGH. Ignores InvertOut (default OFF)
 `SimulateButton` | | Boolean | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.
 `InvertOut` | | Boolean | Inverts the output when set to `True`. When inverted sending `ON` to the actuator will set the output to LOW, `OFF` will set the output to HIGH.
 
 ### Global parameters
-Can only be set for all GPIO devices (sensors and actuators). Global parametes are set in the `[DEFAULT]` section
+Can only be set for all GPIO devices (sensors and actuators). Global parametes are set in the `DEFAULT` section
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
 
+### Outputs / Inputs
+The RpiGpioActuator hast only one output and input and therefore doesn't need to add extra sections in the Connections section.
+The input expects ON, OFF, TOGGLE or a datetime as command. 
+While ON, OFF set the GPIO pin accordingly, TOGGLE and and a datetime string will toggle the pin. 
+Can be connected directly to a RpiGpioSensor ShortButtonPress / LongButtonPress output. 
+The output will send the pin state as ON / OFF afer a change.
+
 ### Example Config
 
-```ini
-[DEFAULT]
-PinNumbering=BOARD
+```yaml
+DEFAULT:
+    PinNumbering: BOARD
 
-[Logging]
-Syslog = YES
-Level = INFO
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Actuator0]
-Class = gpio.rpi_gpio.RpiGpioActuator
-Connection = openHAB
-CommandSrc = GarageDoorCmd
-Pin = 35
-InitialState = ON
-Toggle = True
-Level = DEBUG
+ActuatorGarageDoor:
+    Class: gpio.rpi_gpio.RpiGpioActuator
+    Connections:
+        openHAB:
+            Item: GarageDoorCmd
+    Pin: 35
+    InitialState: ON
+    Toggle: True
+    Level: DEBUG
 ```
 
-### Example Config #2
+### Example Config #​2
 Useing a local connection to toggle an actuator, which is also connected to openHAB. 
 The actuator shows alway the correct status in openHAB, even it is toggled locally.
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection_openHAB]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
+Connection_openHAB:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Connection0]
-Class = local.local_conn.LocalConnection
-Name = local
+Connection0:
+    Class: local.local_conn.LocalConnection
+    Name: local
 
-[Sensor1]
-Class = gpio.rpi_gpio.RpiGpioSensor
-Connection = local
-Pin = 17
-PUD = UP
-EventDetection = BOTH
-Destination = some_lightswitch
-Short_Press-Dest = toggle_garage_light
-Btn_Pressed_State = HIGH
+SensorLightSwitch:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections:
+        local:
+            Switch:
+                StateDest: some_lightswitch
+            ShortButtonPress:
+                StateDest: toggle_garage_light
+    Pin: 17
+    PUD: UP
+    EventDetection: BOTH
+    Btn_Pressed_State: HIGH
 
-[Actuator0]
-Class = gpio.rpi_gpio.RpiGpioActuator
-Connection = local,openHAB
-CommandSrc = garage_light
-ToggleCommandSrc = toggle_garage_light
-Pin = 19
+ActuatorGarageLight:
+    Class: gpio.rpi_gpio.RpiGpioActuator
+    Connections:
+        local:
+            CommandSrc: toggle_garage_light
+        openHAB:
+            Item: garage_light
+    Pin: 19
 ```
 
 Circuit diagram

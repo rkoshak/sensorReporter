@@ -19,6 +19,7 @@ Classes: ExecActuator
 """
 
 import subprocess
+import yaml
 from core.actuator import Actuator
 from core.utils import issafe
 
@@ -45,8 +46,10 @@ class ExecActuator(Actuator):
         self.command = dev_cfg["Command"]
         self.timeout = int(dev_cfg["Timeout"])
 
-        self.log.info("Configuring Exec Actuator: %s,  Command = %s, Communication Topics = %s",
-                      self.name, self.command, self.comm)
+        self.log.info("Configuring Exec Actuator: %s, Command = %s",
+                      self.name, self.command)
+        self.log.debug("%s has following configured connections: \n%s",
+                       self.name, yaml.dump(self.comm))
 
     def on_message(self, msg):
         """When a message is received on the "Command" destination this method
@@ -61,7 +64,7 @@ class ExecActuator(Actuator):
             for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
                 cmd_args.append(arg)
 
-        self.log.info("Executing command with the following arguments: %s", cmd_args)
+        self.log.info("%s executed command with the following arguments: %s", self.name, cmd_args)
 
         try:
             output = subprocess.check_output(cmd_args, shell=False,

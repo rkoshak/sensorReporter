@@ -30,9 +30,9 @@ Toggle events a evaluated before `OnEq`, `OnGt` and `OnLt`.
 
 If none of the three optional parameters are supplied, the recieved messages will get forwarded unchanged.
 
-### Actuator / sensor relatet parameters
+## Actuator / sensor relatet parameters
 
-To use an actuator or a sensor (a device) with a connection it has to define this in the devices 'Connections:' parameter with a dictionary of connection names and connection related parameters.
+To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The local connection uses following parameters:
 
 Parameter | Required | Restrictions | Purpose
@@ -40,14 +40,39 @@ Parameter | Required | Restrictions | Purpose
 `CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
 `StateDest` |  |  | optional return topic to publish the current device state / sensor readings. If not present the state won't get published.
 
+### Dictionary of connectors layout
+To configure a local connection in a sensor / actuator use following layout:
+
+```yaml
+Connections:
+    <connection_name>:
+        <sensor_output_1>:
+            CommandSrc: <some topic>
+            StateDest: <some other topic>
+        <sensor_output_2>:
+            CommandSrc: <some topic
+            StateDest: <some other topic2>
+    <connection_name2>:
+        #etcetera
+```
+The available outputs are described at the sensor / actuator readme.
+Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
+
+```yaml
+Connections:
+    <connection_name>:
+        CommandSrc: <some topic>
+        StateDest: <some other topic>
+```
+
 ## Example Configs
 
 ### Turn on an LED on GPIO pin 17 when GPIO pin 4 is HIGH
 
 ```yaml
 Logging:
-   Syslog: yes
-   Level: INFO
+    Syslog: yes
+    Level: INFO
 
 Connection0:
     Class: local.local_conn.LocalConnection
@@ -59,7 +84,8 @@ SensorGaragePushbutton:
     Class: gpio.rpi_gpio.RpiGpioSensor
     Connections:
         local:
-            StateDest: back-door
+            Switch:
+                StateDest: back-door
     Pin: 4
     PUD: UP
     EventDetection: BOTH
@@ -92,10 +118,10 @@ SensorEnvSensor:
     Class: gpio.dht_sensor.DhtSensor
     Connections:
         local_conn:
-            StateDest: temperature
-    HumidityConns:
-        local_conn:
-            StateDest: humidity
+            Temperatur:
+                StateDest: temperature
+            Humidity:
+                StateDest: humidity
     Poll: 2
     Sensor: AM2302
     Pin: 1
