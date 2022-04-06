@@ -33,7 +33,7 @@ There are two hard coded topics the Connection will use:
 - `<RootTopic>/status`: the LWT topic; "ONLINE" will be published when the MQTT connection is established and "OFFLINE" published when disconnecting and as the LWT message.
 - `<RootTopic>/refresh`: any message received on this topic will cause the sensor_reporter to immediately publish the most recent sensor readings. Note: it does not actually go out to the device, it only reports the most recent reading.
 
-## Actuator / sensor relatet parameters
+## Actuator / sensor relevant parameters
 
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The MQTT connection uses following parameters:
@@ -61,6 +61,7 @@ Connections:
         #etcetera
 ```
 The available outputs are described at the sensor / actuator readme.
+
 Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
 
 ```yaml

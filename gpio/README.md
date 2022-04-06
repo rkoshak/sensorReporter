@@ -20,7 +20,7 @@ $ sudo pip3 install adafruit-circuitpython-dht
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.dht_sensor.DhtSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 different outputs, see below. Look at connection readme's for 'Actuator / sensor relatet parameters' for details.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 different outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
 `Sensor` | X | `DHT11`, `DHT22`, or `AM2302` | The type of the sensor.
@@ -29,7 +29,7 @@ Parameter | Required | Restrictions | Purpose
 `Smoothing` | | Boolean | When `True`, publishes the average of the last five readings instead of each individual reading.
 
 ### Outputs
-The DhtSensor has 2 different outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relatet parameters' for details).
+The DhtSensor has 2 outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
 
 Output | Purpose
 -|-
@@ -86,7 +86,7 @@ $ sudo pip3 install RPI.GPIO
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.rpi_gpio.RpiGpioSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 3 different outputs, see below. Look at connection readme's for 'Actuator / sensor relatet parameters' for details.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 3 different outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Pin` | X | IO Pin | Pin to use as sensor input, using the pin numbering defined in `PinNumbering` (see below).
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | | Positive decimal number | The interval in seconds to check for a change of the pin state. If the new state is present for a shorter time then the specified time noting is reported. Can be used as debounce. When not present `EventDetection` must be configured.
@@ -114,13 +114,13 @@ Parameter | Required | Restrictions | Purpose
 `PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
 
 ### Outputs
-The RpiGpioSensor has 3 different outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relatet parameters' for details).
+The RpiGpioSensor has 3 outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
 
 Output | Purpose
 -|-
-`Switch` | Where the ON/OFF messages are published. When using with the openHAB connection configure a contact/string item at openHAB.
-`ShortButtonPress` | Location to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin (eg. LOW, HIGH, LOW) and the duration of the button press is between Short_Press-Threshold and Long_Press-Threshold. For the recommended setup see example config #​2 at the bottom of the page. When using with the openHAB connection configure a datetime/string item at openHAB.
-`LongButtonPress` | Location to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`. When using with the openHAB connection configure a datetime/string item at openHAB.
+`Switch` | Where the ON/OFF messages are published. When using with the openHAB connection configure a contact/string item.
+`ShortButtonPress` | Location to publish an update after a short button press happend. Which are two chages of the logic level at the selected pin (eg. LOW, HIGH, LOW) and the duration of the button press is between Short_Press-Threshold and Long_Press-Threshold. For the recommended setup see example config #​2 at the bottom of the page. When using with the openHAB connection configure a datetime/string item.
+`LongButtonPress` | Location to publish an update after a long button press happend, requires `Long_Press-Threshold`, `Short_Press-Dest`. When using with the openHAB connection configure a datetime/string item.
 
 ### Example Config
 
@@ -186,7 +186,7 @@ $ sudo pip3 install RPI.GPIO
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `gpio.rpi_gpio.RpiGpioActuator` |
-`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relatet parameters' for details. When using with the openHAB connection configure a switch/string item at openHAB.
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Pin` | X | IO Pin | Pin to use as actuator output, using the pin numbering defined in `PinNumbering` (see below).
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `ToggleDebounce` | | decimal number | The interval in seconds during which repeated toggle commands are ignored (default 0.15 seconds)
@@ -201,11 +201,12 @@ Parameter | Required | Restrictions | Purpose
 `PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
 
 ### Outputs / Inputs
-The RpiGpioActuator hast only one output and input and therefore doesn't need to add extra sections in the Connections section.
+The RpiGpioActuator has only one output and input.
 The input expects ON, OFF, TOGGLE or a datetime as command. 
 While ON, OFF set the GPIO pin accordingly, TOGGLE and and a datetime string will toggle the pin. 
 Can be connected directly to a RpiGpioSensor ShortButtonPress / LongButtonPress output. 
 The output will send the pin state as ON / OFF afer a change.
+When using with the openHAB connection configure a switch/string item.
 
 ### Example Config
 
@@ -230,7 +231,7 @@ ActuatorGarageDoor:
             Item: GarageDoorCmd
     Pin: 35
     InitialState: ON
-    Toggle: True
+    SimulateButton: True
     Level: DEBUG
 ```
 

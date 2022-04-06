@@ -15,34 +15,35 @@
 Classes: ArpSensor
 """
 import subprocess
+import yaml
 from core.sensor import Sensor
 
 class ArpSensor(Sensor):
     """Scans the local arp table for the presence of a given MAC address."""
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """Expects the following parameters:
         Params:
             - Poll: must be > 0
             - MAC: the mac address to look for
-            - Destination: where to publish ON if it's present or OFF if it is
             not
         Raises:
-            - NoOptionError: if any required paramter is not present
+            - KeyError: if any required paramter is not present
             - ValueError: if Poll <= 0
         """
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
-        self.mac = params("MAC").lower()
-        self.destination = params("Destination")
+        self.mac = dev_cfg["MAC"].lower()
 
         if self.poll <= 0:
             raise ValueError("Poll must be greater than 0")
 
         self.state = None
 
-        self.log.info("Configuring ARP sensor for address %s and destiantion %s",
-                      self.mac, self.destination)
+        self.log.info("Configuring ARP sensor %s for address %s",
+                      self.name, self.mac)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
 
         self.check_state()
 
@@ -51,7 +52,7 @@ class ArpSensor(Sensor):
         presence changes (i.e. absent when last report was present and vise
         versa) that change is published.
         """
-        self.log.debug("Checking arp table.")
+        self.log.debug("%s checking arp table.", self.name)
         try:
             cmd_args = ["arp", "-n"]
             results = subprocess.check_output(cmd_args, shell=False,
@@ -62,13 +63,14 @@ class ArpSensor(Sensor):
                 self.state = found
                 self.publish_state()
         except subprocess.CalledProcessError as ex:
-            self.log.error("Command returned an error code: %s\n%s",
-                           ex.returncode, ex.output)
+            self.log.error("%s command returned an error code: %s\n%s",
+                           self.name, ex.returncode, ex.output)
         except subprocess.TimeoutExpired:
-            self.log.error("arp call took longer than 10 seconds.")
+            self.log.error("%s arp call took longer than 10 seconds.",
+                           self.name)
 
     def publish_state(self):
         """Publishes ON is the MAC is present, OFF otherwise."""
         send_val = "ON" if self.state else "OFF"
-        self.log.debug("Publishing %s for %s", send_val, self.destination)
-        self._send(send_val, self.destination)
+        self.log.debug("%s publishing %s", self.name, send_val)
+        self._send(send_val, self.comm)

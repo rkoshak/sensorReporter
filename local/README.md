@@ -30,7 +30,7 @@ Toggle events a evaluated before `OnEq`, `OnGt` and `OnLt`.
 
 If none of the three optional parameters are supplied, the recieved messages will get forwarded unchanged.
 
-## Actuator / sensor relatet parameters
+## Actuator / sensor relevant parameters
 
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The local connection uses following parameters:
@@ -56,6 +56,7 @@ Connections:
         #etcetera
 ```
 The available outputs are described at the sensor / actuator readme.
+
 Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
 
 ```yaml

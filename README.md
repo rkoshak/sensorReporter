@@ -143,6 +143,19 @@ Possible values are:
 
 A sensor section could thus be named `Sensor_Heartbeat` or `Actuator1`.
 
+## Default section
+
+Optionally a `DEFAULT` section can be added to the configuration.
+Parameters within this section will be the default for all sensors and actuator.
+Sensors and actuators can override the default if they specifie the same parameter.
+This is useful when many sensors of the same type with similar parameters are used.
+E. g. set `TempUnit` for all DhtSensors:
+
+```yaml
+DEFAULT:
+    TempUnit: F
+```
+
 # Release Notes
 This current version is a nearly complete rewrite of the previous version with a number of breaking changes.
 

@@ -13,31 +13,38 @@ None.
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `heartbeat.heartbeat.Heartbeat` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 different outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number in seconds | How often to publish the uptime.
-`Num-Dest` | X | | Destination/openHAB number item to publish the uptime in milliseconds.
-`Str-Dest` | X | | Destinationt/openHAB string item to publish dd:hh:mm:ss.
+
+## Outputs
+The Heartbeat has 2 outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
+
+Output | Purpose
+-|-
+`FormatNumber` | Destination to publish the uptime in milliseconds. When using with the openHAB connection configure a number item.
+`FormatString` | Destination to publish the formated uptime: d 'days,' hh:mm:ss. When using with the openHAB connection configure a string item.
 
 ## Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
+:Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Sensor1]
-Class = heartbeat.heartbeat.Heartbeat
-Connection = openHAB
-Poll = 60
-Num-Dest = heartbeat_num
-Str-Dest = heartbeat_str
-Level = INFO
+SensorHeartbeat:
+    Class: heartbeat.heartbeat.Heartbeat
+    Connections:
+        openHAB:
+            FormatNumber:
+                Item: heartbeat_num
+            FormatString:
+                Item: heartbeat_str
+    Poll: 60
 ```

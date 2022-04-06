@@ -15,54 +15,49 @@
 
 Classes: Heartbeat
 """
-import time
+import datetime
+import yaml
 from core.sensor import Sensor
+from core.utils import verify_connections_layout
+
+OUT_NUM = "FormatNumber"
+OUT_STRING = "FormatString"
 
 class Heartbeat(Sensor):
     """Polling sensor that publishes the current time in number of milliseconds
     since it was started and a string in DD:HH:MM:SS format.
     """
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """Expects the following parameters:
-        - "Num-Dest": destination to publish the msec value
-        - "Str-Dest": destination to publish the string value
         - "Poll": cannot be < 1
 
         Raises:
-        - NoOptionError - if an expected parameter doesn't exist
+        - KeyError - if an expected parameter doesn't exist
         - ValueError - if poll is < 0.
         """
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
-        self.num_dest = params("Num-Dest")
-        self.str_dest = params("Str-Dest")
-        self.start_time = time.time()
+        self.start_time = datetime.datetime.now()
 
         if self.poll < 1:
             raise ValueError("Heartbeat requires a poll >= 1")
 
-        self.log.info("Configuing Heartbeat: msec to %s and str to %s with "
-                      "interval %s", self.num_dest, self.str_dest, self.poll)
+        verify_connections_layout(self.comm, self.log, self.name, [OUT_NUM, OUT_STRING])
+        self.log.info("Configuing Heartbeat %s: interval %s",
+                      self.name, self.poll)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
 
     def publish_state(self):
         """Calculates the current up time and publishes it as msec and string
         formats.
         """
 
-        uptime = int((time.time() - self.start_time) * 1000)
-        self._send(str(uptime), self.num_dest)
+        uptime = datetime.datetime.now() - self.start_time
+        up_ms = int(uptime.total_seconds() * 1000)
+        self._send(str(up_ms), self.comm, OUT_NUM)
 
-        # TODO see if there is some library like timedelta that makes this nicer
-        seconds = (uptime / (1000)) % 60
-        minutes = (uptime / (1000*60)) % 60
-        hours = (uptime / (1000*60*60)) % 24
-        days = int(uptime / (1000*60*60*24))
-
-        msg = ''
-        if days > 0:
-            msg += '{0}:'.format(days)
-        msg += ('{0:02d}:{1:02d}:{2:02d}'
-                .format(int(hours), int(minutes), int(seconds)))
-
-        self._send(msg, self.str_dest)
+        msg = str(uptime)
+        #cut last 7 characters, which contain the milliseconds
+        self._send(msg[:-7], self.comm, OUT_STRING)

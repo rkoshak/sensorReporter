@@ -42,29 +42,38 @@ def parse_values(dev_cfg, defaults):
         return defaults
     return values
 
-def get_sequential_params(params, name):
-    """Gets a list of values from sequentially named parameters."""
+def get_sequential_params(dev_cfg, name):
+    """creates a list of values from sequentially named parameters.
+
+    Arguments:
+    - dev_cfg: device configuration
+    - name: Parameter name as String"""
     values = []
     i = 1
     done = False
     while not done:
         try:
-            param = "{}{}".format(name, i)
-            values.append(params(param))
+            param = f"{name}{i}"
+            values.append(dev_cfg[param])
             i += 1
-        except NoOptionError:
+        except KeyError:
             done = True
     return values
 
-def get_sequential_param_pairs(params, name1, name2):
-    """Returns a dict of two sets of sequentially named parameters using the
-    value of name1 as the key and the value of name2 of the value.
+def get_dict_of_sequential_param__output(dev_cfg, name, output_name):
+    """Returns a dict of sequentially named parameters and
+    Output names generated acordingly
+
+    Arguments:
+    - dev_cfg: device configuration
+    - name: Parameter name as String
+    - output_name: the name to use for the connections output
     """
-    one = get_sequential_params(params, name1)
-    two = get_sequential_params(params, name2)
-    if len(one) != len(two):
-        raise ValueError("Unequal number of parameters for %s and %s ", name1,
-                         name2)
+    one = get_sequential_params(dev_cfg, name)
+    two = []
+    for i in range(len(one)):
+        two.append(f"{output_name}{i+1}")
+
     return dict(zip(one, two))
 
 def is_toggle_cmd(msg):

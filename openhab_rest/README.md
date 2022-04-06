@@ -26,7 +26,7 @@ Parameter | Required | Restrictions | Purpose
 `openHAB-Version` | | float | Version of the OpenHAB server to connect to as floating point figure. Default is '2.0'.
 `API-Token` | | | The API token generated on the [web interface](https://www.openhab.org/docs/configuration/apitokens.html). Only needed if 'settings > API-security > implicit user role (advanced settings)' is disabled. If no API token is specified sensor_reporter tries to connect without authentication.
 
-### Actuator / sensor relatet parameters
+### Actuator / sensor relevant parameters
 
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The openHAB REST connection uses following parameters:
@@ -49,6 +49,7 @@ Connections:
         #etcetera
 ```
 The available outputs are described at the sensor / actuator readme.
+
 Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
 
 ```yaml
@@ -77,7 +78,7 @@ SensorHeartbeart:
     Class: heartbeat.heartbeat.Heartbeat
     Connections:
        openHAB:
-           FormatSeconds:
+           FormatNumber:
                Item: heartbeat_num
            FormatString:
                Item: heartbeat_str

@@ -165,9 +165,7 @@ class RpiGpioSensor(Sensor):
 
     def publish_button_state(self, is_short_press):
         """send update to destination depending on button press duration"""
-        current_time_str = str(datetime.datetime.now())
-        #convert datetime to fromat: add T bewteen date and time
-        curr_time_iso = current_time_str[:10] + "T" + current_time_str[11:]
+        curr_time_iso = datetime.datetime.now().isoformat()
         if is_short_press:
             self._send(curr_time_iso, self.comm, OUT_SHORT_PRESS)
         else:

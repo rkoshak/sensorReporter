@@ -4,9 +4,7 @@ This module has a Polling Sensor and Actuator that executes command line command
 
 ## `exec.exec_actuator.ExecActuator`
 
-Subscribes to the given topic for messages.
-Any message that is received will cause the command to be executed.
-If the message is anything but "NA" the message is treated as command line arguments.
+Executes a command after revieving a message.
 The result is published to the return topic.
 
 ### Dependencies
@@ -18,10 +16,17 @@ None, though the user that sensor_reporter is running needs permission to execut
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `exec.exec_actuator.ExecActuator` |
-`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relatet parameters' for details. When using with the openHAB connection configure a string item at openHAB.
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. When using with the openHAB connection configure a string item at openHAB.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
 `Command` | X | `;` and `#` are not allowed. | A valid command line command.
 `Timeout` | X | The maximum number of seconds to wait for the command to finish.
+
+### Output / Input
+The ExecActuator has only one output and input.
+Any message that is received will cause the command to be executed.
+If the message is anything but "NA" the message is treated as command line arguments and appended to the `Command`.
+Will publish the result of the `Command` afterwards.
+When using with the openHAB connection configure a string item.
 
 When the command returns an error, `ERROR` is published.
 
@@ -61,12 +66,17 @@ None, though the user that sensor_reporter is running needs permission to execut
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `exec.exec_sensor.ExecSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relatet parameters' for details. When using with the openHAB connection configure a string item at openHAB.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. When using with the openHAB connection configure a string item at openHAB.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
 `Script` | X | `;` and `#` are not allowed. | A valid command line command.
 
 Note that the command timeout is set to`Poll`.
+
+### Output
+The ExecSensor has only one output.
+Will publish the result of the `Script` in the poll interval.
+When using with the openHAB connection configure a string item.
 
 ### Example Config
 
