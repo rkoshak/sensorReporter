@@ -83,13 +83,13 @@ Parameter | Required | Restrictions | Purpose
 `MACX` | X | Networking MAC address, lower case letters. | The MAC address of the device to watch for. `X` is a number starting with 1 and incrementing to list more than one device.
 
 ### Outputs
-The DashSensor can have 1 or many outputs depending on how many MAC adresses are defined.
-Will send the coorespnding MAC adress.
+The DashSensor can have 1 or many outputs depending on how many MAC addresses are defined. These can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
+Will send the associated MAC address.
 When using with the openHAB connection configure a string item.
 
 Output | Purpose
 -|-
-`DestinationX` | Where to send the coorespnding MAC adress. `X` is a number starting with 1 and incrementing to list more than one device.
+`DestinationX` | Where to send the associated MAC address. `X` is a number starting with 1 and incrementing to list more than one device.
 
 
 

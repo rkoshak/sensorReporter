@@ -16,7 +16,7 @@ None, though the user that sensor_reporter is running needs permission to execut
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `exec.exec_actuator.ExecActuator` |
-`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. When using with the openHAB connection configure a string item at openHAB.
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
 `Command` | X | `;` and `#` are not allowed. | A valid command line command.
 `Timeout` | X | The maximum number of seconds to wait for the command to finish.
@@ -66,7 +66,7 @@ None, though the user that sensor_reporter is running needs permission to execut
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `exec.exec_sensor.ExecSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. When using with the openHAB connection configure a string item at openHAB.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
 `Script` | X | `;` and `#` are not allowed. | A valid command line command.
@@ -74,8 +74,7 @@ Parameter | Required | Restrictions | Purpose
 Note that the command timeout is set to`Poll`.
 
 ### Output
-The ExecSensor has only one output.
-Will publish the result of the `Script` in the poll interval.
+The ExecSensor has only one output and will publish the result of the `Script` in the poll interval.
 When using with the openHAB connection configure a string item.
 
 ### Example Config

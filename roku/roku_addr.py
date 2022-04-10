@@ -21,6 +21,7 @@ Classes:
 """
 import socket
 import re
+import yaml
 from core.sensor import Sensor
 
 SSDP_REQUEST = (b"M-SEARCH * HTTP/1.1\r\n"
@@ -33,12 +34,14 @@ class RokuAddressSensor(Sensor):
     """Sends an SSDP request and publishes the URL for all the discovered Rokus.
        Poll should be more than 19."""
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """Initialize the sensor. This is not a self running sensor so Poll must
         be a positive number."""
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
-        self.log.info("Configuing Roku Address Sensor")
+        self.log.info("Configuing Roku Address Sensor %s", self.name)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
         if self.poll <= 0:
             raise ValueError("RokuAddressSensor requires a positive Poll value: "
                              "%s", self.poll)
@@ -66,10 +69,10 @@ class RokuAddressSensor(Sensor):
                 name = match.group(1)
                 ip = match.group(2)
                 if name not in sorted(self.ips.keys()) or self.ips[name] != ip:
-                    self.log.info("%s is now at %s", name, ip)
+                    self.log.info("%s: %s is now at %s", self.name, name, ip)
                     self.ips[name] = ip
                 else:
-                    self.log.debug("%s is still at %s", name, ip)
+                    self.log.debug("%s: %s is still at %s", self.name, name, ip)
             except socket.timeout:
                 break
         sock.close()
@@ -77,5 +80,5 @@ class RokuAddressSensor(Sensor):
 
     def publish_state(self):
         """Publishes the URL using the Roku device name as the destination."""
-        for name in self.ips:
-            self._send(self.ips[name], name)
+        for (name, ip) in self.ips.items():
+            self._send(ip, self.comm, name)

@@ -97,7 +97,7 @@ To make full use of this feature a Heartbeat every 60s is recommended.
 Login in openHAB as Admin and add a new point (settings > model > add point) for every sensor/actor to use with sensor_reporter.
 You can add the point straight away to the [semantic model](https://www.openhab.org/docs/tutorial/model.html) of your smart home or do it later.
 Obviously the point names in openHAB and in the sensor_reporter config have to be the identical.
-Point lable can be chosen freely.
+Point label can be chosen freely.
 The point type vary, see the plugin readme's for more information.
 
-Note: on a setup with an sensor and an actuator with the same destination, the actuator will not get triggered thru openHAB when an update on the destination happens. Use a local/mqtt connection for direct sensor actuator connections.
+Note: on a setup with an sensor and an actuator with the same label, the actuator will not get triggered thru openHAB when an update on the destination happens. Use a local/mqtt connection for direct sensor actuator connections.

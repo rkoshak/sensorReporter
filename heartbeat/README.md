@@ -13,7 +13,7 @@ None.
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `heartbeat.heartbeat.Heartbeat` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 different outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 2 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number in seconds | How often to publish the uptime.
 
@@ -23,7 +23,7 @@ The Heartbeat has 2 outputs which can be configured within the 'Connections' sec
 Output | Purpose
 -|-
 `FormatNumber` | Destination to publish the uptime in milliseconds. When using with the openHAB connection configure a number item.
-`FormatString` | Destination to publish the formated uptime: d 'days,' hh:mm:ss. When using with the openHAB connection configure a string item.
+`FormatString` | Destination to publish the formated uptime: `d 'days,' hh:mm:ss`. When using with the openHAB connection configure a string item.
 
 ## Example Config
 

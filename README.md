@@ -51,13 +51,9 @@ See the README files in the subfolders for details.
 However, some parmeters will be common.
 - All polling sensors require a Poll parameter indicating how often in seconds to poll the sensor devices
 - All sections require a Class parameter defining the class to load.
-- All sensors and actuators require a Connection class containing the name of the Connection to publish/subscribe through. More than one can be defined in a comma separated list.
-- All actuators require a CommandSrc, which has to be unique for the configured connection. E. g. if the CommandSrc `switch2` is used by several actuators only the last one will work.
+- All sensors and actuators require a Connections class containing a dictionary with the connections and topics to publish/subscribe through. The layout is described at the connections readme.
+- All actuators require a command source, which has to be unique for the configured connection. E. g. if the same command source is used by several actuators only the last one will work. The parameter name of the command source varies differently for each connection.
 - All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
-
-Sensors are defined in a `[SensorX]` section where `X` is a unique number.
-Connections and Actuators are defined in similarly named sections.
-The number need only be unique, they don't need to be sequential.
 
 # Dependencies
 sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
@@ -108,7 +104,7 @@ Logging:
     Syslog: yes
     Level: INFO
 ```
-`Syslog` can be any boolean value.
+`Syslog` can be any boolean value, including yes / no.
 When true no other parameters are required.
 `Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter. Allowed values: `DEBUG, INFO, WARNING, ERROR`
 
@@ -126,8 +122,8 @@ Logging:
 `MaxSize` is the maximum size of the log file in bytes before it gets rotated.
 `NumFiles` is the number of old log files to save, older files are automatically deleted
 
-The above parameters are only required if `SysLog` is a false value.
-`Level` is the same as for `Syslog = True` and indicates the default logging level.
+The above parameters are only required if `SysLog` is disabled.
+`Level` is the same as for `Syslog: yes` and indicates the default logging level.
 
 Make sure the user `sensorReporter` has write access:
 1. `sudo mkdir /var/log/sensor_reporter`
@@ -142,6 +138,7 @@ Possible values are:
 * Sensor
 
 A sensor section could thus be named `Sensor_Heartbeat` or `Actuator1`.
+Section names have to be unique.
 
 ## Default section
 
@@ -149,7 +146,7 @@ Optionally a `DEFAULT` section can be added to the configuration.
 Parameters within this section will be the default for all sensors and actuator.
 Sensors and actuators can override the default if they specifie the same parameter.
 This is useful when many sensors of the same type with similar parameters are used.
-E. g. set `TempUnit` for all DhtSensors:
+E. g. set the default for `TempUnit` so the DhtSensors don't need to specifie it repetitive:
 
 ```yaml
 DEFAULT:
