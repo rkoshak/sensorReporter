@@ -99,7 +99,7 @@ For a valid configuration the basic parameters marked as required are necessary,
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'OFF' <new line> - 'ON'` (default is CLOSED,OPEN)
+`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'ON' <new line> - 'OFF'` The fist string will be send if the input is HIGH, the second on LOW. (default is OPEN, CLOSED)
 `Short_Press-Threshold` | | decimal number | Defines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
 `Long_Press-Threshold` | | decimal number | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be threated as short press.
 `Btn_Pressed_State` | | LOW or HIGH | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State: LOW`)
@@ -160,8 +160,8 @@ SensorFrontDoor:
     Pin: 18
     PUD: UP
     Values:
-        - 'OFF'
         - 'ON'
+        - 'OFF'
     Level: DEBUG
 ```
 

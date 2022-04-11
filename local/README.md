@@ -20,7 +20,7 @@ Parameter | Required | Restrictions | Purpose
 `Class` | X | `local.local_conn.LocalConnection` |
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
 `Name` | X | | Name used to reference this connection in Actuators and Sensor's Connection parameter.
-`OnEq` | | | Sends an ON message to the actuator(s) when the sensor value matches this parameter.
+`OnEq` | | String, use ' ' | Sends an ON message to the actuator(s) when the sensor value matches this parameter. 
 `OnGt` | | Number | Sends an ON message to the actuator(s) when sensor value is greater than this parameter.
 `OnLt` | | Number | Sends an ON message to the actuator(s) when the sensor value is lower than this parameter.
 
@@ -79,7 +79,7 @@ Connection0:
     Class: local.local_conn.LocalConnection
     Level: INFO
     Name: local
-    OnEq: ON
+    OnEq: 'ON'
 
 SensorGaragePushbutton:
     Class: gpio.rpi_gpio.RpiGpioSensor
@@ -139,3 +139,115 @@ ActuatorEcho:
     Command: echo "It's too cold!"
     Timeout: 10
 ```
+
+
+# Local logic gate
+
+## `local.local_logic.LogicOr`
+
+Forwards commands from one or several inputs to several local outputs (actuators).
+The inputs are combined with a 'or' logic gate.
+
+If one input is ON the output is ON.
+If all inputs are OFF the output is OFF.
+Toggle commands will toggle the output.
+
+### Limitations
+
+* Can only forward commands to local connections.
+* There can be only one subscription for a named destination per connection. E. g. if the topic `red_light` is used by several actuators (parameter `CommandSrc`, `Item`) only the last one will work.
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`Class` | X | `local.local_logic.LogicOr` |
+`Connections` | X | dictionary of connectors | defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
+`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'ON' <new line> - 'OFF'` (default is ON, OFF)
+`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
+
+### Outputs / Inputs
+The LogicOr has 2 inputs and one output which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
+
+Output / Input | Purpose
+-|-
+`Enable` | Input to disable the LogicOr. Expects as command ON / OFF. The LogicOr is enabled by default.
+`Input` | Input for controlling the output. Expects a list of items (one in each line) using the connection related Paramater name (e. g. `CommandSrc` for local connections). Expects ON / OFF / TOGGLE.
+`Output` | Output: list of command recievers (one in each line). Only local actuators can be triggerd. Will forward the command ON / OFF or what is specified at `Values`
+
+### Example Config
+
+```yaml
+DEFAULT:
+    #set common parameters
+    PUD: UP
+    Poll: 1
+    Values:
+        - 'ON'
+        - 'OFF'
+
+Logging:
+    Syslog: yes
+    Level: INFO
+
+Connection0:
+    Class: local.local_conn.LocalConnection
+    Name: local
+    OnEq: 'ON'
+
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
+
+SensorMotinoDetector1:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections:
+        local:
+            Switch:
+                StateDest: motion1
+    Pin: 17
+
+SensorMotinoDetector2:
+    Class: gpio.rpi_gpio.RpiGpioSensor
+    Connections:
+        local:
+            Switch:
+                StateDest: motion2
+    Pin: 18
+
+
+Actuator_led0:
+    Class: gpio.rpi_gpio.RpiGpioActuator
+    Connections:
+        local:
+            CommandSrc: red_light
+    Pin: 35
+
+Actuator_led1:
+    Class: gpio.rpi_gpio.RpiGpioActuator
+    Connections:
+        local:
+            CommandSrc: blue_light
+    Pin: 19
+
+ActuatorOR:
+    Class: local.local_logic.LogicOr
+    Connections:
+        local:
+            Input:
+                CommandSrc:
+                    - motion1
+                    - motion2
+            Output:
+                StateDest:
+                    - red_light
+                    - blue_light
+        openHAB:
+            Input:
+                Item:
+                    - openhab_sw1
+            Enable:
+                Item: enable_or
+```
+In the above example both lights get switched on if either `motion1`, `motion2` or a remote openhab switch `openhab_sw1` sends the command ON. 
+An openHAB item called `enable_or` can send the command OFF, to disable the LogicOr.

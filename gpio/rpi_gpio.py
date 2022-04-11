@@ -90,10 +90,10 @@ class RpiGpioSensor(Sensor):
 
         # Allow users to override the 0/1 pin values.
         #TODO send warning if values are of type boolean
-        self.values = parse_values(dev_cfg, ["CLOSED", "OPEN"])
+        self.values = parse_values(dev_cfg, ["OPEN", "CLOSED"])
 
         self.log.debug("%s configured %s for CLOSED and %s for OPEN",
-                       self.name, self.values[0], self.values[1])
+                       self.name, self.values[1], self.values[0])
 
         pud = GPIO.PUD_UP if dev_cfg["PUD"] == "UP" else GPIO.PUD_DOWN
         try:
@@ -153,14 +153,14 @@ class RpiGpioSensor(Sensor):
         if value != self.state:
             self.log.info("%s Pin %s (%s) changed from %s to %s (= %s)",
                           self.name, self.pin, self.gpio_mode, self.state,
-                          value, self.values[value])
+                          value, self.values[not value])
             self.state = value
             self.publish_state()
             self.btn.check_button_press(self)
 
     def publish_state(self):
         """Publishes the current state of the pin."""
-        msg = self.values[0] if self.state == GPIO.LOW else self.values[1]
+        msg = self.values[0] if self.state == GPIO.HIGH else self.values[1]
         self._send(msg, self.comm, OUT_SWITCH)
 
     def publish_button_state(self, is_short_press):
