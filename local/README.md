@@ -152,9 +152,9 @@ ActuatorEcho:
 Forwards commands from one or several inputs to several local outputs (actuators).
 The inputs are combined with a 'or' logic gate.
 
-If one input is ON the output is ON.
-If all inputs are OFF the output is OFF.
-Toggle commands will toggle the output.
+- If one input is ON the output is ON.
+- If all inputs are OFF the output is OFF.
+- Toggle commands will toggle the output.
 
 ### Limitations
 
@@ -178,7 +178,7 @@ Values:
     - 'ON'
     - 'OFF'
 ```
-The fist string will be send if the input is HIGH, the second on LOW.
+The fist string will be send if the actuator is ON, the second on OFF.
 
 If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
 

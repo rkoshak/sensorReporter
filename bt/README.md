@@ -65,7 +65,7 @@ Values:
     - 'ON'
     - 'OFF'
 ```
-The fist string will be send if the input is HIGH, the second on LOW.
+The fist string will be send if the configured addess is detected, the second if not.
 
 If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
 
