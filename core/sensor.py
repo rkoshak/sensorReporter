@@ -19,7 +19,8 @@ Classes: Sensor
 
 from abc import ABC
 import logging
-from core.utils import set_log_level
+from core.utils import set_log_level, DEFAULT_SECTION
+
 
 class Sensor(ABC):
     """Abstract class from which all sensors should inherit. check_state and/or
@@ -72,14 +73,23 @@ class Sensor(ABC):
         so the connection can decide where to publish.
 
         Arguments:
-        - message: the message to publish
+        - message: the message to publish as string or dict (generated from get_msg_from_values)
         - comm: communication dictionary, with information where to publish
                 contains connection named dictionarys for each connection,
                 containing the connection related parameters
         - trigger: optional, specifies what event triggerd the publish,
                    defines the subdirectory in comm to look for the return topic"""
+        #accept regular messages directly
+        if not isinstance(message, dict):
+            msg = message
+
         for conn in comm.keys():
-            self.publishers[conn].publish(message, comm[conn], trigger)
+            #if message is a value_dict from get_msg_from_values, grab the current conn message
+            #use list in default section if conn section is not present 
+            if isinstance(message, dict):
+                msg = message.get(conn, message[DEFAULT_SECTION])
+
+            self.publishers[conn].publish(msg, comm[conn], trigger)
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up

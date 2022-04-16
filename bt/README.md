@@ -53,7 +53,32 @@ Parameter | Required | Restrictions | Purpose
 `Poll` | X | A number in seconds, greater than `Timeout` | How often to poll for broadcasts
 `Timeout` | X | A number in seconds | How long to listen for BTLE packets during a single poll.
 `AddressX` | X | BT MAC address format (i.e XX:XX:XX:XX:XX:XX), letters should be lower case  | The MAC address of a device to listen for boadcasts from. X must be a number starting from 1 and each subsequent address must be sequential in numbering.
-`Values` | | list of strings | Values to replace the default state message as list. Eg. `- present <new line> - away` The first value is published when present and the second when not present. Deafults to `ON/OFF`.
+`Values` | | list of strings or dictionary | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.
+
+#### Values parameter
+With this parameter the default state messages for all output can be overwrite.
+Two different layouts are possible.
+To override the state message for all defined connections, configure a list of two string items:
+
+```yaml
+Values:
+    - 'ON'
+    - 'OFF'
+```
+The fist string will be send if the input is HIGH, the second on LOW.
+
+If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
+
+```yaml
+Values:
+    <connection_name>:
+        - 'ON'
+        - 'OFF'
+    <connection_name2>:
+        - 'high'
+        - 'low'
+```
+If a configured connection is not present in the Values parameter it will use the sensor default state messages (ON, OFF).
 
 ### Output
 The BtleSensor can have 1 or many outputs depending on how many addresses are defined. These can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).

@@ -7,7 +7,8 @@ Functions:
     on the command line.
 """
 import logging
-from configparser import NoOptionError
+
+DEFAULT_SECTION = "DEFAULT"
 
 def set_log_level(params, logger):
     """Expects a params with a Level property. If there is no property the
@@ -33,14 +34,95 @@ def issafe(arg):
     """Returns False if arg contains ';' or '|'."""
     return arg.find(';') == -1 and arg.find('|') == -1
 
-def parse_values(dev_cfg, defaults):
-    """Parses a Values parameter which should have only two values separated by
-    a comma. Used to override ON/OFF type messages.
+def parse_values(caller, connections, defaults):
+    """Parses the Values parameter which should be either
+    a two string values formated as a list or
+    a dictionary with connection sections containing
+    a string list of two items
+    Used to override ON/OFF type messages.
+
+    Exprects:
+    - caller: the object of the calling device,
+              following vars from the caller are used:
+                - dev_cfg: dictionary with the device specific config
+                - log: the log instance of the device
+                - connections: dictionary of the device connections
+    - connections: dictionary of connector objects (in class sensor it's named 'publishers')
+    - defaults: a list of two values which are used as defaults
+
+    Returns: a dict containing the configured value pairs for each connection
     """
-    values = dev_cfg.get('Values', defaults)
-    if len(values) != 2:
-        return defaults
-    return values
+    values = caller.dev_cfg.get('Values', defaults)
+    # warn if format is not supported
+    if not isinstance(values, (list, dict)):
+        values = defaults
+        caller.log.warning("%s Values not in the expected form."
+                           " Expected dictionary of connection names containing a list."
+                           " Using default values instead: %s", caller.name, defaults)
+
+    if isinstance(values, dict):
+        value_dict = values
+    else:
+        value_dict = {}
+
+    #add default section if not present
+    if DEFAULT_SECTION not in value_dict:
+        value_dict[DEFAULT_SECTION] = defaults if isinstance(values, dict) else values
+
+    #at this point value_dict contains at least the DEFAULT section
+    for (conn, values) in value_dict.items():
+        #make sure connection names exist
+        if conn not in connections and conn != DEFAULT_SECTION:
+            caller.log.warning("%s Values parameter contains unknown connection!"
+                         " Probably the name of the connection %s"
+                         " is misspelled.",
+                         caller.name, conn)
+        if isinstance(values, list):
+            #make sure only two items are present
+            if len(values) == 2:
+                #check type of list item, warn if boolean
+                for item in values:
+                    if isinstance(item, bool):
+                        value_dict[DEFAULT_SECTION] = defaults
+                        caller.log.warning("%s found boolean in Values."
+                                           " Expected list of strings, use ' ' in config"
+                                           " to mark strings."
+                                           " Using default values instead: %s",
+                                           caller.name, defaults)
+                        break
+            else:
+                #warn if list is not 2 items long
+                value_dict[DEFAULT_SECTION] = defaults
+                caller.log.warning("%s Values are not in the expected form."
+                           " Expected dictionary of connection names containing a list"
+                           " with two items."
+                           " Using default values instead: %s",
+                           caller.name, defaults)
+                break
+    #at this point value_dict contains only valid connections and lists of strings
+    return value_dict
+
+def get_msg_from_values(values, state_on):
+    """For sensors which implement custom values to send on state change,
+    this function will generate the msg dict to push to self._send()
+    so every connection will get the corresponding values
+
+    Expects:
+    - values: the value_dict which was returned by parse_values
+    - state_on: the state of the sensor as boolean
+                set to 'True' when sensor is 'on' or
+                to send the first list item of values
+
+    Returns: a dict with the state to publish for reach connection
+    """
+    #invert state so 'True' = 1 will yield the first item of the list (index = 0)
+    state_on = not state_on
+    result = {}
+
+    for (conn, val) in values.items():
+        result[conn] = val[state_on]
+
+    return result
 
 def get_sequential_params(dev_cfg, name):
     """creates a list of values from sequentially named parameters.

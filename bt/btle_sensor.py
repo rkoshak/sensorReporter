@@ -18,7 +18,8 @@ Classes:
 import yaml
 from bluepy.btle import Scanner, DefaultDelegate
 from core.sensor import Sensor
-from core.utils import parse_values, get_dict_of_sequential_param__output, verify_connections_layout
+from core.utils import parse_values, get_dict_of_sequential_param__output, \
+                         verify_connections_layout, get_msg_from_values
 
 class BtleSensor(Sensor):
     """Uses BluePy to scan for BTLE braodcasts from a device with a given MAC
@@ -59,7 +60,9 @@ class BtleSensor(Sensor):
         if self.poll <= self.timeout:
             raise ValueError("Poll must be greater than or equal to Timeout")
 
-        self.values = parse_values(dev_cfg, ("ON", "OFF"))
+        self.values = parse_values(self, self.publishers, ["ON", "OFF"])
+        self.log.debug("%s configured values: \n%s",
+                       self.name, yaml.dump(self.values))
 
     def check_state(self):
         """Scans for BTLE packets. If some where found where previously there
@@ -79,20 +82,22 @@ class BtleSensor(Sensor):
         # Publish ON for those addresses where packets were found and the
         # previous reported state isn't ON.
         for mac in [mac for mac in founddevs if not self.states[mac]]:
-            self.log.debug("%s publishing %s as ON", self.name, mac)
+            self.log.debug("%s publishing %s as 'ON'", self.name, mac)
             self.states[mac] = True
-            self._send(self.values[0],self.comm, self.devices[mac])
+            msg = get_msg_from_values(self.values, True)
+            self._send(msg, self.comm, self.devices[mac])
         # Publish OFF for those addresses where no packets where found and the
         # previous reported state isn't OFF.
         for mac in ([mac for mac in self.devices
                      if mac not in founddevs and self.states[mac]
                      or self.states[mac] is None]):
-            self.log.debug("%s publishing %s as OFF", self.name, mac)
+            self.log.debug("%s publishing %s as 'OFF'", self.name, mac)
             self.states[mac] = False
-            self._send(self.values[1], self.comm, self.devices[mac])
+            msg = get_msg_from_values(self.values, False)
+            self._send(msg, self.comm, self.devices[mac])
 
     def publish_state(self):
         """Publishes the most recent presence state."""
         for (mac, state) in self.states.items():
-            self._send(self.values[0] if state else self.values[1],
-                       self.comm, self.devices[mac])
+            msg = get_msg_from_values(self.values, state)
+            self._send(msg, self.comm, self.devices[mac])

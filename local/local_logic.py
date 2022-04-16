@@ -19,7 +19,8 @@ Classes: LogicCore, LogicOr
 from abc import abstractmethod
 import yaml
 from core.actuator import Actuator
-from core.utils import parse_values, is_toggle_cmd, verify_connections_layout
+from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
+                        get_msg_from_values, DEFAULT_SECTION
 
 OUT_DEST = "Output"
 IN_ENABLE_SRC = "Enable"
@@ -46,7 +47,7 @@ class LogicCore(Actuator):
         super().__init__(connections, dev_cfg)
 
         self.enabled = True
-        self.values = parse_values(dev_cfg, ["ON", "OFF"])
+        self.values = parse_values(self, self.connections, ["ON", "OFF"])
 
 
         self.known_inputs = []
@@ -101,10 +102,18 @@ class LogicCore(Actuator):
 
         Parameter filter_echo is intended to activate a filter for looped back messages
         """
+        #accept regular messages directly
+        if not isinstance(message, dict):
+            msg = message
+
         for conn in comm.keys():
+            #if message is a value_dict from get_msg_from_values, grab the current conn message
+            #use list in default section if conn section is not present 
+            if isinstance(message, dict):
+                msg = message.get(conn, message[DEFAULT_SECTION])
             #only publish to local connections (attrib eq)
             if hasattr(self.connections[conn], LOCAL_CONN_EQUAL_ATTRIB):
-                self.connections[conn].publish(message, comm[conn], trigger)
+                self.connections[conn].publish(msg, comm[conn], trigger)
 
 class LogicOr (LogicCore):
     """Logical OR gate, can receive from multiple sensors
@@ -125,6 +134,9 @@ class LogicOr (LogicCore):
         self.log.info("Configuring LogicOr %s", self.name)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
+        self.log.debug("%s configured values: \n%s",
+                       self.name, yaml.dump(self.values))
+
         verify_connections_layout(self.comm, self.log, self.name,
                                   [IN_INPUT, IN_ENABLE_SRC, OUT_DEST])
 
@@ -173,13 +185,13 @@ class LogicOr (LogicCore):
             # else -> True
             self.output_activ = bool(sum(self.src_is_on.values()))
 
-        output = self.values[0] if self.output_activ else self.values[1]
+        output = get_msg_from_values(self.values, self.output_activ)
         if self.last_output_state != self.output_activ:
             self.log.info("%s received command %s, from %s, forwarding command '%s'",
-                           self.name, msg, src, output)
+                           self.name, msg, src, output[DEFAULT_SECTION])
 
             for dest_num in range(1, self.count_outs):
                 self._publish(output, self.comm, OUT_DEST + str(dest_num))
         else:
             self.log.info("%s received command %s, from %s, output %s doesn't change,"
-                          " ignoring command!", self.name, msg, src, output)
+                          " ignoring command!", self.name, msg, src, output[DEFAULT_SECTION])

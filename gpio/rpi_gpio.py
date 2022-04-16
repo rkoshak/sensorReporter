@@ -24,7 +24,8 @@ import yaml
 from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
-from core.utils import parse_values, is_toggle_cmd, verify_connections_layout
+from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
+                        get_msg_from_values, DEFAULT_SECTION
 
 #constants
 OUT_SWITCH = "Switch"
@@ -74,7 +75,7 @@ class RpiGpioSensor(Sensor):
         Parameters:
             - "Pin": the IO pin in BCM/BOARD numbering
             - "Values": Alternative values to publish for 0 and 1, defaults to
-            CLOSED and OPEN for 0 and 1 respectively.
+            OPEN and CLOSED for 0 and 1 respectively.
             - "PUD": Pull up or down setting, if "UP" uses PULL_UP, all other
             values result in PULL_DOWN.
             - "EventDetection": when set instead of depending on sensor_reporter
@@ -89,11 +90,7 @@ class RpiGpioSensor(Sensor):
         self.pin = int(dev_cfg["Pin"])
 
         # Allow users to override the 0/1 pin values.
-        #TODO send warning if values are of type boolean
-        self.values = parse_values(dev_cfg, ["OPEN", "CLOSED"])
-
-        self.log.debug("%s configured %s for CLOSED and %s for OPEN",
-                       self.name, self.values[1], self.values[0])
+        self.values = parse_values(self, self.publishers, ["OPEN", "CLOSED"])
 
         pud = GPIO.PUD_UP if dev_cfg["PUD"] == "UP" else GPIO.PUD_DOWN
         try:
@@ -140,6 +137,8 @@ class RpiGpioSensor(Sensor):
                       "UP" if pud == GPIO.PUD_UP else "DOWN")
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
+        self.log.debug("%s configured values: \n%s",
+                       self.name, yaml.dump(self.values))
 
         self.publish_state()
 
@@ -153,14 +152,14 @@ class RpiGpioSensor(Sensor):
         if value != self.state:
             self.log.info("%s Pin %s (%s) changed from %s to %s (= %s)",
                           self.name, self.pin, self.gpio_mode, self.state,
-                          value, self.values[not value])
+                          value, self.values[DEFAULT_SECTION][not value])
             self.state = value
             self.publish_state()
             self.btn.check_button_press(self)
 
     def publish_state(self):
         """Publishes the current state of the pin."""
-        msg = self.values[0] if self.state == GPIO.HIGH else self.values[1]
+        msg = get_msg_from_values(self.values, self.state == GPIO.HIGH)
         self._send(msg, self.comm, OUT_SWITCH)
 
     def publish_button_state(self, is_short_press):

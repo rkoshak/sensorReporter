@@ -90,6 +90,10 @@ SensorGaragePushbutton:
     Pin: 4
     PUD: UP
     EventDetection: BOTH
+    Values:
+        local:
+            - 'ON'
+            - 'OFF'
     Level: DEBUG
 
 ActuatorGaragedoor:
@@ -161,8 +165,33 @@ Parameter | Required | Restrictions | Purpose
 -|-|-|-
 `Class` | X | `local.local_logic.LogicOr` |
 `Connections` | X | dictionary of connectors | defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'ON' <new line> - 'OFF'` (default is ON, OFF)
+`Values` | | list of strings or dictionary | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
+
+#### Values parameter
+With this parameter the default state messages for all output can be overwrite.
+Two different layouts are possible.
+To override the state message for all defined connections, configure a list of two string items:
+
+```yaml
+Values:
+    - 'ON'
+    - 'OFF'
+```
+The fist string will be send if the input is HIGH, the second on LOW.
+
+If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
+
+```yaml
+Values:
+    <connection_name>:
+        - 'ON'
+        - 'OFF'
+    <connection_name2>:
+        - 'high'
+        - 'low'
+```
+If a configured connection is not present in the Values parameter it will use the sensor default state messages (ON, OFF).
 
 ### Outputs / Inputs
 The LogicOr has 2 inputs and one output which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).

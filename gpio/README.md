@@ -99,10 +99,35 @@ For a valid configuration the basic parameters marked as required are necessary,
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Values` | | list of strings | Values to replace the default state message as list. Eg. `- 'ON' <new line> - 'OFF'` The fist string will be send if the input is HIGH, the second on LOW. (default is OPEN, CLOSED)
+`Values` | | list of strings or dictionary | Values to replace the default state message of the `Switch` output (default is OPEN, CLOSED). For details see below.
 `Short_Press-Threshold` | | decimal number | Defines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)
 `Long_Press-Threshold` | | decimal number | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be threated as short press.
 `Btn_Pressed_State` | | LOW or HIGH | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State: LOW`)
+
+#### Values parameter
+With this parameter the default state messages of the of the `Switch` output can be overwrite.
+Two different layouts are possible.
+To override the state message for all defined connections, configure a list of two string items:
+
+```yaml
+Values:
+    - 'ON'
+    - 'OFF'
+```
+The fist string will be send if the input is HIGH, the second on LOW.
+
+If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
+
+```yaml
+Values:
+    <connection_name>:
+        - 'ON'
+        - 'OFF'
+    <connection_name2>:
+        - 'high'
+        - 'low'
+```
+If a configured connection is not present in the Values parameter it will use the sensor default state messages (OPEN, CLOSED). 
 
 ### Global parameters
 Can only be set for all GPIO devices (RpiGpioSensor and RpiGpioActuator).
@@ -160,8 +185,9 @@ SensorFrontDoor:
     Pin: 18
     PUD: UP
     Values:
-        - 'ON'
-        - 'OFF'
+        openHAB:
+            - 'ON'
+            - 'OFF'
     Level: DEBUG
 ```
 
@@ -258,8 +284,6 @@ SensorLightSwitch:
     Class: gpio.rpi_gpio.RpiGpioSensor
     Connections:
         local:
-            Switch:
-                StateDest: some_lightswitch
             ShortButtonPress:
                 StateDest: toggle_garage_light
     Pin: 17
