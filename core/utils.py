@@ -9,6 +9,14 @@ Functions:
 import logging
 
 DEFAULT_SECTION = "DEFAULT"
+#Constans for auto discover connections:
+OUT = "$out"
+IN = "$in"
+PROP_DATATYPE = "Type"
+PROP_NAME = "FullName"
+PROP_UNIT = "Unit"
+PROP_SETTABLE = "Settable"
+PROP_FORMAT = "FormatOf"
 
 def set_log_level(params, logger):
     """Expects a params with a Level property. If there is no property the
@@ -200,3 +208,59 @@ def verify_connections_layout(comm, log, name, triggers=None):
                     if not key in triggers:
                         log.warning("%s has unknown outputs '%s' in Connections."
                                     ' Valid outputs are: %s', name, key, triggers)
+
+def configure_device_channel(comm:dict, *, is_output:bool,
+                                output_name:str = None, datatype:str = "STRING",
+                                unit:str = None, name:str = None,
+                                restrictions:str = None):
+    """this method will set default values inside the connections section
+    so a connector which supports auto discover can register the device properly
+
+    Parameters:
+    - comm: the connections dictionary of the device
+    - is_output: to select if a output or a input should be configured (set to true for output)
+    - output_name: sensors may have multiple outputs, specifie the name of the output here
+    - datatype: the type of the data the device will publish or revieve:
+                [STRING, INTEGER, FLOAT, BOOLEAN, ENUM, COLOR]
+    - unit: the unit in which the sensor data is published:
+            [°C", °F, °, L, gal, V, W, A, %, m, ft, Pa, psi, #]
+    - name: the full name / description of the input/output
+    - restrictions: set allowed values for channel
+                    for a numeric range e. g. -3:24
+                    for possible values for datatype ENUM
+                    as comma separated list e.g. 'val1,val2,val3'
+    """
+
+    for comm_conn in comm.values():
+        if output_name:
+            if output_name not in comm_conn:
+                comm_conn[output_name] = {}
+            local_comm = comm_conn[output_name]
+        else:
+            local_comm = comm_conn
+
+        subdict = OUT if is_output else IN
+
+        if subdict not in local_comm:
+            local_comm[subdict] = {}
+
+        sub = local_comm[subdict]
+
+        if PROP_DATATYPE not in sub:
+            sub[PROP_DATATYPE] = datatype
+
+        if unit:
+            if PROP_UNIT not in sub:
+                sub[PROP_UNIT] = unit
+
+        if name:
+            if PROP_NAME not in sub:
+                sub[PROP_NAME] = name
+
+        if restrictions:
+            if PROP_FORMAT not in sub:
+                sub[PROP_FORMAT] = restrictions
+
+        if not is_output:
+            if PROP_SETTABLE not in sub:
+                sub[PROP_SETTABLE] = True

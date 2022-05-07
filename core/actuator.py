@@ -61,8 +61,8 @@ class Actuator(ABC):
         destination and process incoming messages with handler.
         """
 
-        for (conn, values) in comm.items():
-            self.connections[conn].register(values, handler)
+        for (conn, comm_conn) in comm.items():
+            self.connections[conn].register(comm_conn, handler)
 
     @abstractmethod
     def on_message(self, msg):

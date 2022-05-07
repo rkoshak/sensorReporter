@@ -3,7 +3,7 @@ hydra.ini
 garage.ini
 *.pyc
 sensorReporter.ini
-sensor_Reporter.yml
+sensor_reporter.yml
 cerberos.ini
 manticore.ini
 iphoned.sh

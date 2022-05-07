@@ -21,7 +21,7 @@ Classes: ExecActuator
 import subprocess
 import yaml
 from core.actuator import Actuator
-from core.utils import issafe
+from core.utils import issafe, configure_device_channel
 
 class ExecActuator(Actuator):
     """Actuator that calls a configred command line script using the passed in
@@ -50,6 +50,14 @@ class ExecActuator(Actuator):
                       self.name, self.command)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
+
+        configure_device_channel(self.comm, is_output=False,
+                                 name="terminal command input")
+        configure_device_channel(self.comm, is_output=True,
+                                 name="terminal command result")
+        #the actuator gets registered twice, at core-actuator and here
+        # currently this is the only way to pass the device_channel_config to homie_conn
+        self._register(self.comm, None)
 
     def on_message(self, msg):
         """When a message is received on the "Command" destination this method

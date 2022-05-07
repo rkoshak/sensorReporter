@@ -138,12 +138,15 @@ class OpenhabREST(Connection):
         self.log.info("Disconnecting from openHAB SSE")
         self.reciever.stop()
 
-    def register(self, comm, handler):
+    def register(self, comm_conn, handler):
         """Set up the passed in handler to be called for any message on the
         destination. Alternate implementation using 'Item' as Topic
+         
         """
-        self.log.info("Registering destination %s", comm['Item'])
-        self.registered[comm['Item']] = handler
+        #handler can be None if a sensor registers it's outputs
+        if handler:
+            self.log.info("Registering destination %s", comm_conn['Item'])
+            self.registered[comm_conn['Item']] = handler
 
 class OpenhabReciever():
     """Initiates a separate Task for recieving OH SSE.

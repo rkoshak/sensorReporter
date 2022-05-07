@@ -19,7 +19,7 @@ import subprocess
 import time
 import yaml
 from core.sensor import Sensor
-from core.utils import issafe
+from core.utils import issafe, configure_device_channel
 
 class ExecSensor(Sensor):
     """Periodically calls a script/program and publishes the result."""
@@ -40,6 +40,11 @@ class ExecSensor(Sensor):
                       self.name, self.script, self.poll)
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True,
+                                 name="Result of sensor script")
+        self._register(self.comm)
 
     def check_state(self):
         """Calls the script and saves and publishes the result."""

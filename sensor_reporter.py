@@ -224,6 +224,10 @@ def create_poll_manager(config_file):
 
     logger.debug("%d sensors created", len(sensors))
 
+    #trigger auto discover messages
+    for conn in connections.values():
+        conn.publish_device_properties()
+
     logger.debug("Creating polling manager")
     poll_mgr = PollManager(connections, sensors, actuators)
     logger.debug("Created, returning polling manager")
