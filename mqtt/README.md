@@ -170,7 +170,6 @@ Logging:
 Connection_homie:
     Class: mqtt.homie_conn.HomieConnection
     Name: homie
-    Client: test
     User: user
     Password: password
     Host: localhost

@@ -24,7 +24,8 @@ import yaml
 import bluetooth
 import bluetooth._bluetooth as bt
 from core.sensor import Sensor
-from core.utils import get_dict_of_sequential_param__output, verify_connections_layout
+from core.utils import get_dict_of_sequential_param__output, verify_connections_layout, \
+                        configure_device_channel
 
 class SimpleBtSensor(Sensor):
     """Implements a simple scanner that looks for the name of a BT devices given
@@ -57,6 +58,12 @@ class SimpleBtSensor(Sensor):
         self.log.info("Configured simple BT sensor %s", self.name)
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        for (mac, destination) in self.devices.items():
+            configure_device_channel(self.comm, is_output=True, output_name=destination,
+                                     name=f"{mac} available")
+        self._register(self.comm)
 
     def check_state(self):
         """Loops through the devices and tries to see if they are reachable over

@@ -19,7 +19,7 @@ import yaml
 from bleson import get_provider, Observer, UUID16, BDAddress
 from bleson.logger import set_level, ERROR#, DEBUG
 from core.sensor import Sensor
-from core.utils import verify_connections_layout
+from core.utils import verify_connections_layout, configure_device_channel
 
 # Disable bleson warning messages in the log.
 set_level(ERROR)
@@ -68,6 +68,20 @@ class GoveeSensor(Sensor):
 
         # Store readings so they can be reported on demand.
         self.state = {}
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_NAME,
+                                 name="device name")
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_BATTERY,
+                                 datatype="INTEGER", name="battery level")
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
+                                 datatype="FLOAT", name="temperature reading",
+                                 unit='°C' if self.temp_unit=='C' else '°F')
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_HUMID,
+                                 datatype="FLOAT", name="humidity reading", unit='%')
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_RSSI,
+                                 datatype="INTEGER", name="signal strength")
+        self._register(self.comm)
 
     def on_advertisement(self, advertisement):
         """Called when a BTLE advertisement is received. If it goes with one

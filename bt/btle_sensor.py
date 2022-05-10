@@ -19,7 +19,7 @@ import yaml
 from bluepy.btle import Scanner, DefaultDelegate
 from core.sensor import Sensor
 from core.utils import parse_values, get_dict_of_sequential_param__output, \
-                         verify_connections_layout, get_msg_from_values
+                         verify_connections_layout, get_msg_from_values, configure_device_channel
 
 class BtleSensor(Sensor):
     """Uses BluePy to scan for BTLE braodcasts from a device with a given MAC
@@ -63,6 +63,12 @@ class BtleSensor(Sensor):
         self.values = parse_values(self, self.publishers, ["ON", "OFF"])
         self.log.debug("%s configured values: \n%s",
                        self.name, yaml.dump(self.values))
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        for (mac, destination) in self.devices.items():
+            configure_device_channel(self.comm, is_output=True, output_name=destination,
+                                     name=f"{mac} available")
+        self._register(self.comm)
 
     def check_state(self):
         """Scans for BTLE packets. If some where found where previously there
