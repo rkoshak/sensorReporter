@@ -25,7 +25,7 @@ from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
-                        get_msg_from_values, DEFAULT_SECTION, configure_device_channel
+                        get_msg_from_values, DEFAULT_SECTION, configure_device_channel, ChanType
 
 #constants
 OUT_SWITCH = "Switch"
@@ -144,11 +144,11 @@ class RpiGpioSensor(Sensor):
 
         #configure_output for homie etc. after debug output, so self.comm is clean
         configure_device_channel(self.comm, is_output=True, output_name=OUT_SWITCH,
-                                 datatype="STRING", name="switch state")
+                                 name="switch state")
         configure_device_channel(self.comm, is_output=True, output_name=OUT_SHORT_PRESS,
-                                 datatype="STRING", name="timestemp of last short press")
+                                 name="timestamp of last short press")
         configure_device_channel(self.comm, is_output=True, output_name=OUT_LONG_PRESS,
-                                 datatype="STRING", name="timestemp of last long press")
+                                 name="timestamp of last long press")
         self._register(self.comm)
 
     def check_state(self):
@@ -312,7 +312,7 @@ class RpiGpioActuator(Actuator):
         self.publish_actuator_state()
 
         configure_device_channel(self.comm, is_output=False,
-                                 name="set digital output", datatype="ENUM",
+                                 name="set digital output", datatype=ChanType.ENUM,
                                  restrictions="ON,OFF,TOGGLE")
         #the actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn

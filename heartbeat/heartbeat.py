@@ -18,7 +18,7 @@ Classes: Heartbeat
 import datetime
 import yaml
 from core.sensor import Sensor
-from core.utils import verify_connections_layout, configure_device_channel
+from core.utils import verify_connections_layout, configure_device_channel, ChanType
 
 OUT_NUM = "FormatNumber"
 OUT_STRING = "FormatString"
@@ -50,8 +50,8 @@ class Heartbeat(Sensor):
                        self.name, yaml.dump(self.comm))
 
         #configure_output for homie etc. after debug output, so self.comm is clean
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM, datatype="INTEGER",
-                                 name="uptime in milliseconds")
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM,
+                                 datatype=ChanType.INTEGER, name="uptime in milliseconds")
         configure_device_channel(self.comm, is_output=True, output_name=OUT_STRING,
                                  name="uptime in days, hours:min:sec")
         self._register(self.comm)

@@ -7,16 +7,32 @@ Functions:
     on the command line.
 """
 import logging
+from enum import Enum, auto
 
 DEFAULT_SECTION = "DEFAULT"
 #Constans for auto discover connections:
 OUT = "$out"
 IN = "$in"
-PROP_DATATYPE = "Type"
-PROP_NAME = "FullName"
-PROP_UNIT = "Unit"
-PROP_SETTABLE = "Settable"
-PROP_FORMAT = "FormatOf"
+
+class ChanConst():
+    """Constants used by configure_device_channel and homie_conn
+    to define channel properties
+    """
+    DATATYPE = "Type"
+    NAME = "FullName"
+    UNIT = "Unit"
+    SETTABLE = "Settable"
+    FORMAT = "FormatOf"
+
+class ChanType(Enum):
+    """Datatypes supported by configure_device_channel
+    """
+    INTEGER = auto()
+    FLOAT = auto()
+    BOOLEAN = auto()
+    STRING = auto()
+    ENUM = auto()
+    COLOR = auto()
 
 def set_log_level(params, logger):
     """Expects a params with a Level property. If there is no property the
@@ -210,7 +226,7 @@ def verify_connections_layout(comm, log, name, triggers=None):
                                     ' Valid outputs are: %s', name, key, triggers)
 
 def configure_device_channel(comm:dict, *, is_output:bool,
-                                output_name:str = None, datatype:str = "STRING",
+                                output_name:str = None, datatype:ChanType = ChanType.STRING,
                                 unit:str = None, name:str = None,
                                 restrictions:str = None):
     """this method will set default values inside the connections section
@@ -246,21 +262,21 @@ def configure_device_channel(comm:dict, *, is_output:bool,
 
         sub = local_comm[subdict]
 
-        if PROP_DATATYPE not in sub:
-            sub[PROP_DATATYPE] = datatype
+        if ChanConst.DATATYPE not in sub:
+            sub[ChanConst.DATATYPE] = datatype
 
         if unit:
-            if PROP_UNIT not in sub:
-                sub[PROP_UNIT] = unit
+            if ChanConst.UNIT not in sub:
+                sub[ChanConst.UNIT] = unit
 
         if name:
-            if PROP_NAME not in sub:
-                sub[PROP_NAME] = name
+            if ChanConst.NAME not in sub:
+                sub[ChanConst.NAME] = name
 
         if restrictions:
-            if PROP_FORMAT not in sub:
-                sub[PROP_FORMAT] = restrictions
+            if ChanConst.FORMAT not in sub:
+                sub[ChanConst.FORMAT] = restrictions
 
         if not is_output:
-            if PROP_SETTABLE not in sub:
-                sub[PROP_SETTABLE] = True
+            if ChanConst.SETTABLE not in sub:
+                sub[ChanConst.SETTABLE] = True

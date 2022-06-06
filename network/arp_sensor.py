@@ -17,6 +17,7 @@ Classes: ArpSensor
 import subprocess
 import yaml
 from core.sensor import Sensor
+from core.utils import configure_device_channel
 
 class ArpSensor(Sensor):
     """Scans the local arp table for the presence of a given MAC address."""
@@ -46,6 +47,11 @@ class ArpSensor(Sensor):
                        self.name, yaml.dump(self.comm))
 
         self.check_state()
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True,
+                                 name=f"{self.mac} present")
+        self._register(self.comm)
 
     def check_state(self):
         """Calls arp and parses the resuts looking for the MAC address. If it's

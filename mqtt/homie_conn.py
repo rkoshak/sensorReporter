@@ -19,8 +19,7 @@ Classes: HomieConnection
 from homie_spec import Node, Property, Device
 from homie_spec.properties import Datatype
 from mqtt.mqtt_conn import MqttConnection, REFRESH
-from core.utils import OUT, IN, PROP_DATATYPE, PROP_NAME, PROP_UNIT, PROP_SETTABLE,\
-    PROP_FORMAT
+from core.utils import ChanType, ChanConst, OUT, IN 
 
 OUT_STATE = "state"
 IN_CMD_SET = "set"
@@ -101,7 +100,6 @@ class HomieConnection(MqttConnection):
         #homie expects for recieved commands that the IN_CMD topic is updated
         destination = comm_conn['Name'] + "/" + ( trigger if trigger else IN_CMD )
 
-        #TODO TEST with config
         retain = True
         if OUT in local_comm.keys():
             retain = local_comm[OUT].get('Retain', True)
@@ -162,21 +160,21 @@ class HomieConnection(MqttConnection):
         """will grap all homie relevant properties from the comm dict
         """
         homie_types = {
-            'STRING' : Datatype.STRING,
-            'INTEGER' : Datatype.INTEGER,
-            'FLOAT' : Datatype.FLOAT,
-            'BOOLEAN' : Datatype.BOOLEAN,
-            'ENUM' : Datatype.ENUM,
-            'COLOR' : Datatype.COLOR,
+            ChanType.STRING : Datatype.STRING,
+            ChanType.INTEGER : Datatype.INTEGER,
+            ChanType.FLOAT : Datatype.FLOAT,
+            ChanType.BOOLEAN : Datatype.BOOLEAN,
+            ChanType.ENUM : Datatype.ENUM,
+            ChanType.COLOR : Datatype.COLOR,
             }
         channel = channel.lower()
 
-        p_type = homie_types.get(comm_props.get(PROP_DATATYPE, 'STRING').upper())
-        p_name = comm_props.get(PROP_NAME, channel)
-        p_unit = comm_props.get(PROP_UNIT)
+        p_type = homie_types.get(comm_props.get(ChanConst.DATATYPE), Datatype.STRING)
+        p_name = comm_props.get(ChanConst.NAME, channel)
+        p_unit = comm_props.get(ChanConst.UNIT)
         p_retained = comm_props.get('Retain')
-        p_settable = comm_props.get(PROP_SETTABLE)
-        p_format = comm_props.get(PROP_FORMAT)
+        p_settable = comm_props.get(ChanConst.SETTABLE)
+        p_format = comm_props.get(ChanConst.FORMAT)
 
         props[channel] = Property(name=node_name + ' / ' + p_name, datatype=p_type,
                                  settable = p_settable, get=None,
