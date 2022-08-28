@@ -33,7 +33,7 @@ The openHAB REST connection uses following parameters:
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Item` | yes | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands
+`Item` | x | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands
 
 ### Dictionary of connectors layout
 To configure a openHAB REST connection in a sensor / actuator use following layout:

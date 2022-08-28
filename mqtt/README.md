@@ -149,7 +149,8 @@ The Homie connection uses following parameters:
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Name` | yes | a-Z, 0-9 | specifies the visible name for the device
+`Name` | x | a-Z, 0-9 | Specifies the visible name for the device
+`Type` |  |  | Type of the device (homie node), might change the behavior of the smart home server. (default value is empty string '')
 
 #### Dictionary of connectors layout
 To configure a Homie connection in a sensor / actuator use following layout:

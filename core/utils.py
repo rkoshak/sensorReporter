@@ -245,6 +245,7 @@ def configure_device_channel(comm:dict, *, is_output:bool,
                     for a numeric range e. g. -3:24
                     for possible values for datatype ENUM
                     as comma separated list e.g. 'val1,val2,val3'
+                    the homie convention named this "format"
     """
 
     for comm_conn in comm.values():
