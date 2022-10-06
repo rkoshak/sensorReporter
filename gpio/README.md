@@ -9,10 +9,10 @@ A Polling Sensor that reads temperature and humidity from a DHT11, DHT22, or AM2
 This sensor uses the [adaFruit CircuitPython libraries](https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/python-setup).
 
 ```
-$ sudo apt-get install libgpiod2
-$ sudo pip3 install RPI.GPIO
-$ sudo pip3 install adafruit-blinka
-$ sudo pip3 install adafruit-circuitpython-dht
+sudo apt-get install libgpiod2
+sudo pip3 install RPI.GPIO
+sudo pip3 install adafruit-blinka
+sudo pip3 install adafruit-circuitpython-dht
 ```
 
 ### Parameters
@@ -73,12 +73,16 @@ Additionally the Sensor can detect toggle events and report the time of the even
 ### Dependencies
 
 The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:  `$ sudo adduser sensorReporter gpio`
+To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
+
+```
+sudo adduser sensorReporter gpio
+```
 
 Depends on RPi.GPIO.
 
 ```
-$ sudo pip3 install RPI.GPIO
+sudo pip3 install RPI.GPIO
 ```
 
 ### Basic parameters
@@ -199,12 +203,16 @@ A recieved command will be sent back on all configured connections to the config
 ### Dependencies
 
 The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:  `$ sudo adduser sensorReporter gpio`
+To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
+
+```
+sudo adduser sensorReporter gpio
+```
 
 Depends on RPi.GPIO.
 
 ```
-$ sudo pip3 install RPI.GPIO
+sudo pip3 install RPI.GPIO
 ```
 
 ### Parameters
@@ -263,7 +271,7 @@ ActuatorGarageDoor:
 
 ### Example Config #​2
 Using a local connection to toggle an actuator, which is also connected to openHAB. 
-The actuator shows alway the correct status in openHAB, even if it is toggled locally.
+The actuator shows always the correct status in openHAB, even if it is toggled locally.
 
 ```yaml
 Logging:

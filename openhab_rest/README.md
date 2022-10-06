@@ -10,8 +10,8 @@ Uses [requests](https://pypi.org/project/requests/) to issue the Item updates.
 Uses [sseclient-py](https://pypi.org/project/sseclient-py/) to subscribe to the SSE feed.
 
 ```
-$ sudo pip3 install requests
-$ sudo pip3 install sseclient-py
+sudo pip3 install requests
+sudo pip3 install sseclient-py
 ```
 
 ## Parameters

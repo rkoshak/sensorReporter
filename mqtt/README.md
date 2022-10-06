@@ -7,7 +7,7 @@ A connection to publish and subscribe to MQTT topics.
 MQTT Communication is handled using the [phao-mqtt](https://pypi.org/project/paho-mqtt/) library.
 
 ```
-$ sudo pip3 install paho-mqtt
+sudo pip3 install paho-mqtt
 ```
 
 ## Parameters

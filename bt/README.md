@@ -11,7 +11,7 @@ If the device address is unknown, choose the way to determine it depending on th
 Make sure the Bluetooth device is visible (e. g. in pairing mode), then run:
 
 ```
-$ hcitool scan
+hcitool scan
 ```
 The output lists all visible Bluetooth devices as address / name pairs.
 
@@ -21,7 +21,7 @@ Use this method for Bluetooth 4.0 devices.
 Make sure the Bluetooth device is active (switched on), then run:
 
 ```
-$ sudo hcitool lescan
+sudo hcitool lescan
 ```
 The output will be a address / name pairs for each BTLE message recieved.
 After discovering the desired address hit `ctrl + c` to stop the output.
@@ -37,8 +37,8 @@ When no packet is received for a device of interest, the OFF value is published.
 This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets.
 
 ```
-$ sudo apt-get install libglib2.0-dev bluetooth
-$ sudo pip3 install bluepy
+sudo apt-get install libglib2.0-dev bluetooth
+sudo pip3 install bluepy
 ```
 
 Requires sensor_reporter to be run as root.
@@ -134,7 +134,7 @@ Run the script and put the device into pairing mode and the MAC address and devi
 The sensor uses [PyBluez](https://github.com/pybluez/pybluez) to scan for BT devices.
 
 ```
-$ sudo apt-get install bluetooth bluez python3-bluez
+sudo apt-get install bluetooth bluez python3-bluez
 ```
 
 sensor_reporter must be run as root.
@@ -193,7 +193,7 @@ A Background Sensor that listens for and parses BTLE packets from Govee H5075 te
 This sensor is uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
 
 ```
-$ sudo pip3 install bleson
+sudo pip3 install bleson
 ```
 
 sensor_reporter must be run as root.
