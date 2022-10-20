@@ -19,6 +19,7 @@ Classes: ExecActuator
 """
 
 import subprocess
+import yaml
 from core.actuator import Actuator
 from core.utils import issafe
 
@@ -28,32 +29,34 @@ class ExecActuator(Actuator):
     destination.
     """
 
-    def __init__(self, connections, params):
+    def __init__(self, connections, dev_cfg):
         """Sets up the actuator to call the command scripts. Expects the
         following parameters.
         - "Command": the command line to execute
-        - "CommandSrc": the destination subscribed to, messages to this topic are
-        turned into command line arguments; if "NA" it's treated as no arguments.
-        - "ResultsDest": the destination to publish the output from the command;
-        ERROR is published if the command returned a non-zero return code.
+        - "Connections": holds the dictionarys with the configured connections
+           for each actuator. Will subscribe to the specified Topic, messages to this topic are
+           turned into command line arguments; if "NA" it's treated as no arguments.
+           The command result is published to the specified return topic;
+           ERROR is published if the command returned a non-zero return code.
         - "Timeout": The number of seconds to let the command run before timing
         out.
         """
-        super().__init__(connections, params)
+        super().__init__(connections, dev_cfg)
 
-        self.command = params("Command")
-        self.timeout = int(params("Timeout"))
+        self.command = dev_cfg["Command"]
+        self.timeout = int(dev_cfg["Timeout"])
 
-        self.log.info("Configuring Exec Actuator: Command Topic = %s, Result "
-                      "Topic = %s, Command = %s", self.cmd_src, self.destination,
-                      self.command)
+        self.log.info("Configuring Exec Actuator: %s, Command = %s",
+                      self.name, self.command)
+        self.log.debug("%s has following configured connections: \n%s",
+                       self.name, yaml.dump(self.comm))
 
     def on_message(self, msg):
         """When a message is received on the "Command" destination this method
         is called. Executes the command and publishes the result. Any argument
         that contains ';', '|', or '//' are ignored.
         """
-        self.log.info("Received command on %s: %s", self.cmd_src, msg)
+        self.log.info("%s received command: %s", self.name, msg)
 
         cmd_args = [arg for arg in self.command.split(' ') if issafe(arg)]
 
@@ -61,19 +64,19 @@ class ExecActuator(Actuator):
             for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
                 cmd_args.append(arg)
 
-        self.log.info("Executing command with the following arguments: %s", cmd_args)
+        self.log.info("%s executed command with the following arguments: %s", self.name, cmd_args)
 
         try:
             output = subprocess.check_output(cmd_args, shell=False,
                                              universal_newlines=True,
                                              timeout=self.timeout).rstrip()
-            self.log.info("Command results to be published to %s\n%s",
-                          self.destination, output)
-            self._publish(output, self.destination)
+            self.log.info("%s command result: %s",
+                          self.name, output)
+            self._publish(output, self.comm)
         except subprocess.CalledProcessError as ex:
             self.log.error("Command returned an error code: %s\n%s",
                            ex.returncode, ex.output)
-            self._publish("ERROR", self.destination)
+            self._publish("ERROR", self.comm)
         except subprocess.TimeoutExpired:
             self.log.error("Command took longer than 10 seconds.")
-            self._publish("ERROR", self.destination)
+            self._publish("ERROR", self.comm)

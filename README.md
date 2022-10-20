@@ -34,7 +34,7 @@ Plug-in | Type | Purpose
 
 
 # Architecture
-The main script is `sensor_reporter` which parses a configuration ini file and handles operating system signal handling.
+The main script is `sensor_reporter` which parses a configuration YAML file and handles operating system signal handling.
 
 It uses a `core.poll_mgr.PollMgr` manages running a polling loop used by Polling Sensors to control querying the devices.
 
@@ -42,7 +42,7 @@ All connections inherit from `core.connection.Connection`.
 All Actuators inherit from `core.actuator.Actuator` and all sensors inherit from `core.sensor.Sensor`.
 Common code is implemented in the parent classes.
 
-On startup or when receiving a `HUP` (`kill -1`) operating system signal the configuratuion ini file is loaded.
+On startup or when receiving a `HUP` (`kill -1`) operating system signal the configuratuion YAML file is loaded.
 There is a logging section (see below) where the logging level and where to log to is defined.
 Then there is a separate section for each connection, sensor, and actuator.
 Each individual plug-in will define it's own set of required and optional parameters.
@@ -51,78 +51,79 @@ See the README files in the subfolders for details.
 However, some parmeters will be common.
 - All polling sensors require a Poll parameter indicating how often in seconds to poll the sensor devices
 - All sections require a Class parameter defining the class to load.
-- All sensors and actuators require a Connection class containing the name of the Connection to publish/subscribe through. More than one can be defined in a comma separated list.
-- All actuators require a CommandSrc, which has to be unique for the configured connection. E. g. if the CommandSrc `switch2` is used by several actuators only the last one will work.
+- All sensors and actuators require a Connections class containing a dictionary with the connections and topics to publish/subscribe through. The layout is described at the connections readme.
+- All actuators require a command source, which has to be unique for the configured connection. E. g. if the same command source is used by several actuators only the last one will work. The parameter name of the command source varies differently for each connection.
 - All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
-
-Sensors are defined in a `[SensorX]` section where `X` is a unique number.
-Connections and Actuators are defined in similarly named sections.
-The number need only be unique, they don't need to be sequential.
 
 # Dependencies
 sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
+It uses PyYAML for parsing the configuration file:
+
+```
+sudo pip3 install PyYAML
+```
 Each plugin will have it's own dependency.
 See the readmes in the subfolders for details.
 
 # Usage
-`python3 sensor_reporter configuration.ini`
+`python3 sensor_reporter configuration.yml`
 
 An example systemd service file is provided for your reference.
 The following steps describe how to setup the service:
 
 1. clone this repo into `/opt/sensor_reporter`
 2. create a `sensorReporter` system user:  `sudo adduser --system --force-badname --home /opt/sensor_reporter sensorReporter`
-3. write your config ini file and save it to `/opt/sensor_reporter/sensor_reporter.ini`
-4. change owner of the ini file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.ini`
-5. limit read write to owner:  `sudo chmod 600 sensor_reporter.ini`
+3. write your config file and save it to `/opt/sensor_reporter/sensor_reporter.yml`
+4. change owner of the config file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.yml`
+5. limit read write to owner:  `sudo chmod 600 sensor_reporter.yml`
 6. install service file:  `sudo cp sensor_reporter.service /etc/systemd/system`
 7. set service to autostart:  `sudo systemctl enable sensor_reporter.service`
 8. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
 
 Some plugins will reqire additional steps, see readmes in the subfolders for details.
 
-To reload a modifierd sensor_reporter.ini use the command:  `sudo sytemctl reload sensor_reporter.service`
+To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`
 
 
 # Configuration
-sensor_reporter uses an ini file for configuration.
+sensor_reporter uses an YAML file for configuration.
 The only required section is the logging section.
 However, to do anything useful, there should be at least one Connection and at least one Sensor or Actuator.
 All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
-*Security advice:* make sure your sensor_reporter.ini is owned by the user `sensorReporter` and only that user has read and write permissions.
+*Security advice:* make sure your sensor_reporter.yml is owned by the user `sensorReporter` and only that user has read and write permissions.
 
-`sudo chown sensorReporter:nogroup sensor_reporter.ini`  
-`sudo chmod 600 sensor_reporter.ini`
+`sudo chown sensorReporter:nogroup sensor_reporter.yml`  
+`sudo chmod 600 sensor_reporter.yml`
 
 ## Syslog Example
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 ```
-`Syslog` can be any boolean value.
+`Syslog` can be any boolean value, including yes / no.
 When true no other parameters are required.
 `Level` is the default logging level for the core parts of sensor_reporter and any plug-in that doesn't define it's own `Level` parameter. Allowed values: `DEBUG, INFO, WARNING, ERROR`
 
 ## Log File Example
 
-```ini
-[Logging]
-File = /var/log/sensor_reporter/sensorReporter.log
-MaxSize = 67108864
-NumFiles = 10
-Syslog = NO
-Level = INFO
+```yaml
+Logging:
+    File: /var/log/sensor_reporter/sensorReporter.log
+    MaxSize: 67108864
+    NumFiles: 10
+    Syslog: no
+    Level: INFO
 ```
 `File` is the path to the log file.
 `MaxSize` is the maximum size of the log file in bytes before it gets rotated.
 `NumFiles` is the number of old log files to save, older files are automatically deleted
 
-The above parameters are only required if `SysLog` is a false value.
-`Level` is the same as for `Syslog = True` and indicates the default logging level.
+The above parameters are only required if `SysLog` is disabled.
+`Level` is the same as for `Syslog: yes` and indicates the default logging level.
 
 Make sure the user `sensorReporter` has write access:
 1. `sudo mkdir /var/log/sensor_reporter`
@@ -137,12 +138,27 @@ Possible values are:
 * Sensor
 
 A sensor section could thus be named `Sensor_Heartbeat` or `Actuator1`.
+Section names have to be unique.
+
+## Default section
+
+Optionally a `DEFAULT` section can be added to the configuration.
+Parameters within this section will be the default for all sensors and actuator.
+Sensors and actuators can override the default if they specifie the same parameter.
+This is useful when many sensors of the same type with similar parameters are used.
+E. g. set the default for `TempUnit` so the DhtSensors don't need to specifie it repetitive:
+
+```yaml
+DEFAULT:
+    TempUnit: F
+```
 
 # Release Notes
 This current version is a nearly complete rewrite of the previous version with a number of breaking changes.
 
 ## Breaking Changes
 
+- The configuration file is now in YAML syntax insted of a ini file - October 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
 - All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments

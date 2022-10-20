@@ -4,10 +4,8 @@ This module has a Polling Sensor and Actuator that executes command line command
 
 ## `exec.exec_actuator.ExecActuator`
 
-Subscribes to the given `CommandSrc` for messages.
-Any message that is received will cause the command to be executed.
-If the message is anything but "NA" the message is treated as command line arguments.
-The result is published to `ResultsDest`.
+Executes a command after revieving a message.
+The result is published to the return topic.
 
 ### Dependencies
 
@@ -17,39 +15,42 @@ None, though the user that sensor_reporter is running needs permission to execut
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecActuator` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Class` | X | `exec.exec_actuator.ExecActuator` |
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the actuator.
 `Command` | X | `;` and `#` are not allowed. | A valid command line command.
-`CommandSrc` | X | The Communicator destination/openHAB string/switch/integer item to listen to for incoming commands.
-`ResultsDest` | X | The Communicator destination/openHAB string item to publish the output/stdout of the command.
 `Timeout` | X | The maximum number of seconds to wait for the command to finish.
+
+### Output / Input
+The ExecActuator has only one output and input.
+Any message that is received will cause the command to be executed.
+If the message is anything but "NA" the message is treated as command line arguments and appended to the `Command`.
+Will publish the result of the `Command` afterwards.
+When using with the openHAB connection configure a string item.
 
 When the command returns an error, `ERROR` is published.
 
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: WARNING
 
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
-
-[Actuator1]
-Class = exec.exec_actuator.ExecActuator
-Connection = openHAB
-Command = echo
-CommandSrc = Test_Act1
-ResultsDest = Test_Act1_Results
-Timeout = 10
-Level = INFO
+Actuator1:
+    Class: exec.exec_actuator.ExecActuator
+    Connections:
+        openHAB:
+            Item: Test_Act1
+    Command: echo
+    Timeout: 10
+    Level: INFO
 ```
 
 ## `exec.exec_sensor.ExecSensor`
@@ -64,34 +65,42 @@ None, though the user that sensor_reporter is running needs permission to execut
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `btle_sensor.exec_actuator.ExecSensor` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Class` | X | `exec.exec_sensor.ExecSensor` |
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X | Positive number | How often to call the command
 `Script` | X | `;` and `#` are not allowed. | A valid command line command.
-`Destination` | X | Where to publish the results of the command on each poll.
 
 Note that the command timeout is set to`Poll`.
 
+### Output
+The ExecSensor has only one output and will publish the result of the `Script` in the poll interval.
+When using with the openHAB connection configure a string item.
+
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: WARNING
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
+Connection1:
+    Class: mqtt.mqtt_conn.MqttConnection
+    Name: MQTT
+    Client: test
+    User: user
+    Password: password
+    Host: localhost
+    Port: 1883
+    Keepalive: 10
+    RootTopic: sensor_reporter
 
-[Sensor1]
-class = exec.exec_sensor.ExecSensor
-Connection = openHAB
-Poll = 10
-Script = echo Exec hello from sensor 1
-Destination = Hellow
-Level = INFO
+SensorExecEcho:
+    Class: exec.exec_sensor.ExecSensor
+    Connections:
+        MQTT:
+            StateDest: hello_world/state
+    Poll: 10
+    Script: echo Exec hello from sensor 1
+    Level: INFO
 ```

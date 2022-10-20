@@ -14,11 +14,14 @@
 """Contains DhtSensor, a sensor that reads DHT11, DHT22 or AM2302 temp/humi
 sensors. Reading of the sensor is accomplished using the adafruit_dht library.
 """
-from configparser import NoOptionError
+import yaml
 import board
 import adafruit_dht
 from core.sensor import Sensor
-from distutils.util import strtobool
+from core.utils import verify_connections_layout
+
+OUT_TEMP = "Temperature"
+OUT_HUMID = "Humidity"
 
 class DhtSensor(Sensor):
     """A polling sensor that reads and reports temperature and humidity. It
@@ -39,32 +42,30 @@ class DhtSensor(Sensor):
         ValueError when a parameter has an unsupported value.
     """
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """Initialize the DHT sensor and collect the first reading.
         Parameters:
             - Poll: must be > 0
             - Pin: GPIO pin where the data pin of the sensor is wired, BMC
             numbering
             - Sensor: one of "DHT11", "DHT22" or "AM2302"
-            - HumiDest: destination for the humidity readings
-            - TempDest: destination for the temperature readings
             - TempUnit: optional parameter, one of "C" or "F", defaults to "C"
             - Smoothing: optional parameter, if True the average of the last
             five readings is published, when False only the most recent is
             published.
         Raises
-            - NoOptionError: if a required parameter is not present
+            - KeyError: if a required parameter is not present
             - ValueError: if a parameter has an unsuable value
             - RuntimeError: if there is a problem connecting to the sensor:w
 
         """
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
         if self.poll <= 0:
             raise ValueError("A positive polling period is required: {}"
                              .format(self.poll))
 
-        pin = params("Pin")
+        pin = dev_cfg["Pin"]
         bpin = None
         pin_name = "D{}".format(pin)
         if hasattr(board, pin_name):
@@ -72,7 +73,7 @@ class DhtSensor(Sensor):
         else:
             raise ValueError("Unsupported pin number {}".format(pin))
 
-        sen_type = params("Sensor")
+        sen_type = dev_cfg["Sensor"]
         if sen_type in ("DHT22", "AM2302"):
             self.log.info("Creating DHT22/AM2302 sensor")
             self.sensor = adafruit_dht.DHT22(bpin)
@@ -81,22 +82,17 @@ class DhtSensor(Sensor):
         else:
             raise ValueError("{} is an unsupported Sensor".format(sen_type))
 
-        self.log.info("Sensor created, setting parameters.")
-        self.humi_dest = params("HumiDest")
-        self.temp_dest = params("TempDest")
+        verify_connections_layout(self.comm, self.log, self.name, [OUT_TEMP, OUT_HUMID])
+        self.log.info("Sensor %s created, setting parameters.", self.name)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
 
         # Default to C. If it's defined and not C or F raises ValueError.
-        try:
-            self.temp_unit = params("TempUnit")
-            if self.temp_unit not in ("C", "F"):
-                raise ValueError("{} is an unsupported temp unit".format(self.temp_unit))
-        except NoOptionError:
-            self.temp_unit = "C"
+        self.temp_unit = dev_cfg.get("TempUnit", "C")
+        if self.temp_unit not in ("C", "F"):
+            raise ValueError("{} is an unsupported temp unit".format(self.temp_unit))
 
-        try:
-            self.smoothing = bool(strtobool(params("Smoothing")))
-        except NoOptionError:
-            self.smoothing = False
+        self.smoothing = dev_cfg.get("Smoothing", False)
 
         if self.smoothing:
             self.humidity_readings = [None] * 5
@@ -127,10 +123,10 @@ class DhtSensor(Sensor):
                     self.temp_readings.pop()
                     self.temp_readings.insert(0, temp)
                     to_send = sum([t for t in self.temp_readings if t]) / 5
-                self._send("{:.1f}".format(to_send), self.temp_dest)
+                self._send("{:.1f}".format(to_send), self.comm, OUT_TEMP)
             else:
-                self.log.warning("Unreasonable temperature reading of %s "
-                                 "dropping it", temp)
+                self.log.warning("%s unreasonable temperature reading of %s "
+                                 "dropping it", self.name, temp)
 
             if humidity and 0 <= humidity <= 100:
                 to_send = humidity
@@ -138,10 +134,10 @@ class DhtSensor(Sensor):
                     self.humidity_readings.pop()
                     self.humidity_readings.insert(0, humidity)
                     to_send = sum([h for h in self.humidity_readings if h]) / 5
-                self._send("{:.1f}".format(to_send), self.humi_dest)
+                self._send("{:.1f}".format(to_send), self.comm, OUT_HUMID)
             else:
-                self.log.warning("Unreasonable humidity reading of %s, "
-                                 "dropping it", humidity)
+                self.log.warning("%s unreasonable humidity reading of %s, "
+                                 "dropping it", self. name, humidity)
 
         except RuntimeError as error:
-            self.log.warning("Error reading DHT: %s", error.args[0])
+            self.log.warning("%s error reading DHT: %s", self.name, error.args[0])

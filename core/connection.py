@@ -25,35 +25,42 @@ class Connection(ABC):
     implementation for all methods except publish which must be overridden.
     """
 
-    def __init__(self, msg_processor, params):
+    def __init__(self, msg_processor, conn_cfg):
         """Stores the passed in arguments as data members.
 
         Arguments:
         - msg_processor: Connections will subscribe to a destination for
         communication to the program overall, not an individual actuator or
         sensor. This is the method that gets called when a message is received.
-        - params: set of properties from the loaded ini file.
+        - conn_cfg: set of properties from the loaded yaml file.
         """
         self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
-        self.params = params
+        self.conn_cfg = conn_cfg
         self.registered = {}
-        set_log_level(params, self.log)
+        set_log_level(conn_cfg, self.log)
 
     @abstractmethod
-    def publish(self, message, destination, filter_echo=False):
+    def publish(self, message, comm_conn, trigger=None):
         """Abstarct method that must be overriden. When called, send the passed
-        in message to the passed in destination.
+        in message to the passed in comm(unication)_conn(ection) related dictionary.
+        An trigger can be specified optional so the connection knows what sensor event
+        triggered the publish.
 
-        Parameter filter_echo is intended to activate a filter for looped back messages
+        Arguments:
+        - message: the message to process / publish
+        - comm_conn: dictionary containing only the parameters for the called connection,
+                     e. g. information where to publish
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm_conn to look for the return topic
         """
 
     def disconnect(self):
         """Disconnect from the connection and release any resources."""
 
-    def register(self, destination, handler):
+    def register(self, comm, handler):
         """Set up the passed in handler to be called for any message on the
-        destination.
+        destination. Default implementation assumes topic 'CommandSrc'
         """
-        self.log.info("Registering destination %s", destination)
-        self.registered[destination] = handler
+        self.log.info("Registering destination %s", comm['CommandSrc'])
+        self.registered[comm['CommandSrc']] = handler

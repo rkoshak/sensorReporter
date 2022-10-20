@@ -18,7 +18,6 @@ Classes: Actuator
 """
 from abc import ABC, abstractmethod
 import logging
-from configparser import NoOptionError
 from core.utils import set_log_level
 
 class Actuator(ABC):
@@ -28,37 +27,42 @@ class Actuator(ABC):
     for all but the on_message method which must be overridden.
     """
 
-    def __init__(self, connections, params):
+    def __init__(self, connections, dev_cfg):
         """Initializes the Actuator by storing the passed in arguments as data
         members and registers to subscribe to params("Topic").
 
         Arguments:
         - connections: List of the connections
-        - params: lambda that returns value for the passed in key
-            "CommandSrc": required, where command to run the actuator come from
-            "ResultDest": optional, where the results from the command are
-            published.
+        - dev_cfg: dictionary that holds the device specific config
+            "Connections": required, holds the dictionarys with the configured connections
+            will subscribe to the topic and report the status
+            to the return topic if it is specified
         Raises:
-        - configurationparser.NoOptionError if "CommandSrc" doesn't exist.
+        - KeyError if "Connections" doesn't exist.
+
+        Important Parameters:
+        - self.comm: communication dictionary, with information where to publish
+                     contains connection named dictionarys for each connection
+        - self.log: The log instance for this device
+        - self.name: device name, usful for log entries
         """
         self.log = logging.getLogger(type(self).__name__)
-        self.params = params
+        self.dev_cfg = dev_cfg
         self.connections = connections
-        self.cmd_src = params("CommandSrc")
-        try:
-            self.destination = params("ResultsDest")
-        except NoOptionError:
-            self.destination = None
-        set_log_level(params, self.log)
+        self.comm = dev_cfg['Connections']
+        #Actuator Name is specified in sensor_reporter.py > creat_device()
+        self.name = dev_cfg.get('Name')
+        set_log_level(dev_cfg, self.log)
 
-        self._register(self.cmd_src, self.on_message)
+        self._register(self.comm, self.on_message)
 
-    def _register(self, destination, handler):
+    def _register(self, comm, handler):
         """Protected method that registers to the communicator to subscribe to
         destination and process incoming messages with handler.
         """
-        for conn in self.connections:
-            conn.register(destination, handler)
+
+        for (conn, values) in comm.items():
+            self.connections[conn].register(values, handler)
 
     @abstractmethod
     def on_message(self, msg):
@@ -72,14 +76,20 @@ class Actuator(ABC):
         resources.
         """
 
-    def _publish(self, message, destination, filter_echo=False):
+    def _publish(self, message, comm, trigger=None):
         """Protected method that will publish the passed in message to the
-        passed in destination to all the passed in connections.
+        passed in comm(unicators). Optionally specifie the event trigger
+        so the connection can decide where to publish.
 
-        Parameter filter_echo is intended to activate a filter for looped back messages
-        """
-        for conn in self.connections:
-            conn.publish(message, destination, filter_echo)
+        Arguments:
+        - message: the message to publish
+        - comm: communication dictionary, with information where to publish
+                contains connection named dictionarys for each connection,
+                containing the connection related parameters
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm to look for the return topic"""
+        for conn in comm.keys():
+            self.connections[conn].publish(message, comm[conn], trigger)
 
     def publish_actuator_state(self):
         """Called to publish the current state of the actuator to the publishers.

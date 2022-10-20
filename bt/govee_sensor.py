@@ -15,9 +15,11 @@
 """Implements a BTLE listener that looks for broadcasts from a Govee H5072
 sensor (it may work with others).
 """
-from bleson import get_provider, Observer, UUID16
+import yaml
+from bleson import get_provider, Observer, UUID16, BDAddress
 from bleson.logger import set_level, ERROR#, DEBUG
 from core.sensor import Sensor
+from core.utils import verify_connections_layout
 
 # Disable bleson warning messages in the log.
 set_level(ERROR)
@@ -26,17 +28,38 @@ set_level(ERROR)
 GOVEE_BT_MAC_PREFIX = "A4:C1:38"
 H5075_UPDATE_UUID16 = UUID16(0xEC88)
 
+OUT_NAME = "DeviceName"
+OUT_BATTERY = "Battery"
+OUT_TEMP = "Temperature"
+OUT_HUMID = "Humidity"
+OUT_RSSI = "RSSI"
+
 class GoveeSensor(Sensor):
     """Listens for Govee temp/humi sensor BTLE broadcases and publishes them."""
 
-    def __init__(self, publishers, params):
+    def __init__(self, publishers, dev_cfg):
         """Initializes the listener and kicks off the listening thread."""
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
-        self.dest_root = params("Destination")
+        self.mac = BDAddress(dev_cfg["Address"])
 
-        self.log.info("Configuring Govee listener with destination %s",
-                      self.dest_root)
+        # Default to C. If it's defined and not C or F raises ValueError.
+        self.temp_unit = dev_cfg.get("TempUnit", "C")
+        if self.temp_unit not in ("C", "F"):
+            raise ValueError(f"{self.temp_unit} is an unsupported temperature unit")
+
+        self.log.info("Configuring Govee listener %s for BT MAC %s",
+                      self.name, self.mac.address)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
+
+        if not self.mac.address.startswith(GOVEE_BT_MAC_PREFIX):
+            self.log.warning("%s Address doesn't start with expected prefix %s",
+                             self.name, GOVEE_BT_MAC_PREFIX)
+
+        verify_connections_layout(self.comm, self.log, self.name,
+                                  [OUT_NAME, OUT_BATTERY, OUT_TEMP,
+                                   OUT_HUMID, OUT_RSSI])
 
         self.adapter = get_provider().get_adapter()
         self.observer = Observer(self.adapter)
@@ -44,59 +67,48 @@ class GoveeSensor(Sensor):
         self.observer.start()
 
         # Store readings so they can be reported on demand.
-        self.devices = {}
+        self.state = {}
 
     def on_advertisement(self, advertisement):
         """Called when a BTLE advertisement is received. If it goes with one
         of the Govee H5075 sensors, the reading is parsed and published."""
-        self.log.debug("Received advertisement from %s",
-                       advertisement.address.address)
+        self.log.debug("%s received advertisement: MAC %s, DeviceName %s",
+                       self.name, advertisement.address.address, advertisement.name)
 
-        if advertisement.address.address.startswith(GOVEE_BT_MAC_PREFIX):
-            self.log.debug("Received Govee advertisement")
-
-            mac = advertisement.address.address
+        if advertisement.address == self.mac:
+            self.log.debug("%s received Govee advertisement", self.name)
 
             # Process a sensor reading.
             if H5075_UPDATE_UUID16 in advertisement.uuid16s:
                 split = advertisement.name.split("'")
 
                 name = split[0] if len(split) == 1 else split[1]
-                if mac not in self.devices:
-                    self.devices[mac] = {}
-                    self.devices[mac]["name"] = name
+                self.state[OUT_NAME] = name
 
                 encoded_data = int(advertisement.mfg_data.hex()[6:12], 16)
-                self.devices[mac]["battery"] = int(advertisement.mfg_data.hex()[12:14],
-                                                   16)
-                self.devices[mac]["temp_c"] = format((encoded_data / 10000), ".2f")
-                self.devices[mac]["temp_f"] = format((((encoded_data / 10000) * 1.8) + 32),
+                self.state[OUT_BATTERY] = str(int(advertisement.mfg_data.hex()[12:14], 16))
+                self.state[OUT_TEMP] = format((encoded_data / 10000), ".2f")
+                if self.temp_unit == "F":
+                    self.state[OUT_TEMP] = format((((encoded_data / 10000) * 1.8) + 32),
                                                      ".2f")
-                self.devices[mac]["humi"] = format(((encoded_data % 1000) / 10),
+                self.state[OUT_HUMID] = format(((encoded_data % 1000) / 10),
                                                    ".2f")
 
-                self.log.debug("Govee data to publish: %s", self.devices)
+                self.log.debug("%s govee data to publish: %s", self.name,
+                               yaml.dump(self.state))
                 self.publish_state()
 
             # Process an rssi reading. Don't bother to publish now, wait for the
             # next sensor reading.
             if advertisement.rssi is not None and advertisement.rssi != 0:
-                # Ignore rssi from devices that haven't reported a sensor
+                # Ignore rssi from state that haven't reported a sensor
                 # reading yet.
-                if mac in self.devices:
-                    self.devices[mac]["rssi"] = advertisement.rssi
+                self.state[OUT_RSSI] = str(advertisement.rssi)
 
     def publish_state(self):
         """Publishes the most recent of all the readings."""
-
-        for conn in self.publishers:
-            for mac in self.devices:
-                if "name" in self.devices[mac]:
-                    name = self.devices[mac]["name"]
-                    dest = "{}/{}".format(self.dest_root, name)
-                    for dev in [dev for dev in self.devices[mac] if dev != "name"]:
-                        conn.publish(str(self.devices[mac][dev]),
-                                     "{}/{}".format(dest, dev))
+        for (key, value) in self.state.items():
+            self._send(value, self.comm, key)
 
     def cleanup(self):
         """Stop the observer."""

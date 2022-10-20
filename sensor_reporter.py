@@ -26,7 +26,7 @@ Functions:
     - create_device: Creates a Sensor or Actuator based on the config in the .ini
     - create_poll_manager: Parses the .ini file and creates the logger,
     connections, sensors, and actuators and polling manager based on the config
-    in the .ini.
+    in the yaml.
     - on_message: called when a connection receives a message on the
     sensor_reporter's topic
     - register_sig_handlers: Registers the reload_configuration and
@@ -37,12 +37,11 @@ Functions:
 import signal
 import sys
 import traceback
-from configparser import ConfigParser, NoOptionError
-import logging
 import logging.handlers
 import importlib
+import yaml
 from core.poll_mgr import PollManager
-from core.utils import set_log_level
+from core.utils import set_log_level, spread_default_parameters
 
 logger = logging.getLogger("sensor_reporter")
 poll_mgr = None
@@ -82,8 +81,8 @@ def register_sig_handlers(config_file, poll_mgr):
     signal.signal(signal.SIGINT,
                   lambda s, f: terminate_process(s, f, poll_mgr))
 
-def init_logger(config):
-    """Initializes the logger based on the properties in the .ini file's Logging
+def init_logger(logger_cfg):
+    """Initializes the logger based on the properties in the yaml file's Logging
     section.
 
     Properties:
@@ -102,12 +101,12 @@ def init_logger(config):
     while root_logger.hasHandlers():
         root_logger.removeHandler(root_logger.handlers[0])
 
-    set_log_level(lambda key: config.get("Logging", key), root_logger)
+    set_log_level(logger_cfg, root_logger)
 
     formatter = logging.Formatter('%(asctime)s %(levelname)8s - [%(name)15.15s] %(message)s')
 
     # Syslog logger
-    if config.getboolean("Logging", "Syslog", fallback=True):
+    if logger_cfg.get("Syslog", True):
         handler = logging.handlers.SysLogHandler('/dev/log',
                                                  facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
         handler.encodePriority(handler.LOG_SYSLOG, handler.LOG_INFO)
@@ -117,9 +116,9 @@ def init_logger(config):
 
     else:
         # File logging
-        file = config.get("Logging", "File", fallback="/tmp/sensorReporter.log")
-        size = int(config.get("Logging", "MaxSize", fallback="67108864"))
-        num = int(config.get("Logging", "NumFiles", fallback="10"))
+        file = logger_cfg.get("File", "/tmp/sensorReporter.log")
+        size = int(logger_cfg.get("MaxSize", "67108864"))
+        num = int(logger_cfg.get("NumFiles", "10"))
         handler = logging.handlers.RotatingFileHandler(file, mode='a',
                                                        maxBytes=size,
                                                        backupCount=num)
@@ -132,45 +131,51 @@ def init_logger(config):
         root_logger.addHandler(stdout_handler)
 
     logger.info("Setting logging level to {}"
-                .format(config.get("Logging", "Level", fallback="INFO")))
+                .format(logger_cfg.get("Level", "INFO")))
 
-def create_connection(config, section):
+def create_connection(conn_cfg, section):
     """Creates a Connection using reflection based on the passed in section of
-    the .ini file.
+    the yaml file.
     """
     try:
-        name = config.get(section, "Name")
+        name = conn_cfg.get("Name")
         logger.info("Creating connection {}".format(name))
-        class_ = config.get(section, "Class")
+        class_ = conn_cfg.get("Class")
         module_name, class_name = class_.rsplit(".", 1)
         conn = getattr(importlib.import_module(module_name), class_name)
-        params = lambda key: config.get(section, key)
-        return conn(on_message, params)
+        return conn(on_message, conn_cfg)
         # TODO create own exception to throw so we don't have to catch all
     except:
         logger.error("Error creating connection {}: {}"
                      .format(section, traceback.format_exc()))
         return None
 
-def create_device(config, section, connections):
+def create_device(dev_cfg, section, connections):
     """Creates a Sensor or Actuator using reflection based on the passed in
-    section of the .ini file.
+    section of the yaml file.
     """
     try:
         logger.info("Creating device for {}".format(section))
-        class_ = config.get(section, "Class")
+        class_ = dev_cfg.get("Class")
         module_name, class_name = class_.rsplit(".", 1)
         device = getattr(importlib.import_module(module_name), class_name)
-        params = lambda key: config.get(section, key)
 
-        dev_conns = []
+        dev_conns = {}
         try:
-            dev_conns = [connections[c] for c in params("Connection").split(",")]
-        except NoOptionError:
-            # An Actuator doesn't always have a connection
-            pass
+            dev_conns = {c:connections[c] for c in dev_cfg["Connections"].keys()}
+        except KeyError as ex:
+            # catch connection name typos at startup
+            if "Connections" in ex.args:
+                logger.error("Section 'Connections' missing for device {}".format(section))
+            else:
+                logger.error("Error creating device {}!"
+                             " Probably the name of the connection {} is misspelled."
+                             .format(section, ex))
+        if 'Name' not in dev_cfg:
+            #remember section name for logger messages within a device
+            dev_cfg['Name'] = section.replace('Actuator', '').replace('Sensor','')
 
-        return device(dev_conns, params)
+        return device(dev_conns, dev_cfg)
     except:
         logger.error("Error creating device {}: {}"
                      .format(section, traceback.format_exc()))
@@ -181,36 +186,41 @@ def create_poll_manager(config_file):
     the logger, creates the Connections, Sensors, and Actuators, and creates
     the PollMgr to handle them all.
     """
-    config = ConfigParser(allow_no_value=True)
-    config.read(config_file)
+    with open(config_file, 'r', encoding='utf_8') as file:
+        config = yaml.safe_load(file)
 
-    init_logger(config)
+    init_logger(config["Logging"])
 
     # Create the connections
     connections = {}
-    for section in [s for s in config.sections() if s.startswith("Connection")]:
-        conn = create_connection(config, section)
-        if conn:
-            name = config.get(section, "Name")
-            connections[name] = conn
+    for (section, conn_cfg) in config.items():
+        if section.startswith("Connection"):
+            conn = create_connection(conn_cfg, section)
+            if conn:
+                name = conn_cfg.get("Name")
+                connections[name] = conn
 
     logger.debug("%d connections created", len(connections))
 
     # Create the Actuators
     actuators = []
-    for section in [s for s in config.sections() if s.startswith("Actuator")]:
-        actuator = create_device(config, section, connections)
-        if actuator:
-            actuators.append(actuator)
+    for (section, dev_cfg) in config.items():
+        if section.startswith("Actuator"):
+            spread_default_parameters(config, dev_cfg)
+            actuator = create_device(dev_cfg, section, connections)
+            if actuator:
+                actuators.append(actuator)
 
     logger.debug("%d actuators created", len(actuators))
 
     # Create the Sensors
     sensors = {}
-    for section in [s for s in config.sections() if s.startswith("Sensor")]:
-        sensor = create_device(config, section, connections)
-        if sensor:
-            sensors[section] = sensor
+    for (section, dev_cfg) in config.items():
+        if section.startswith("Sensor"):
+            spread_default_parameters(config, dev_cfg)
+            sensor = create_device(dev_cfg, section, connections)
+            if sensor:
+                sensors[section] = sensor
 
     logger.debug("%d sensors created", len(sensors))
 

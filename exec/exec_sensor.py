@@ -17,47 +17,50 @@ poll and reports the results.
 """
 import subprocess
 import time
+import yaml
 from core.sensor import Sensor
 from core.utils import issafe
 
 class ExecSensor(Sensor):
     """Periodically calls a script/program and publishes the result."""
 
-    def __init__(self, publishers, params):
-        """Parses the params and prepars to be called. Polling is managed
+    def __init__(self, publishers, dev_cfg):
+        """Parses the dev_cfg and prepars to be called. Polling is managed
         outside the sensor.
         """
-        super().__init__(publishers, params)
+        super().__init__(publishers, dev_cfg)
 
-        self.script = params("Script")
-        self.destination = params("Destination")
+        self.script = dev_cfg["Script"]
         self.start_time = time.time()
 
         self.cmd_args = [arg for arg in self.script.split(' ') if issafe(arg)]
         self.results = ""
 
-        self.log.info("Configured exec_sensor to call script %s and destination %s "
-                      "with interval %s", self.script, self.destination, self.poll)
+        self.log.info("Configured exec_sensor %s to call script '%s' at interval %s ",
+                      self.name, self.script, self.poll)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
 
     def check_state(self):
         """Calls the script and saves and publishes the result."""
-        self.log.debug("Executing with arguments %s", self.cmd_args)
+        self.log.debug("%s executed with arguments %s", self.name, self.cmd_args)
 
         try:
             self.results = subprocess.check_output(self.cmd_args, shell=False,
                                                    universal_newlines=True,
                                                    timeout=self.poll).rstrip()
-            self.log.info("Command results to be published to %s\n%s",
-                          self.destination, self.results)
+            self.log.info("%s command results %s",
+                          self.name, self.results)
         except subprocess.CalledProcessError as ex:
-            self.log.error("Command returned an error code %s\n%s", ex.returncode,
-                           ex.output)
+            self.log.error("%s command returned an error code %s\n%s",
+                           self.name, ex.returncode, ex.output)
         except subprocess.TimeoutExpired:
-            self.log.error("Command took longer than %d to complete!", self.poll)
+            self.log.error("%s command took longer than %d to complete!",
+                           self.name, self.poll)
             self.results = "ERROR"
 
         self.publish_state()
 
     def publish_state(self):
         """Publishes the most recent results from the script."""
-        self._send(self.results, self.destination)
+        self._send(self.results, self.comm)

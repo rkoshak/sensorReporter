@@ -11,7 +11,7 @@ A simple Polling Sensor that periodically pulls the ARP table using a terminal c
 The `arp` command must be installed.
 
 ```
-$ sudo apt install net-tools
+sudo apt install net-tools
 ```
 
 The user sensor_reporter is running under must have permission to run the arp command.
@@ -20,34 +20,38 @@ The user sensor_reporter is running under must have permission to run the arp co
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `heartbeat.heartbeat.Heartbeat` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Class` | X | `network.arp_sensor.ArpSensor` |
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `Poll` | X |  Positive number | How often to pull the ARP table.
 `MAC` | X | Networking MAC address, lowercase letters | The device to look for in the table.
-`Destnation` | X | Where to publish ON when the device is present and OFF when not.
+
+### Output
+The ArpSensor has only one output.
+Will send ON then the divice is present and OFF when not.
+When using with the openHAB connection configure a switch/string item.
 
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Sensor1]
-Class = network.arp_sensor.ArpSensor
-Poll = 10
-Connection = openHAB
-MAC = aa:bb:cc:dd:ee:ff
-Destination = my_phone
-Level = DEBUG
+SensorArpMyPhone:
+    Class: network.arp_sensor.ArpSensor
+    Poll: 10
+    Connections:
+        openHAB:
+            Item: my_phone
+    MAC: aa:bb:cc:dd:ee:ff
+    Level: DEBUG
 ```
 
 ## `network.dash_sensor.DashSensor`
@@ -62,42 +66,55 @@ The script will print out the MAC address of the button.
 
 Must be run as root in order to go into sniffing mode.
 
-Uses [Scapy](https://pypi.org/project/scapy/) to do network sniffing.
+Uses [Scapy](https://pypi.org/project/scapy/) to do network sniffing. Scrapy depends on libpcap.
 
 ```
-$ sudo pip3 install scapy
+sudo pip3 install scapy
+sudo apt install libpcap0.8
 ```
 
 ### Parameters
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-
-`Class` | X | `heartbeat.heartbeat.Heartbeat` |
-`Connection` | X | Comma separated list of Connections | Where the ON/OFF messages are published.
+`Class` | X | `network.dash_sensor.DashSensor` |
+`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
 `Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
 `MACX` | X | Networking MAC address, lower case letters. | The MAC address of the device to watch for. `X` is a number starting with 1 and incrementing to list more than one device.
-`DestinationX` | X | | The matching destination to publish the Dash button detection events to, corresponds with the `MACX` of the same number.
+
+### Outputs
+The DashSensor can have 1 or many outputs depending on how many MAC addresses are defined. These can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
+Will send the associated MAC address.
+When using with the openHAB connection configure a string item.
+
+Output | Purpose
+-|-
+`DestinationX` | Where to send the associated MAC address. `X` is a number starting with 1 and incrementing to list more than one device.
+
+
 
 ### Example Config
 
-```ini
-[Logging]
-Syslog = YES
-Level = INFO
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
 
-[Connection1]
-Class = openhab_rest.rest_conn.OpenhabREST
-Name = openHAB
-URL = http://localhost:8080
-RefreshItem = Test_Refresh
-Level = INFO
+Connection1:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
 
-[Sensor5]
-Class = network.dash_sensor.DashSensor
-Connection = openHAB
-MAC1 = aa:bb:cc:dd:ee:ff
-Destination1 = bounty
-MAC2 = 00:11:22:33:44:55
-Destination2 = tide
-Level = DEBUG
+SensorDashDetector:
+    Class: network.dash_sensor.DashSensor
+    Connections:
+        openHAB:
+            Destination1:
+                Item: bounty
+            Destination2:
+                Item: tide
+    MAC1: aa:bb:cc:dd:ee:ff
+    MAC2: 00:11:22:33:44:55
+    Level: DEBUG
 ```

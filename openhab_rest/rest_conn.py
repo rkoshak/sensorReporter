@@ -17,7 +17,6 @@ Classes:
     - openhab_rest: publishes state updates to openHAB Items.
 """
 from threading import Thread, Timer
-from configparser import NoOptionError
 import json
 import traceback
 import requests
@@ -53,7 +52,7 @@ class OpenhabREST(Connection):
     SSE feed for commands on the registered Items.
     """
 
-    def __init__(self, msg_processor, params):
+    def __init__(self, msg_processor, conn_cfg):
         """Starts the SSE subscription and registers for commands on
         RefreshItem. Expects the following params:
         - "URL": base URL of the openHAB instance NOTE: does not support TLS.
@@ -62,24 +61,21 @@ class OpenhabREST(Connection):
         all the sensors.
         - msg_processor: message handler for command to the RefreshItem
         """
-        super().__init__(msg_processor, params)
+        super().__init__(msg_processor, conn_cfg)
         self.log.info("Initializing openHAB REST Connection...")
 
-        self.openhab_url = params("URL")
-        self.refresh_item = params("RefreshItem")
+        self.openhab_url = conn_cfg["URL"]
+        self.refresh_item = conn_cfg["RefreshItem"]
         self.registered[self.refresh_item] = msg_processor
 
         # optional OpenHAB Verison and optional API-Token for connections with authentication
         try:
-            self.openhab_version = float(params("openHAB-Version"))
-        except NoOptionError:
+            self.openhab_version = float(conn_cfg["openHAB-Version"])
+        except KeyError:
             self.log.info("No openHAB-Version specified, falling back to version 2.0")
             self.openhab_version = 2.0
         if self.openhab_version >= 3.0:
-            try:
-                self.api_token = params("API-Token")
-            except NoOptionError:
-                self.api_token = ""
+            self.api_token = conn_cfg.get("API-Token", "")
 
             if not bool(self.api_token):
                 self.log.info("No API-Token specified,"
@@ -89,14 +85,23 @@ class OpenhabREST(Connection):
         self.reciever = None
         connect_oh_rest(self)
 
-
-
-    def publish(self, message, destination, filter_echo=False):
+    def publish(self, message, comm_conn, trigger=None):
         """Publishes the passed in message to the passed in destination as an update.
 
-        Handle filter_echo=True the same way as usual publishing of messages
-        since openHAB won't send an status update to all subcribers"""
+        Arguments:
+        - message: the message to process / publish, expected type <string>
+        - comm_conn: dictionary containing only the parameters for the called connection,
+                     e. g. information where to publish
+        - trigger: optional, specifies what event triggerd the publish,
+                   defines the subdirectory in comm_conn to look for the return topic"""
         self.reciever.start_watchdog()
+
+        #if trigger is in the communication dict parse it's contens
+        local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
+        destination = local_comm.get('Item')
+        #if trigger (output) is not present in comm_conn, Item will be None
+        if destination is None:
+            return
         try:
             self.log.debug("Publishing message %s to %s", message, destination)
             # openHAB 2.x doesn't need the Content-Type header
@@ -132,6 +137,13 @@ class OpenhabREST(Connection):
         """Stops the event processing loop."""
         self.log.info("Disconnecting from openHAB SSE")
         self.reciever.stop()
+
+    def register(self, comm, handler):
+        """Set up the passed in handler to be called for any message on the
+        destination. Alternate implementation using 'Item' as Topic
+        """
+        self.log.info("Registering destination %s", comm['Item'])
+        self.registered[comm['Item']] = handler
 
 class OpenhabReciever():
     """Initiates a separate Task for recieving OH SSE.
