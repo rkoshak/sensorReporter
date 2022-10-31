@@ -1,6 +1,8 @@
 # Network Sensors
 
 Sensors that operate at the network level including an ARP table scanner and an Amazon Dash Button detector.
+* [network.arp_sensor.ArpSensor](#networkarp_sensorarpsensor)
+* [network.dash_sensor.DashSensor](#networkdash_sensordashsensor)
 
 ## `network.arp_sensor.ArpSensor`
 
@@ -11,7 +13,7 @@ A simple Polling Sensor that periodically pulls the ARP table using a terminal c
 The `arp` command must be installed.
 
 ```
-$ sudo apt install net-tools
+sudo apt install net-tools
 ```
 
 The user sensor_reporter is running under must have permission to run the arp command.
@@ -69,8 +71,8 @@ Must be run as root in order to go into sniffing mode.
 Uses [Scapy](https://pypi.org/project/scapy/) to do network sniffing. Scrapy depends on libpcap.
 
 ```
-$ sudo pip3 install scapy
-$ sudo apt install libpcap0.8
+sudo pip3 install scapy
+sudo apt install libpcap0.8
 ```
 
 ### Parameters

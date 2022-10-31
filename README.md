@@ -60,7 +60,7 @@ sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
 It uses PyYAML for parsing the configuration file:
 
 ```
-$ sudo pip3 install PyYAML
+sudo pip3 install PyYAML
 ```
 Each plugin will have it's own dependency.
 See the readmes in the subfolders for details.
@@ -82,8 +82,8 @@ The following steps describe how to setup the service:
 
 Some plugins will reqire additional steps, see readmes in the subfolders for details.
 
-To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`
-
+To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
+After large changes to the configuration, e. g. sensors/actuators as been removed/added, a restart of the service is recommended.
 
 # Configuration
 sensor_reporter uses an YAML file for configuration.
@@ -158,7 +158,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
-- The configuration file is now in YAML syntax insted of a ini file - March 2022
+- The configuration file is now in YAML syntax insted of a ini file - October 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
 - All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments

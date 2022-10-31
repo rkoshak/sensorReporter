@@ -1,6 +1,8 @@
 # Exec
 
 This module has a Polling Sensor and Actuator that executes command line commands on command or via a poll.
+* [exec.exec_actuator.ExecActuator](#execexec_actuatorexecactuator)
+* [exec.exec_sensor.ExecSensor](#execexec_sensorexecsensor)
 
 ## `exec.exec_actuator.ExecActuator`
 

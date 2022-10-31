@@ -92,9 +92,9 @@ class RpiGpioSensor(Sensor):
         # Allow users to override the 0/1 pin values.
         self.values = parse_values(self, self.publishers, ["OPEN", "CLOSED"])
 
-        pud = GPIO.PUD_UP if dev_cfg["PUD"] == "UP" else GPIO.PUD_DOWN
+        self.pud = GPIO.PUD_UP if dev_cfg.get("PUD") == "UP" else GPIO.PUD_DOWN
         try:
-            GPIO.setup(self.pin, GPIO.IN, pull_up_down=pud)
+            GPIO.setup(self.pin, GPIO.IN, pull_up_down=self.pud)
         except ValueError as err:
             self.log.error("%s could not setup GPIO Pin %d (%s). "
                            "Make sure the pin number is correct. Error Message: %s",
@@ -134,7 +134,7 @@ class RpiGpioSensor(Sensor):
 
         self.log.info("Configued RpiGpioSensor %s: pin %d (%s) with PUD %s",
                       self.name, self.pin, self.gpio_mode,
-                      "UP" if pud == GPIO.PUD_UP else "DOWN")
+                      "UP" if self.pud == GPIO.PUD_UP else "DOWN")
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
         self.log.debug("%s configured values: \n%s",
@@ -308,7 +308,7 @@ class RpiGpioActuator(Actuator):
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
-        # publish inital state to cmd_src
+        # publish inital state back to remote connections
         self.publish_actuator_state()
 
         configure_device_channel(self.comm, is_output=False,
