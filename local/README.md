@@ -166,6 +166,7 @@ The inputs are combined with a 'or' logic gate.
 
 * Can only forward commands to local connections.
 * There can be only one subscription for a named destination per connection. E. g. if the topic `red_light` is used by several actuators (parameter `CommandSrc`, `Item`) only the last one will work.
+* The LogicOr can't be used with the homie connector
 
 Parameter | Required | Restrictions | Purpose
 -|-|-|-

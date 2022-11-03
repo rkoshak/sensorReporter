@@ -1,6 +1,9 @@
-# Roku Address Sensor
+# Roku Address Sensor [DEPRECATED]
 
 For those users who cannot assing a static IP address to their Roku devices, this Polling Sensor will periodically discover all the Rokus on the network, publishing their current IP address to the return topic.
+
+Since most smart home solutions can now handle Roku devices themselves, this sensor is no longer being developed and could be removed in the future.  
+This sensor can't be used with the homie connector.
 
 ## Dependencies
 
