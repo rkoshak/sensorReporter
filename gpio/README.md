@@ -65,6 +65,58 @@ SensorOutdoorClima:
     Level: DEBUG
 ```
 
+## `gpio.ds18x20_sensor.Ds18x20Sensor`
+
+A polling sensor that reads temperature from a DS18S20 or DS18B20 1-Wire bus sensor connected wired to the Raspberry Pi's GPIO pins.
+
+### Dependencies
+
+To enable the 1-Wire interface on your Raspberry Pi, add the following to the bottom of `/boot/config.txt`:
+
+```bash
+# Enable 1-Wire interface on default GPIO4
+dtoverlay=w1-gpio
+```
+
+To load the `w1-gpio` and `w1-therm` kernel modules, add the following to `/etc/modules`:
+
+```bash
+# Load modules for DS18x20 1-Wire temperature sensors
+w1-gpio
+w1-therm
+```
+
+Reboot the Raspberry Pi.
+
+### Parameters
+| Parameter     | Required           | Restrictions                        | Purpose                                                                                                                                                     |
+|---------------|--------------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | :heavy_check_mark: | `gpio.ds18x20_sensor.Ds18x20Sensor` |                                                                                                                                                             |
+| `Connections` | :heavy_check_mark: | dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                             |
+| `Level`       | :X:                | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the default log level for this sensor.                                                                                                             |
+| `Poll`        | :heavy_check_mark: | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                 |
+| `Mac`         | :heavy_check_mark: |                                     | Full 1-Wire device address. To list all 1-Wire devices, run `ls /sys/bus/w1/devices`. To read a specific one, run `cat /sys/bus/w1/devices/<Mac>/w1_slave`. |
+| `TempUnit`    | :X:                | `F` or `C`                          | Temperature unit to use, defaults to `C`.                                                                                                                   |
+| `Smoothing`   | :X:                | Boolean                             | If `True`, publishes the average of the last five readings instead of each individual reading.                                                              |
+
+### Outputs
+
+The DS18x20 sensor has only one output, the temperature.
+
+### Configuration Example
+
+Publishes to a MQTT connection with name `MQTT`:
+
+```yaml
+SensorTempOutside:
+    Class: gpio.ds18x20_sensor.Ds18x20Sensor
+    Connections:
+      MQTT:
+        StateDest: temp/outside
+    Poll: 10
+    Mac: 28-a66c801e64ff
+```
+
 ## `gpio.rpi_gpio.RpiGpioSensor`
 
 A Sensor that can behave as either a Polling Sensor or a Background Sensor that reports the HIGH/LOW status of a GPIO pin.
