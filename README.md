@@ -21,6 +21,7 @@ Plug-in | Type | Purpose
 `exec.exec_actuator.ExecActuator` | Actuator | On command, executes the configured command line command.
 `exec.exec_sensor.ExecSensor` | Polling Sensor | Executes the configured command line and publishes the result.
 `gpio.dht_sensor.DhtSensor` | Polling Sensor | Publishes temperature and humidity readings from DHT11, DHT22, and AM2302 sensors connected to GPIO pins.
+`gpio.ds18x20_sensor.Ds18x20Sensor` | Polling Sensor | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.
 `gpio.rpi_gpio.RpiGpioSensor` | Polling or Background Sensor | Publsihes ON/OFF messages based on the state of a GPIO pin.
 `gpio.rpi_gpio.RpiGpioActuator` | Actuator | Sets a GPIO pin to a given state on command.
 `heartbeat.heartbeat.Heartbeat` | Polling Sensor | Publishes the amount of time sensor_reporter has been up as number of msec and as DD:HH:MM:SS.
