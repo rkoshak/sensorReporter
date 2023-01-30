@@ -2,6 +2,7 @@
 
 This module contains:
 * [gpio.dht_sensor.DhtSensor](#gpiodht_sensordhtsensor)
+* [gpio.ds18x20_sensor.Ds18x20Sensor](#gpiods18x20_sensords18x20sensor)
 * [gpio.rpi_gpio.RpiGpioSensor](#gpiorpi_gpiorpigpiosensor)
 * [gpio.rpi_gpio.RpiGpioActuator](#gpiorpi_gpiorpigpioactuator)
 * [gpio.gpio_led.GpioColorLED](#gpiogpio_ledgpiocolorled)
@@ -392,8 +393,8 @@ To grant the `sensorReporter` user GPIO permissions add the user to the group `g
 
 Depends on RPi.GPIO.
 
-```
-$ sudo pip3 install RPI.GPIO
+```bash
+sudo pip3 install RPI.GPIO
 ```
 
 ### Parameters
