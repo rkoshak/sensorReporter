@@ -7,8 +7,32 @@ Functions:
     on the command line.
 """
 import logging
+from enum import Enum, auto
 
 DEFAULT_SECTION = "DEFAULT"
+#Constans for auto discover connections:
+OUT = "$out"
+IN = "$in"
+
+class ChanConst():
+    """Constants used by configure_device_channel and homie_conn
+    to define channel properties
+    """
+    DATATYPE = "Type"
+    NAME = "FullName"
+    UNIT = "Unit"
+    SETTABLE = "Settable"
+    FORMAT = "FormatOf"
+
+class ChanType(Enum):
+    """Datatypes supported by configure_device_channel
+    """
+    INTEGER = auto()
+    FLOAT = auto()
+    BOOLEAN = auto()
+    STRING = auto()
+    ENUM = auto()
+    COLOR = auto()
 
 def set_log_level(params, logger):
     """Expects a params with a Level property. If there is no property the
@@ -200,3 +224,60 @@ def verify_connections_layout(comm, log, name, triggers=None):
                     if not key in triggers:
                         log.warning("%s has unknown outputs '%s' in Connections."
                                     ' Valid outputs are: %s', name, key, triggers)
+
+def configure_device_channel(comm:dict, *, is_output:bool,
+                                output_name:str = None, datatype:ChanType = ChanType.STRING,
+                                unit:str = None, name:str = None,
+                                restrictions:str = None):
+    """this method will set default values inside the connections section
+    so a connector which supports auto discover can register the device properly
+
+    Parameters:
+    - comm: the connections dictionary of the device
+    - is_output: to select if a output or a input should be configured (set to true for output)
+    - output_name: sensors may have multiple outputs, specifie the name of the output here
+    - datatype: the type of the data the device will publish or revieve:
+                [STRING, INTEGER, FLOAT, BOOLEAN, ENUM, COLOR]
+    - unit: the unit in which the sensor data is published:
+            [°C", °F, °, L, gal, V, W, A, %, m, ft, Pa, psi, #]
+    - name: the full name / description of the input/output
+    - restrictions: set allowed values for channel
+                    for a numeric range e. g. -3:24
+                    for possible values for datatype ENUM
+                    as comma separated list e.g. 'val1,val2,val3'
+                    the homie convention named this "format"
+    """
+
+    for comm_conn in comm.values():
+        if output_name:
+            if output_name not in comm_conn:
+                comm_conn[output_name] = {}
+            local_comm = comm_conn[output_name]
+        else:
+            local_comm = comm_conn
+
+        subdict = OUT if is_output else IN
+
+        if subdict not in local_comm:
+            local_comm[subdict] = {}
+
+        sub = local_comm[subdict]
+
+        if ChanConst.DATATYPE not in sub:
+            sub[ChanConst.DATATYPE] = datatype
+
+        if unit:
+            if ChanConst.UNIT not in sub:
+                sub[ChanConst.UNIT] = unit
+
+        if name:
+            if ChanConst.NAME not in sub:
+                sub[ChanConst.NAME] = name
+
+        if restrictions:
+            if ChanConst.FORMAT not in sub:
+                sub[ChanConst.FORMAT] = restrictions
+
+        if not is_output:
+            if ChanConst.SETTABLE not in sub:
+                sub[ChanConst.SETTABLE] = True

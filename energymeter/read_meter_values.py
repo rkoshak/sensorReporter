@@ -17,9 +17,9 @@ Classes: PafalReader
 """
 import sys
 import yaml
-from core.sensor import Sensor
 from energymeter.em_connections import Pafal20ec3grConnector
-from core.utils import verify_connections_layout
+from core.sensor import Sensor
+from core.utils import verify_connections_layout, configure_device_channel
 
 OUT_IMPORT = "Import"
 OUT_EXPORT = "Export"
@@ -55,6 +55,13 @@ class Pafal20ec3gr(Sensor):
                       self.name, self.poll, len(publishers))
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_IMPORT,
+                                 name="energie imported")
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_EXPORT,
+                                 name="energie exported")
+        self._register(self.comm)
 
     def publish_state(self):
         """Collects data from Pafal and publishes it.

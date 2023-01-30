@@ -18,7 +18,7 @@ import yaml
 import board
 import adafruit_dht
 from core.sensor import Sensor
-from core.utils import verify_connections_layout
+from core.utils import verify_connections_layout, configure_device_channel, ChanType
 
 OUT_TEMP = "Temperature"
 OUT_HUMID = "Humidity"
@@ -99,6 +99,14 @@ class DhtSensor(Sensor):
             self.temp_readings = [None] * 5
 
         self.publish_state()
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
+                                 datatype=ChanType.FLOAT, name="temperatur reading",
+                                 unit='°C' if self.temp_unit=='C' else '°F')
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_HUMID,
+                                 datatype=ChanType.FLOAT, name="humidity reading", unit='%')
+        self._register(self.comm)
 
     def publish_state(self):
         """Acquires the current reading. If the value is reasonable (humidity

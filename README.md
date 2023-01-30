@@ -83,8 +83,8 @@ The following steps describe how to setup the service:
 
 Some plugins will reqire additional steps, see readmes in the subfolders for details.
 
-To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`
-
+To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
+After large changes to the configuration, e. g. sensors/actuators as been removed/added, a restart of the service is recommended.
 
 # Configuration
 sensor_reporter uses an YAML file for configuration.

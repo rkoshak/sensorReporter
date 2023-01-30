@@ -20,7 +20,8 @@ from abc import abstractmethod
 import yaml
 from core.actuator import Actuator
 from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
-                        get_msg_from_values, DEFAULT_SECTION
+                        get_msg_from_values, DEFAULT_SECTION, configure_device_channel,\
+    ChanType
 
 OUT_DEST = "Output"
 IN_ENABLE_SRC = "Enable"
@@ -76,7 +77,7 @@ class LogicCore(Actuator):
                             create_msg_handler()
 
     def _register(self, comm, handler):
-        """override register of parent so it does nothing
+        """override register of parent so super().__init__ won't try to register any handler
         """
 
     @abstractmethod
@@ -165,6 +166,14 @@ class LogicOr (LogicCore):
             self.src_is_on[src] = False
         self.output_activ = False
         self.last_output_state = False
+
+        ### homie connector is currently not supported ( homie connector can't handle input channel names )
+        # #configure_output for homie etc. after debug output, so self.comm is clean
+        # configure_device_channel(self.comm, is_output=False, output_name=IN_ENABLE_SRC,
+        #                          datatype=ChanType.ENUM, restrictions="ON,OFF",
+        #                          name="enable local OR")
+        # for (conn, comm_conn) in self.comm.items():
+        #     self.connections[conn].register(comm_conn, None)
 
     def process_message(self, msg, src):
         """Will switch the registered 'OutputDest' corresponding

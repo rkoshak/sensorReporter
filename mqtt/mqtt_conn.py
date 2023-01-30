@@ -22,11 +22,9 @@ from time import sleep
 import paho.mqtt.client as mqtt
 from core.connection import Connection
 
-LWT = "status"
 REFRESH = "refresh"
 ONLINE = "ONLINE"
 OFFLINE = "OFFLINE"
-
 
 class MqttConnection(Connection):
     """Connects to and enables subscription and publishing to MQTT."""
@@ -59,6 +57,10 @@ class MqttConnection(Connection):
         """
         super().__init__(msg_processor, conn_cfg)
         self.log.info("Initializing MQTT Connection...")
+        #define lwt and refresh_comm if not defined from child class
+        if not hasattr(self, 'lwt') and not hasattr(self, 'refresh_comm'):
+            self.lwt = "status"
+            self.refresh_comm = { 'CommandSrc':REFRESH }
 
         # Get the parameters, raises KeyError if one doesn't exist
         self.host = conn_cfg["Host"]
@@ -96,16 +98,16 @@ class MqttConnection(Connection):
         self.connected = False
         self._connect()
 
-        lwtt = "{}/{}".format(self.root_topic, LWT)
+        lwtt = "{}/{}".format(self.root_topic, self.lwt)
         ref = "{}/{}".format(self.root_topic, REFRESH)
 
         self.log.info(
             "LWT topic is %s, subscribing to refresh topic %s", lwtt, ref)
         self.client.will_set(lwtt, OFFLINE, qos=2, retain=True)
-        self.register({ 'CommandSrc':REFRESH }, msg_processor)
+        self.register(self.refresh_comm, msg_processor)
 
         self.client.loop_start()
-        self._publish_mqtt(ONLINE, LWT, True)
+        self._publish_mqtt(ONLINE, self.lwt, True)
 
     def _connect(self):
         while not self.connected:
@@ -165,33 +167,35 @@ class MqttConnection(Connection):
     def disconnect(self):
         """Closes the connection to the MQTT broker."""
         self.log.info("Disconnecting from MQTT")
-        self._publish_mqtt(OFFLINE, LWT, True)
+        self._publish_mqtt(OFFLINE, self.lwt, True)
         self.client.loop_stop()
         self.client.disconnect()
 
-    def register(self, comm, handler):
+    def register(self, comm_conn, handler):
         """Registers a handler to be called on messages received on topic
         appended to the root_topic. Handler is expected to take one argument,
         the message.
         """
-        destination = comm['CommandSrc']
-        full_topic = "{}/{}".format(self.root_topic, destination)
-        self.log.info("Registering for messages on '%s'", full_topic)
+        #handler can be None if a sensor registers it's outputs
+        if handler:
+            destination = comm_conn['CommandSrc']
+            full_topic = "{}/{}".format(self.root_topic, destination)
+            self.log.info("Registering for messages on '%s'", full_topic)
 
-        def on_message(client, userdata, msg):
-            message = msg.payload.decode("utf-8")
+            def on_message(client, userdata, msg):
+                message = msg.payload.decode("utf-8")
 
-            self.log.debug(
-                "Received message client %s userdata %s and msg %s",
-                client,
-                userdata,
-                message,
-            )
-            handler(message)
+                self.log.debug(
+                    "Received message client %s userdata %s and msg %s",
+                    client,
+                    userdata,
+                    message,
+                )
+                handler(message)
 
-        self.registered[full_topic] = on_message
-        self.client.subscribe(full_topic, qos=0)
-        self.client.message_callback_add(full_topic, on_message)
+            self.registered[full_topic] = on_message
+            self.client.subscribe(full_topic, qos=0)
+            self.client.message_callback_add(full_topic, on_message)
 
     def on_connect(self, client, userdata, flags, retcode):
         """Called when the client connects to the broker, resubscribe to the
@@ -211,7 +215,7 @@ class MqttConnection(Connection):
         self.connected = True
 
         # Publish the ONLINE message to the LWT
-        self._publish_mqtt(ONLINE, LWT, True)
+        self._publish_mqtt(ONLINE, self.lwt, True)
 
         # Resubscribe on connection
         for reg in self.registered:

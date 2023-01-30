@@ -55,12 +55,27 @@ class Connection(ABC):
                    defines the subdirectory in comm_conn to look for the return topic
         """
 
+    def publish_device_properties(self):
+        """Method is intended for connections with auto discover of sensors
+        and actuators. Such a connection can place the necessary code for auto
+        discover inside this method. It is called after all connections, sensors
+        and actuators are created and running.
+
+        Since not all connections support autodiscover the default implementation is empty.
+        """
+
     def disconnect(self):
         """Disconnect from the connection and release any resources."""
 
-    def register(self, comm, handler):
+    def register(self, comm_conn, handler):
         """Set up the passed in handler to be called for any message on the
         destination. Default implementation assumes topic 'CommandSrc'
+
+        Arguments:
+            - comm_conn: the dictionary containing the connection related parameters
+            - handler: handles the incomming commands, if None the registration
+                      of a sensor is assumed
         """
-        self.log.info("Registering destination %s", comm['CommandSrc'])
-        self.registered[comm['CommandSrc']] = handler
+        if handler:
+            self.log.info("Registering destination %s", comm_conn['CommandSrc'])
+            self.registered[comm_conn['CommandSrc']] = handler

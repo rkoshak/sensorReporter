@@ -1,5 +1,12 @@
 # Sensors that Use GPIO and GPIO Pin Actuator
 
+This module contains:
+* [gpio.dht_sensor.DhtSensor](#gpiodht_sensordhtsensor)
+* [gpio.ds18x20_sensor.Ds18x20Sensor](#gpiods18x20_sensords18x20sensor)
+* [gpio.rpi_gpio.RpiGpioSensor](#gpiorpi_gpiorpigpiosensor)
+* [gpio.rpi_gpio.RpiGpioActuator](#gpiorpi_gpiorpigpioactuator)
+* [gpio.gpio_led.GpioColorLED](#gpiogpio_ledgpiocolorled)
+
 ## `gpio.dht_sensor.DhtSensor`
 
 A polling sensor that reads temperature and humidity from a DHT11, DHT22, or AM2302 sensor wired to the GPIO pins.
@@ -373,3 +380,71 @@ ActuatorGarageLight:
 Circuit diagram
 
 ![example2](circuit_diagram/example2_circuit.png)
+
+## `gpio.gpio_led.GpioColorLED`
+
+Commands 3 to 4 GPIO pins to control a RGB or RGBW LED via software PWM.
+A recieved command will be sent back on all configured connections to the configured return topic, to keep them up to date.
+
+### Dependencies
+
+The user running sensor_reporter must have permission to access the GPIO pins.
+To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:  `$ sudo adduser sensorReporter gpio`
+
+Depends on RPi.GPIO.
+
+```bash
+sudo pip3 install RPI.GPIO
+```
+
+### Parameters
+
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`Class` | X | `gpio.gpio_led.GpioColorLED` |
+`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
+`Pin` | X | dictionary of pin's | Pin to use as PWM output use sub parameter `Red`, `Green`, `Blue`, `White`, using the pin numbering defined in `PinNumbering` (see below). It is not nessesary to define pin's for all colors.
+`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
+`InitialState` | | dictionary of values 0-100 | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)
+`InvertOut` | | Boolean | Use `True` for common anode LED (default setting). Otherwhise use `False`
+
+### Global parameters
+Can only be set for all GPIO devices (RpiGpioSensor, RpiGpioActuator and GpioColorLED). Global parametes are set in the `DEFAULT` section
+Parameter | Required | Restrictions | Purpose
+-|-|-|-
+`PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
+
+### Outputs / Inputs
+The GpioColorLED has only one output and input.
+The input expects 3 comma separated values as command. 
+The values will set the LED color in HSV colorspace, e.g. `h,s,v`.
+If the white pin is configured and the second value (saturation) = 0 then only the white LED will shine.
+The output will replay the LED color state in the same format.
+When using with the openHAB connection configure a color item.
+
+### Example Config
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
+
+Connection_openHAB:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
+    
+ActuatorRgbLED:
+    Class: gpio.gpio_led.GpioColorLED
+    Pin:
+        Red: 5
+        Blue: 13
+        Green: 6
+        White: 7
+    InitialState:
+        White: 100
+    Connections:
+        openHAB:
+            Item: eg_w_color_led
+    Level: DEBUG
+```

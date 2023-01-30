@@ -57,6 +57,13 @@ class Sensor(ABC):
         set_log_level(dev_cfg, self.log)
 
 
+    def _register(self, comm):
+        """Protected method to register the sensor outputs to a connection
+        which supports auto discover
+        """
+        for (conn, comm_conn) in comm.items():
+            self.publishers[conn].register(comm_conn, None)
+
     def check_state(self):
         """Called to check the latest state of sensor and publish it. If not
         overridden it just calls publish_state().

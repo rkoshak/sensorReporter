@@ -1,6 +1,8 @@
 # Network Sensors
 
 Sensors that operate at the network level including an ARP table scanner and an Amazon Dash Button detector.
+* [network.arp_sensor.ArpSensor](#networkarp_sensorarpsensor)
+* [network.dash_sensor.DashSensor](#networkdash_sensordashsensor)
 
 ## `network.arp_sensor.ArpSensor`
 

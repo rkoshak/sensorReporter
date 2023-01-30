@@ -1,6 +1,9 @@
 # Bluetooth
 
-This module contains three bluetooth sensors.
+This module contains three bluetooth sensors:
+* [bt.btle_sensor.BtleSensor](#btbtle_sensorbtlesensor)
+* [bt.btscan_sensor.SimpleBtSensor](#btbtscan_sensorsimplebtsensor)
+* [bt.govee_sensor.GoveeSensor](#btgovee_sensorgoveesensor)
 
 ## Find address for Bluetooth device
 
