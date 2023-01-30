@@ -1,12 +1,6 @@
-chimera.ini
-hydra.ini
-garage.ini
 *.pyc
-sensorReporter.ini
-sensor_reporter.yml
-cerberos.ini
-manticore.ini
-iphoned.sh
 *.swp
 __pycache__
 .vscode/settings.json
+.idea
+sensor_reporter.yml
