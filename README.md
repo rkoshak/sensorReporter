@@ -12,26 +12,28 @@ A number of connections, sensors, and actuators are currently supported.
 
 Go into the subfolders for details in each subfolder's README.
 
-Plug-in | Type | Purpose
--|-|-
-`bt.btle_sensor.BtleSensor` | Background Sensor | Scans for BTLE advertisements from configured devices.
-`bt.btscan_sensor.SimpleBtSensor` | Polling Sensor | Scans for the presence of BT devices with a given addresses.
-`bt.btscan_sensor.BtRssiSensor` | Polling Sensor | Scans for a device with a given address and if it sees it enough reporte it present or absent if it doesn't.
-`bt.govee_sensor.GoveeSensor` | Background Sensor | Receives BTLE packets from Govee H5075 temperature and humidity sensors.
-`exec.exec_actuator.ExecActuator` | Actuator | On command, executes the configured command line command.
-`exec.exec_sensor.ExecSensor` | Polling Sensor | Executes the configured command line and publishes the result.
-`gpio.dht_sensor.DhtSensor` | Polling Sensor | Publishes temperature and humidity readings from DHT11, DHT22, and AM2302 sensors connected to GPIO pins.
-`gpio.ds18x20_sensor.Ds18x20Sensor` | Polling Sensor | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.
-`gpio.rpi_gpio.RpiGpioSensor` | Polling or Background Sensor | Publsihes ON/OFF messages based on the state of a GPIO pin.
-`gpio.rpi_gpio.RpiGpioActuator` | Actuator | Sets a GPIO pin to a given state on command.
-`heartbeat.heartbeat.Heartbeat` | Polling Sensor | Publishes the amount of time sensor_reporter has been up as number of msec and as DD:HH:MM:SS.
-`local.local_conn.LocalConnection` | Connection | Allows sensors to call actuators.
-`mqtt.mqtt_conn.MqttConnection` | Connectioln | Allows Actuators to subscribe and publish and Sensors to publish results.
-`network.arp_sensor.ArpSensor` | Polling Sensor | Periodically gets and parses the ARP table for given mac addresses.
-`network.dash_sensor.DashSensor` | Background Sensor | Watches for Amazon Dash Button ARP packets.
-`openhab_rest.rest_conn.OpenhabREST` | Connection | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.
-`energymeter.read_meter_values.Pafal20ec3gr` | Polling Sensor | Periodically reads out an energymeter using serial device. Currently only Pafal 20ec3gr supported.
-`roku.roku_addr.RokuAddressSensor` | Polling Sensor | Periodically requests the addresses of all the Rokus on the subnet.
+| Plug-in                                                                                                   | Type                          | Purpose                                                                                                   |
+|---------------------------------------------------------------------------------------------------------- |-------------------------------|---------------------------------------------------------------------------------------------------------- |
+| [`bt.btle_sensor.BtleSensor`](bt/README.md#btbtle_sensorbtlesensor)                                       | Background Sensor             | Scans for BTLE advertisements from configured devices.                                                    |
+| [`bt.btscan_sensor.SimpleBtSensor`](bt/README.md#btbtscan_sensorsimplebtsensor)                           | Polling Sensor                | Scans for the presence of BT devices with a given addresses.                                              |
+| [`bt.govee_sensor.GoveeSensor`](bt/README.md#btgovee_sensorgoveesensor)                                   | Background Sensor             | Receives BTLE packets from Govee H5075 temperature and humidity sensors.                                  |
+| [`energymeter.read_meter_values.Pafal20ec3gr`](energymeter/README.md#pafal_readerpafal_readerpafalreader) | Polling Sensor                | Periodically reads out an energymeter using serial device. Currently only Pafal 20ec3gr supported.        |
+| [`exec.exec_actuator.ExecActuator`](exec/README.md#execexec_actuatorexecactuator)                         | Actuator                      | On command, executes the configured command line command.                                                 |
+| [`exec.exec_sensor.ExecSensor`](exec/README.md#execexec_sensorexecsensor)                                 | Polling Sensor                | Executes the configured command line and publishes the result.                                            |
+| [`gpio.dht_sensor.DhtSensor`](gpio/README.md#gpiodht_sensordhtsensor)                                     | Polling Sensor                | Publishes temperature and humidity readings from DHT11, DHT22, and AM2302 sensors connected to GPIO pins. |
+| [`gpio.ds18x20_sensor.Ds18x20Sensor`](gpio/README.md#gpiods18x20_sensords18x20sensor)                     | Polling Sensor                | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.         |
+| [`gpio.rpi_gpio.RpiGpioSensor`](gpio/README.md#gpiorpi_gpiorpigpiosensor)                                 | Polling or Background Sensor  | Publsihes ON/OFF messages based on the state of a GPIO pin.                                               |
+| [`gpio.rpi_gpio.RpiGpioActuator`](gpio/README.md#gpiorpi_gpiorpigpioactuator)                             | Actuator                      | Sets a GPIO pin to a given state on command.                                                              |
+| [`gpio.gpio_led.GpioColorLED`](gpio/README.md#gpiogpio_ledgpiocolorled)                                   | Actuator                      | Commands 3 to 4 GPIO pins to control a RGB or RGBW LED                                                    |
+| [`heartbeat.heartbeat.Heartbeat`](heartbeat/README.md#heartbeatheartbeatheartbeat)                        | Polling Sensor                | Publishes the amount of time sensor_reporter has been up as number of msec and as DD:HH:MM:SS.            |
+| [`local.local_conn.LocalConnection`](local/README.md#local-connection)                                    | Connection                    | Allows sensors to call actuators.                                                                         |
+| [`local.local_logic.LogicOr`](local/README.md#locallocal_logiclogicor)                                    | Actuator                      | Forwards commands from multiple inputs locally to an actuator.                                            |
+| [`mqtt.mqtt_conn.MqttConnection`](mqtt/README.md#mqtt-connection)                                         | Connection                    | Allows Actuators to subscribe and publish and Sensors to publish results to a MQTT server.                |
+| [`mqtt.homie_conn.HomieConnection`](mqtt/README.md#homie-connection)                                      | Connection                    | Subscribe and publish sensors and actuators to a MQTT server via Homie convention.                        |
+| [`network.arp_sensor.ArpSensor`](network/README.md#networkarp_sensorarpsensor)                            | Polling Sensor                | Periodically gets and parses the ARP table for given mac addresses.                                       |
+| [`network.dash_sensor.DashSensor`](network/README.md#networkdash_sensordashsensor)                        | Background Sensor             | Watches for Amazon Dash Button ARP packets.                                                               |
+| [`openhab_rest.rest_conn.OpenhabREST`](openhab_rest/README.md#openhab-rest-connection)                    | Connection                    | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.               |
+| [`roku.roku_addr.RokuAddressSensor`](roku/README.md#roku-address-sensor-deprecated)                       | Polling Sensor                | Periodically requests the addresses of all the Rokus on the subnet.                                       |
 
 
 # Architecture

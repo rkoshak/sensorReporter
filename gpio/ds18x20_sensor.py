@@ -18,7 +18,7 @@ Note that the 1-Wire bus must be enabled on the system to use this sensor.
 import os
 import yaml
 from core.sensor import Sensor
-from core.utils import verify_connections_layout
+from core.utils import verify_connections_layout, configure_device_channel, ChanType
 
 # constants
 OUT_TEMP = "Temperature"
@@ -82,6 +82,12 @@ class Ds18x20Sensor(Sensor):
 
         if self.smoothing:
             self.temp_readings = [None] * 5
+
+        #configure_output for homie etc. after debug output, so self.comm is clean
+        configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
+                                 datatype=ChanType.FLOAT, name="temperatur reading",
+                                 unit='°C' if self.temp_unit=='C' else '°F')
+        self._register(self.comm)
 
     def publish_state(self):
         """Acquires the current reading. If the value is reasonable (temp between
