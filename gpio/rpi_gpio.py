@@ -328,7 +328,7 @@ class RpiGpioActuator(Actuator):
         if not self.sim_button:
             if msg in ("ON", "OFF"):
                 if self.current_state == strtobool(msg):
-                    self.log.info("%s revieved command %s"
+                    self.log.info("%s received command %s"
                                   " which is equal to current output state. Ignoring command!",
                                   self.name, msg)
                     return

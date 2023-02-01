@@ -16,7 +16,6 @@ Plug-in | Type | Purpose
 -|-|-
 `bt.btle_sensor.BtleSensor` | Background Sensor | Scans for BTLE advertisements from configured devices.
 `bt.btscan_sensor.SimpleBtSensor` | Polling Sensor | Scans for the presence of BT devices with a given addresses.
-`bt.btscan_sensor.BtRssiSensor` | Polling Sensor | Scans for a device with a given address and if it sees it enough reporte it present or absent if it doesn't.
 `bt.govee_sensor.GoveeSensor` | Background Sensor | Receives BTLE packets from Govee H5075 temperature and humidity sensors.
 `exec.exec_actuator.ExecActuator` | Actuator | On command, executes the configured command line command.
 `exec.exec_sensor.ExecSensor` | Polling Sensor | Executes the configured command line and publishes the result.
@@ -24,9 +23,12 @@ Plug-in | Type | Purpose
 `gpio.ds18x20_sensor.Ds18x20Sensor` | Polling Sensor | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.
 `gpio.rpi_gpio.RpiGpioSensor` | Polling or Background Sensor | Publsihes ON/OFF messages based on the state of a GPIO pin.
 `gpio.rpi_gpio.RpiGpioActuator` | Actuator | Sets a GPIO pin to a given state on command.
+`gpio.gpio_led.GpioColorLED` | Actuator | Commands 3 to 4 GPIO pins to control a RGB or RGBW LED
 `heartbeat.heartbeat.Heartbeat` | Polling Sensor | Publishes the amount of time sensor_reporter has been up as number of msec and as DD:HH:MM:SS.
 `local.local_conn.LocalConnection` | Connection | Allows sensors to call actuators.
-`mqtt.mqtt_conn.MqttConnection` | Connectioln | Allows Actuators to subscribe and publish and Sensors to publish results.
+`local.local_logic.LogicOr` | Actuator | Forwards commands from multiple inputs locally to an actuator.
+`mqtt.mqtt_conn.MqttConnection` | Connection | Allows Actuators to subscribe and publish and Sensors to publish results to a MQTT server.
+`mqtt.homie_conn.HomieConnection` | Connection | Subscribe and publish sensors and actuators to a MQTT server via Homie convention.
 `network.arp_sensor.ArpSensor` | Polling Sensor | Periodically gets and parses the ARP table for given mac addresses.
 `network.dash_sensor.DashSensor` | Background Sensor | Watches for Amazon Dash Button ARP packets.
 `openhab_rest.rest_conn.OpenhabREST` | Connection | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.
