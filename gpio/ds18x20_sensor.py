@@ -83,7 +83,7 @@ class Ds18x20Sensor(Sensor):
         if self.smoothing:
             self.temp_readings = [None] * 5
 
-        #configure_output for homie etc. after debug output, so self.comm is clean
+        # Configure_output for homie etc. after debug output, so self.comm is clean
         configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
                                  datatype=ChanType.FLOAT, name="temperatur reading",
                                  unit='°C' if self.temp_unit=='C' else '°F')
