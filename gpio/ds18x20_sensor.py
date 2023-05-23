@@ -87,7 +87,7 @@ class Ds18x20Sensor(Sensor):
         # Configure_output for homie etc. after debug output, so self.comm is clean
         configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
                                  datatype=ChanType.FLOAT, name="temperatur reading",
-                                 unit="C" + self.temp_unit)
+                                 unit="°" + self.temp_unit)
         self._register(self.comm)
 
     def publish_state(self):
