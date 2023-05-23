@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Contains Ds18x20Sensor, a sensor that reads DS18S20 or DS18B20 1-Wirebus temp sensors.
 Reading of the sensor is accomplished using the system's 1-Wire bus driver.
 Note that the 1-Wire bus must be enabled on the system to use this sensor.
@@ -86,7 +87,7 @@ class Ds18x20Sensor(Sensor):
         # Configure_output for homie etc. after debug output, so self.comm is clean
         configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
                                  datatype=ChanType.FLOAT, name="temperatur reading",
-                                 unit='°C' if self.temp_unit=='C' else '°F')
+                                 unit="C" + self.temp_unit)
         self._register(self.comm)
 
     def publish_state(self):
