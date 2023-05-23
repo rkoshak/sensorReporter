@@ -92,16 +92,18 @@ class OpenhabREST(Connection):
         - message: the message to process / publish, expected type <string>
         - comm_conn: dictionary containing only the parameters for the called connection,
                      e. g. information where to publish
-        - trigger: optional, specifies what event triggerd the publish,
+        - trigger: optional, specifies what event triggered the publish,
                    defines the subdirectory in comm_conn to look for the return topic"""
         self.reciever.start_watchdog()
 
-        #if trigger is in the communication dict parse it's contens
+        #if trigger is in the communication dict parse it's contents
         local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
         destination = local_comm.get('Item')
+
         #if trigger (output) is not present in comm_conn, Item will be None
         if destination is None:
             return
+
         try:
             self.log.debug("Publishing message %s to %s", message, destination)
             # openHAB 2.x doesn't need the Content-Type header

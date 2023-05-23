@@ -120,8 +120,9 @@ Publishes to a MQTT connection with name `MQTT`:
 SensorTempOutside:
     Class: gpio.ds18x20_sensor.Ds18x20Sensor
     Connections:
-      MQTT:
-        StateDest: temp/outside
+        MQTT:
+            Temperature:
+                StateDest: temp/outside
     Poll: 10
     Mac: 28-a66c801e64ff
 ```

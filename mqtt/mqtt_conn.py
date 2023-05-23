@@ -131,16 +131,19 @@ class MqttConnection(Connection):
         - message: the message to process / publish
         - comm_conn: dictionary containing only the parameters for the called connection,
                      e. g. information where to publish
-        - trigger: optional, specifies what event triggerd the publish,
+        - trigger: optional, specifies what event triggered the publish,
                    defines the subdirectory in comm_conn to look for the return topic"""
-        #if trigger is in the communication dict parse it's contens
+        #if trigger is in the communication dict parse it's contents
         local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
 
         destination = local_comm.get('StateDest')
         retain = local_comm.get('Retain', False)
-        #make 'StatusDest' optional
-        if destination:
-            self._publish_mqtt(message, destination, retain)
+
+        #if trigger (output) is not present in comm_conn, StateDest will be None
+        if destination is None:
+            return
+
+        self._publish_mqtt(message, destination, retain)
 
     def _publish_mqtt(self, message, topic, retain):
         try:
