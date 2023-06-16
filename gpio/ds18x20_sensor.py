@@ -78,8 +78,8 @@ class Ds18x20Sensor(Sensor):
         if self.smoothing:
             self.temp_readings = [None] * 5
 
-        #verify configured connection during init, so errors occur immediatly
-        #since no triggers are specified this sensor doesn't allows to configure output channels
+        #verify configured connections during init, so errors occur immediatly
+        #this sensor doesn't allows to configure output channels, check non is present
         verify_connections_layout(self.comm, self.log, self.name)
         self.log.info("Sensor %s created, setting parameters.", self.name)
         self.log.debug("%s will report to following connections:\n%s",

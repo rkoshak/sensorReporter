@@ -128,7 +128,7 @@ class RpiGpioSensor(Sensor):
 
         self.btn = ButtonPressCfg(dev_cfg, self)
 
-        #verify that defined Triggers in Connections section are valid!
+        #verify that defined output channels in Connections section are valid!
         verify_connections_layout(self.comm, self.log, self.name,
                                   [OUT_SWITCH, OUT_SHORT_PRESS, OUT_LONG_PRESS])
 
@@ -300,8 +300,9 @@ class RpiGpioActuator(Actuator):
             else:
                 self.current_state = self.init_state
 
-        #verify that defined Triggers in Connections section are valid
-        verify_connections_layout(self.comm, self.log, self.name, [])
+        #verify configured connections during init, so errors occur immediatly
+        #this sensor doesn't allows to configure output channels, check non is present
+        verify_connections_layout(self.comm, self.log, self.name)
 
         self.log.info("Configued RpiGpioActuator %s: pin %d (%s) on with SimulateButton %s",
                       self.name, self.pin, self.gpio_mode, self.sim_button)

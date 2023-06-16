@@ -119,8 +119,8 @@ class GpioColorLED(Actuator):
                                "Make sure the pin number is correct. Error Message: %s",
                                self.name, self.pin, self.gpio_mode, err)
 
-        #verify that defined Triggers in Connections section are valid
-        verify_connections_layout(self.comm, self.log, self.name, [])
+        #verify that defined output channels in Connections section are valid
+        verify_connections_layout(self.comm, self.log, self.name)
 
         self.log.info("Configued GpioColorLED %s: pin numbering %s, and pins\n%s",
                       self.name, self.gpio_mode, self.pin)

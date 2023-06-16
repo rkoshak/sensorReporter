@@ -41,18 +41,22 @@ class Connection(ABC):
         set_log_level(conn_cfg, self.log)
 
     @abstractmethod
-    def publish(self, message, comm_conn, trigger=None):
+    def publish(self, message, comm_conn, output_name=None):
         """Abstarct method that must be overriden. When called, send the passed
         in message to the passed in comm(unication)_conn(ection) related dictionary.
-        An trigger can be specified optional so the connection knows what sensor event
-        triggered the publish.
+        An output_name can be specified optional to set a output channel to publish to.
 
         Arguments:
-        - message: the message to process / publish
-        - comm_conn: dictionary containing only the parameters for the called connection,
-                     e. g. information where to publish
-        - trigger: optional, specifies what event triggerd the publish,
-                   defines the subdirectory in comm_conn to look for the return topic
+        - message:     the message to process / publish
+        - comm_conn:   dictionary containing only the parameters for the called connection,
+                       e. g. information where to publish
+        - output_name: optional, the output channel to publish the message to,
+                       defines the subdirectory in comm_conn to look for the return topic.
+                       When defined the output_name must be present
+                       in the sensor YAML configuration:
+                       Connections:
+                           <connection_name>:
+                                <output_name>:
         """
 
     def publish_device_properties(self):

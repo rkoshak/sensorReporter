@@ -76,20 +76,20 @@ class Actuator(ABC):
         resources.
         """
 
-    def _publish(self, message, comm, trigger=None):
+    def _publish(self, message, comm):
         """Protected method that will publish the passed in message to the
-        passed in comm(unicators). Optionally specifie the event trigger
-        so the connection can decide where to publish.
+        passed in comm(unicators).
 
         Arguments:
-        - message: the message to publish
-        - comm: communication dictionary, with information where to publish
-                contains connection named dictionarys for each connection,
-                containing the connection related parameters
-        - trigger: optional, specifies what event triggerd the publish,
-                   defines the subdirectory in comm to look for the return topic"""
+        - message:     the message to publish
+        - comm:        communication dictionary, with information where to publish
+                       contains connection named dictionarys for each connection,
+                       containing the connection related parameters
+        """
         for conn in comm.keys():
-            self.connections[conn].publish(message, comm[conn], trigger)
+            #currently for actuators the connectors don't support the parameter output_name
+            #so we set it to None
+            self.connections[conn].publish(message, comm[conn], None)
 
     def publish_actuator_state(self):
         """Called to publish the current state of the actuator to the publishers.
