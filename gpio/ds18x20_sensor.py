@@ -22,7 +22,6 @@ from core.sensor import Sensor
 from core.utils import verify_connections_layout, configure_device_channel, ChanType
 
 # constants
-OUT_TEMP = "Temperature"
 BASE_DIR = '/sys/bus/w1/devices/'
 SLAVE_FILE = '/w1_slave'
 
@@ -69,11 +68,6 @@ class Ds18x20Sensor(Sensor):
         os.system("modprobe w1-gpio")
         os.system("modprobe w1-therm")
 
-        verify_connections_layout(self.comm, self.log, self.name, OUT_TEMP)
-        self.log.info("Sensor %s created, setting parameters.", self.name)
-        self.log.debug("%s will report to following connections:\n%s",
-                       self.name, yaml.dump(self.comm))
-
         # Default to C. If it's defined and not C or F raises ValueError.
         self.temp_unit = dev_cfg.get("TempUnit", "C")
         if self.temp_unit not in ("C", "F"):
@@ -84,10 +78,16 @@ class Ds18x20Sensor(Sensor):
         if self.smoothing:
             self.temp_readings = [None] * 5
 
+        #verify configured connection during init, so errors occur immediatly
+        #since no triggers are specified this sensor doesn't allows to configure output channels
+        verify_connections_layout(self.comm, self.log, self.name)
+        self.log.info("Sensor %s created, setting parameters.", self.name)
+        self.log.debug("%s will report to following connections:\n%s",
+                       self.name, yaml.dump(self.comm))
+
         # Configure_output for homie etc. after debug output, so self.comm is clean
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_TEMP,
-                                 datatype=ChanType.FLOAT, name="temperatur reading",
-                                 unit="°" + self.temp_unit)
+        configure_device_channel(self.comm, is_output=True, datatype=ChanType.FLOAT,
+                                name="temperatur reading", unit="°" + self.temp_unit)
         self._register(self.comm)
 
     def publish_state(self):
@@ -119,7 +119,7 @@ class Ds18x20Sensor(Sensor):
                     self.temp_readings.pop()
                     self.temp_readings.insert(0, temp)
                     to_send = sum([t for t in self.temp_readings if t]) / 5
-                self._send(to_send, self.comm, OUT_TEMP)
+                self._send(to_send, self.comm)
             else:
                 self.log.warning("%s unreasonable temperature reading of %s "
                                  "dropping it", self.name, temp)
