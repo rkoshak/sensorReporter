@@ -60,8 +60,8 @@ class EightRelayHAT(Actuator):
 
         self.stack = dev_cfg.get("Stack", 0)
 
-        #relays on the HAT are scrambled up, map them correctly
-        # there is no relay 0 but array indexing starts at zero, first index is a filler
+        #relays on the HAT v5.3 are scrambled up, map them correctly
+        #there is no relay 0 but array indexing starts at zero, first index is a filler
         relay_map = [0, 1, 2, 5, 6, 7, 8, 4, 3]
 
         self.relay = int(dev_cfg["Relay"])
