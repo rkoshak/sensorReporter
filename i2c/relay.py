@@ -22,7 +22,7 @@ import datetime
 import yaml
 import lib8relay
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, verify_connections_layout, configure_device_channel, ChanType
+from core.utils import is_toggle_cmd, configure_device_channel, ChanType
 
 def onoff_to_str(output):
     """Converts 1 to "ON" and 1 to "OFF"
@@ -89,9 +89,6 @@ class EightRelayHAT(Actuator):
             self.current_state = None
         else:
             self.current_state = self.init_state
-
-        #verify that defined Triggers in Connections section are valid
-        verify_connections_layout(self.comm, self.log, self.name, [])
 
         self.log.info("Configued EightRelayHAT %s: Stack %d, Relay %d (%s) with SimulateButton %s",
                       self.name, self.stack, self.relay,
