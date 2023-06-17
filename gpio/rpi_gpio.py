@@ -300,10 +300,6 @@ class RpiGpioActuator(Actuator):
             else:
                 self.current_state = self.init_state
 
-        #verify configured connections during init, so errors occur immediatly
-        #this sensor doesn't allows to configure output channels, check non is present
-        verify_connections_layout(self.comm, self.log, self.name)
-
         self.log.info("Configued RpiGpioActuator %s: pin %d (%s) on with SimulateButton %s",
                       self.name, self.pin, self.gpio_mode, self.sim_button)
         self.log.debug("%s has following configured connections: \n%s",

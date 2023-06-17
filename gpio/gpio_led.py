@@ -20,7 +20,7 @@ import colorsys
 import yaml
 from RPi import GPIO
 from core.actuator import Actuator
-from core.utils import verify_connections_layout, configure_device_channel, ChanType
+from core.utils import configure_device_channel, ChanType
 from gpio.rpi_gpio import set_gpio_mode
 
 #constants
@@ -53,7 +53,7 @@ class GpioColorLED(Actuator):
             Blue: z
             White: 100
         PWM-Frequency: 100  #the frequecy for the PWM for all pin's
-        InvertOut: True     #whether to invert the output, true for common anode LED's 
+        InvertOut: True     #whether to invert the output, true for common anode LED's
         Connections:        #the connections dict
             xxx
         """
@@ -119,9 +119,6 @@ class GpioColorLED(Actuator):
                                "Make sure the pin number is correct. Error Message: %s",
                                self.name, self.pin, self.gpio_mode, err)
 
-        #verify that defined output channels in Connections section are valid
-        verify_connections_layout(self.comm, self.log, self.name)
-
         self.log.info("Configued GpioColorLED %s: pin numbering %s, and pins\n%s",
                       self.name, self.gpio_mode, self.pin)
         self.log.debug("%s LED's set to: %s and has following configured connections: \n%s",
@@ -140,7 +137,7 @@ class GpioColorLED(Actuator):
         self._register(self.comm, None)
 
     def on_message(self, msg):
-        """Called when the actuator receives a message. 
+        """Called when the actuator receives a message.
         Changes LED PWM duty cycle according to the message.
         Expects comma separated values formated as HSV color: 'h,s,v'
         """
