@@ -251,8 +251,9 @@ def configure_device_channel(comm:dict, *, is_output:bool,
     can register the device correctly.
 
     Call this method once for each output the sensor has once, to register all output channel.
-    Currently only actuators with one input and output are supported, so one call to
+    For actuators, only one input and output is currently supported, so one call to
     this method is sufficient.
+    After calling this method, self._register() must be called, see the example below.
 
     Parameters:
     - comm:         the connections dictionary of the device
@@ -261,7 +262,7 @@ def configure_device_channel(comm:dict, *, is_output:bool,
 
     Optional Parameters:
     - output_name:  the name used to publish messages by _send() and _publish().
-                    For sensors specifie the name of the output channel if more than one used
+                    For sensors: specifie the name of the output channel if more than one used
                     otherweise don't use this parameter.
                     For actuators: don't use this parameter
     - datatype:     the type of the data the device will publish or revieve:
@@ -279,12 +280,18 @@ def configure_device_channel(comm:dict, *, is_output:bool,
                     the homie convention named this "format"
 
     It is required to write the parameter name out, when calling this method
-    Example from the RpiGpioActuator:
-
+    ==Example from RpiGpioActuator==
     configure_device_channel(self.comm, is_output=False,
                              name="set digital output", datatype=ChanType.ENUM,
                              restrictions="ON,OFF,TOGGLE")
     self._register(self.comm, None)
+
+    ==Example 2 from heartbeat (sensor)==
+    configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM,
+                                 datatype=ChanType.INTEGER, name="uptime in milliseconds")
+    configure_device_channel(self.comm, is_output=True, output_name=OUT_STRING,
+                             name="uptime in days, hours:min:sec")
+    self._register(self.comm)
     """
 
     for comm_conn in comm.values():
