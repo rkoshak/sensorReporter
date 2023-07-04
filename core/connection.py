@@ -42,7 +42,7 @@ class Connection(ABC):
 
     @abstractmethod
     def publish(self, message, comm_conn, output_name=None):
-        """Abstarct method that must be overriden. When called, send the passed
+        """Abstract method that must be overriden. When called, send the passed
         in message to the passed in comm(unication)_conn(ection) related dictionary.
         An output_name can be specified optional to set a output channel to publish to.
 

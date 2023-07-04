@@ -236,7 +236,7 @@ def verify_connections_layout(comm, log, name, outputs=None):
                             log.warning("%s has unknown outputs '%s' in Connections."
                                         ' Valid outputs are: %s', name, key, outputs)
                     else:
-                        #handle case where outpus is not specified
+                        #handle case where outputs is not specified
                         log.warning("%s has unexpected outputs '%s' in Connections."
                                     ' No outputs are allowed', name, key)
 
@@ -250,7 +250,7 @@ def configure_device_channel(comm:dict, *, is_output:bool,
     so that a connector which supports auto-discover, e. g. homie_conn,
     can register the device correctly.
 
-    Call this method once for each output the sensor has once, to register all output channel.
+    Call this method once for each output the sensor has, to register all output channels.
     For actuators, only one input and output is currently supported, so one call to
     this method is sufficient.
     After calling this method, self._register() must be called, see the example below.
@@ -262,10 +262,10 @@ def configure_device_channel(comm:dict, *, is_output:bool,
 
     Optional Parameters:
     - output_name:  the name used to publish messages by _send() and _publish().
-                    For sensors: specifie the name of the output channel if more than one used
+                    For sensors: specify the name of the output channel if more than one is used
                     otherweise don't use this parameter.
                     For actuators: don't use this parameter
-    - datatype:     the type of the data the device will publish or revieve:
+    - datatype:     the type of the data the device will be published or received:
                     [STRING, INTEGER, FLOAT, BOOLEAN, ENUM, COLOR]
                     use class ChanType, e. g. ChanType.INTEGER
     - unit:         the unit in which the sensor data is published:

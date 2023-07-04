@@ -95,7 +95,7 @@ class LocalConnection(Connection):
                            <connection_name>:
                                 <output_name>:
         """
-        #if output_name is in the communication dict parse it's contens
+        #if output_name is in the communication dict parse it's contents
         local_comm = comm_conn[output_name] if output_name in comm_conn else comm_conn
 
         destination = local_comm.get('StateDest')
