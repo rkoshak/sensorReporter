@@ -85,22 +85,28 @@ class OpenhabREST(Connection):
         self.reciever = None
         connect_oh_rest(self)
 
-    def publish(self, message, comm_conn, trigger=None):
+    def publish(self, message, comm_conn, output_name=None):
         """Publishes the passed in message to the passed in destination as an update.
 
         Arguments:
-        - message: the message to process / publish, expected type <string>
-        - comm_conn: dictionary containing only the parameters for the called connection,
-                     e. g. information where to publish
-        - trigger: optional, specifies what event triggered the publish,
-                   defines the subdirectory in comm_conn to look for the return topic"""
+        - message:     the message to process / publish, expected type <string>
+        - comm_conn:   dictionary containing only the parameters for the called connection,
+                       e. g. information where to publish
+        - output_name: optional, the output channel to publish the message to,
+                       defines the subdirectory in comm_conn to look for the return topic.
+                       When defined the output_name must be present
+                       in the sensor YAML configuration:
+                       Connections:
+                           <connection_name>:
+                                <output_name>:
+        """
         self.reciever.start_watchdog()
 
-        #if trigger is in the communication dict parse it's contents
-        local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
+        #if output_name is in the communication dict parse it's contents
+        local_comm = comm_conn[output_name] if output_name in comm_conn else comm_conn
         destination = local_comm.get('Item')
 
-        #if trigger (output) is not present in comm_conn, Item will be None
+        #if output_name (output) is not present in comm_conn, Item will be None
         if destination is None:
             return
 

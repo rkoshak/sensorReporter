@@ -100,13 +100,13 @@ Reboot the Raspberry Pi.
 
 | Parameter     | Required           | Restrictions                        | Purpose                                                                                                                                                     |
 |---------------|--------------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Class`       | :heavy_check_mark: | `gpio.ds18x20_sensor.Ds18x20Sensor` |                                                                                                                                                             |
-| `Connections` | :heavy_check_mark: | dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                             |
-| `Level`       | :X:                | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                          |
-| `Poll`        | :heavy_check_mark: | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                 |
-| `Mac`         | :heavy_check_mark: |                                     | Full 1-Wire device address. To list all 1-Wire devices, run `ls /sys/bus/w1/devices`. To read a specific one, run `cat /sys/bus/w1/devices/<Mac>/w1_slave`. |
-| `TempUnit`    | :X:                | `F` or `C`                          | Temperature unit to use, defaults to `C`.                                                                                                                   |
-| `Smoothing`   | :X:                | Boolean                             | If `True`, publishes the average of the last five readings instead of each individual reading.                                                              |
+| `Class`       | X                  | `gpio.ds18x20_sensor.Ds18x20Sensor` |                                                                                                                                                             |
+| `Connections` | X                  | dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                             |
+| `Level`       |                    | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                          |
+| `Poll`        | X                  | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                 |
+| `Mac`         | X                  |                                     | Full 1-Wire device address. To list all 1-Wire devices, run `ls /sys/bus/w1/devices`. To read a specific one, run `cat /sys/bus/w1/devices/<Mac>/w1_slave`. |
+| `TempUnit`    |                    | `F` or `C`                          | Temperature unit to use, defaults to `C`.                                                                                                                   |
+| `Smoothing`   |                    | Boolean                             | If `True`, publishes the average of the last five readings instead of each individual reading.                                                              |
 
 ### Outputs
 
@@ -117,12 +117,13 @@ The DS18x20 sensor has only one output, the temperature.
 Publishes to a MQTT connection with name `MQTT`:
 
 ```yaml
+#Logging and connection configuration omitted
+
 SensorTempOutside:
     Class: gpio.ds18x20_sensor.Ds18x20Sensor
     Connections:
         MQTT:
-            Temperature:
-                StateDest: temp/outside
+            StateDest: temp/outside
     Poll: 10
     Mac: 28-a66c801e64ff
 ```

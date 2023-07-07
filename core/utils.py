@@ -208,44 +208,90 @@ def spread_default_parameters(config, dev_cfg):
         if key not in dev_cfg:
             dev_cfg[key] = value
 
-def verify_connections_layout(comm, log, name, triggers=None):
-    """checks if the subdictionaries in the connections section
-    are valid triggers
+def verify_connections_layout(comm, log, name, outputs=None):
+    """
+    Use this method at the end of the sensor initialisation
+    before calling configure_device_channel().
+    Checks the YAML configuration to make sure the subdictionaries
+    in the connections section are valid outputs
 
-    comm: the communications dictionary will all connections
-    log: the log instance of the device
-    name: the name of the device
-    triggers: a list of valid values for device triggers
+    comm:    the communications dictionary with all connections
+    log:     the log instance of the device
+    name:    the name of the device
+    outputs: optional, a list of valid values for device outputs.
+             If omitted, the function will ensure that the YAML
+             configuration does not specify any output channels for the device.
+             Expects the output_names used by a sensor as list e. g.:
+             outputs = [output_name1, output_name2]
     """
     for conn in comm.values():
+        #loop thru all connections
         if isinstance(conn, dict):
             for (key, value) in conn.items():
+                #loop thru sub items of the connections
+                #if sub item is a dict we found a output channel
                 if isinstance(value, dict):
-                    if not key in triggers:
-                        log.warning("%s has unknown outputs '%s' in Connections."
-                                    ' Valid outputs are: %s', name, key, triggers)
+                    if isinstance(outputs, list):
+                        if not key in outputs:
+                            log.warning("%s has unknown outputs '%s' in Connections."
+                                        ' Valid outputs are: %s', name, key, outputs)
+                    else:
+                        #handle case where outputs is not specified
+                        log.warning("%s has unexpected outputs '%s' in Connections."
+                                    ' No outputs are allowed', name, key)
 
 def configure_device_channel(comm:dict, *, is_output:bool,
                                 output_name:str = None, datatype:ChanType = ChanType.STRING,
                                 unit:str = None, name:str = None,
                                 restrictions:str = None):
-    """this method will set default values inside the connections section
-    so a connector which supports auto discover can register the device properly
+    """
+    Use this method at the end of the sensor/actuator initialisation,
+    it sets default values inside the connections section
+    so that a connector which supports auto-discover, e. g. homie_conn,
+    can register the device correctly.
+
+    Call this method once for each output the sensor has, to register all output channels.
+    For actuators, only one input and output is currently supported, so one call to
+    this method is sufficient.
+    After calling this method, self._register() must be called, see the example below.
 
     Parameters:
-    - comm: the connections dictionary of the device
-    - is_output: to select if a output or a input should be configured (set to true for output)
-    - output_name: sensors may have multiple outputs, specifie the name of the output here
-    - datatype: the type of the data the device will publish or revieve:
-                [STRING, INTEGER, FLOAT, BOOLEAN, ENUM, COLOR]
-    - unit: the unit in which the sensor data is published:
-            [°C", °F, °, L, gal, V, W, A, %, m, ft, Pa, psi, #]
-    - name: the full name / description of the input/output
+    - comm:         the connections dictionary of the device
+    - is_output:    to select if a output or a input should be configured.
+                    Set to true for a sensor and false for an actuator
+
+    Optional Parameters:
+    - output_name:  the name used to publish messages by _send() and _publish().
+                    For sensors: specify the name of the output channel if more than one is used
+                    otherweise don't use this parameter.
+                    For actuators: don't use this parameter
+    - datatype:     the type of the data the device will be published or received:
+                    [STRING, INTEGER, FLOAT, BOOLEAN, ENUM, COLOR]
+                    use class ChanType, e. g. ChanType.INTEGER
+    - unit:         the unit in which the sensor data is published:
+                    [°C, °F, °, L, gal, V, W, A, %, m, ft, Pa, psi, #]
+                    e. g. unit = "Pa"
+    - name:         the full name / description of the input/output
+                    this is visible on the connected server e. g. openHAB
     - restrictions: set allowed values for channel
                     for a numeric range e. g. -3:24
                     for possible values for datatype ENUM
                     as comma separated list e.g. 'val1,val2,val3'
                     the homie convention named this "format"
+
+    It is required to write the parameter name out, when calling this method
+    ==Example from RpiGpioActuator==
+    configure_device_channel(self.comm, is_output=False,
+                             name="set digital output", datatype=ChanType.ENUM,
+                             restrictions="ON,OFF,TOGGLE")
+    self._register(self.comm, None)
+
+    ==Example 2 from heartbeat (sensor)==
+    configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM,
+                                 datatype=ChanType.INTEGER, name="uptime in milliseconds")
+    configure_device_channel(self.comm, is_output=True, output_name=OUT_STRING,
+                             name="uptime in days, hours:min:sec")
+    self._register(self.comm)
     """
 
     for comm_conn in comm.values():
