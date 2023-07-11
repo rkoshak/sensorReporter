@@ -75,28 +75,34 @@ class Sensor(ABC):
         implementation is a pass.
         """
 
-    def _send(self, message, comm, trigger=None):
-        """Sends message the the comm(unicators). Optionally specifie the event trigger
-        so the connection can decide where to publish.
+    def _send(self, message, comm, output_name=None):
+        """Sends message the the comm(unicators). Optionally specifie the output_name
+        to set a output channel to publish to.
 
         Arguments:
-        - message: the message to publish as string or dict (generated from get_msg_from_values)
-        - comm: communication dictionary, with information where to publish
-                contains connection named dictionarys for each connection,
-                containing the connection related parameters
-        - trigger: optional, specifies what event triggerd the publish,
-                   defines the subdirectory in comm to look for the return topic"""
+        - message:     the message to publish as string or dict (generated from get_msg_from_values)
+        - comm:        communication dictionary, with information where to publish
+                       contains connection named dictionarys for each connection,
+                       containing the connection related parameters
+        - output_name: optional, the output channel to publish the message to,
+                       defines the subdirectory in comm_conn to look for the return topic.
+                       When defined the output_name must be present
+                       in the sensor YAML configuration:
+                       Connections:
+                           <connection_name>:
+                                <output_name>:
+        """
         #accept regular messages directly
         if not isinstance(message, dict):
             msg = message
 
         for conn in comm.keys():
             #if message is a value_dict from get_msg_from_values, grab the current conn message
-            #use list in default section if conn section is not present 
+            #use list in default section if conn section is not present
             if isinstance(message, dict):
                 msg = message.get(conn, message[DEFAULT_SECTION])
 
-            self.publishers[conn].publish(msg, comm[conn], trigger)
+            self.publishers[conn].publish(msg, comm[conn], output_name)
 
     def cleanup(self):
         """Called when shutting down the sensor, give it a chance to clean up

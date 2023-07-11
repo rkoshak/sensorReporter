@@ -97,7 +97,7 @@ class LogicCore(Actuator):
         self.log.info("%s received %s command for logic actuator",
                       self.name, "enable" if self.enabled else "disable")
 
-    def _publish(self, message, comm, trigger=False):
+    def _publish(self, message, comm, output_name=False):
         """Protected method that will publish the passed in message to the
         passed in destination to all the passed in connections.
 
@@ -114,7 +114,7 @@ class LogicCore(Actuator):
                 msg = message.get(conn, message[DEFAULT_SECTION])
             #only publish to local connections (attrib eq)
             if hasattr(self.connections[conn], LOCAL_CONN_EQUAL_ATTRIB):
-                self.connections[conn].publish(msg, comm[conn], trigger)
+                self.connections[conn].publish(msg, comm[conn], output_name)
 
 class LogicOr (LogicCore):
     """Logical OR gate, can receive from multiple sensors

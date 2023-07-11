@@ -36,8 +36,8 @@ class HomieConnection(MqttConnection):
     Example from the RpiGpioActuator:
 
     configure_device_channel(self.comm, is_output=False,
-                                 name="set digital output", datatype="ENUM",
-                                 restrictions="ON,OFF,TOGGLE")
+                             name="set digital output", datatype=ChanType.ENUM,
+                             restrictions="ON,OFF,TOGGLE")
     self._register(self.comm, None)
      """
 
@@ -84,21 +84,27 @@ class HomieConnection(MqttConnection):
                     })
         self.device.nodes["conn"] = conn_prop
 
-    def publish(self, message, comm_conn, trigger=None):
+    def publish(self, message, comm_conn, output_name=None):
         """Publishes message to destination, logging if there is an error.
 
         Arguments:
-        - message: the message to process / publish
-        - comm_conn: dictionary containing only the parameters for the called connection,
-                     e. g. information where to publish
-        - trigger: optional, specifies what event triggerd the publish,
-                   defines the subdirectory in comm_conn to look for the return topic"""
-        #if trigger is in the communication dict parse it's contens
-        local_comm = comm_conn[trigger] if trigger in comm_conn else comm_conn
+        - message:     the message to process / publish
+        - comm_conn:   dictionary containing only the parameters for the called connection,
+                       e. g. information where to publish
+        - output_name: optional, the output channel to publish the message to,
+                       defines the subdirectory in comm_conn to look for the return topic.
+                       When defined the output_name must be present
+                       in the sensor YAML configuration:
+                       Connections:
+                           <connection_name>:
+                                <output_name>:
+        """
+        #if output_name is in the communication dict parse it's contens
+        local_comm = comm_conn[output_name] if output_name in comm_conn else comm_conn
 
         #build destination for homie devices
         #homie expects for recieved commands that the IN_CMD topic is updated
-        destination = comm_conn['Name'] + "/" + ( trigger if trigger else IN_CMD )
+        destination = comm_conn['Name'] + "/" + ( output_name if output_name else IN_CMD )
 
         retain = True
         if OUT in local_comm.keys():
@@ -106,7 +112,7 @@ class HomieConnection(MqttConnection):
         #homie expects topic in lower case
         self._publish_mqtt(message, destination.lower(), retain)
 
-        if trigger is None:
+        if output_name is None:
             destination = comm_conn['Name'] + "/" + OUT_STATE
             self._publish_mqtt(message, destination.lower(), retain)
 
