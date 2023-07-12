@@ -43,8 +43,8 @@ class EightRelayHAT(Actuator):
 
     def __init__(self, connections, dev_cfg):
         """Initializes the I2C subsystem and sets the relay to the InitialState.
-        If InitialState is not povided in params it defaults to OFF. If
-        "SimulateButton" is defined on any message will result in the relay being set to
+        If InitialState is not povided in params it defaults to OFF.
+        If "SimulateButton" is defined on any message will result in the relay being set to
         ON for half a second and then back to OFF.
 
         Parameters:
@@ -100,7 +100,7 @@ class EightRelayHAT(Actuator):
         self.publish_actuator_state()
 
         configure_device_channel(self.comm, is_output=False,
-                                 name="set digital output", datatype=ChanType.ENUM,
+                                 name="set relay", datatype=ChanType.ENUM,
                                  restrictions="ON,OFF,TOGGLE")
         #the actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
@@ -121,9 +121,7 @@ class EightRelayHAT(Actuator):
                                   self.name, msg)
                     return
             elif is_toggle_cmd(msg):
-                # If the string has length 26 and the char at index 10
-                # is T then its porbably a ISO 8601 formated datetime value,
-                # which was send from RpiGpioSensor
+                # remember time for toggle debounce
                 time_now = datetime.datetime.now()
                 seconds_since_toggle = (time_now - self.last_toggle).total_seconds()
                 if seconds_since_toggle < self.toggle_debounce:

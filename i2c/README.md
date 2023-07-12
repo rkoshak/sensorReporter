@@ -78,9 +78,7 @@ ActuatorGarageDoor:
     Connections:
         openHAB:
             Item: GarageDoorCmd
-    Stack: 0
     Relay: 1
-    SimulateButton: True
 ```
 
 
