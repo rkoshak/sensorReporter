@@ -34,7 +34,7 @@ Go into the subfolders for details in each subfolder's README.
 | [`network.dash_sensor.DashSensor`](network/README.md#networkdash_sensordashsensor)                        | Background Sensor             | Watches for Amazon Dash Button ARP packets.                                                               |
 | [`openhab_rest.rest_conn.OpenhabREST`](openhab_rest/README.md#openhab-rest-connection)                    | Connection                    | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.               |
 | [`roku.roku_addr.RokuAddressSensor`](roku/README.md#roku-address-sensor-deprecated)                       | Polling Sensor                | Periodically requests the addresses of all the Rokus on the subnet.                                       |
-
+| [`ic2.relay.EightRelayHAT`](i2c/README.md#i2crelayeightrelayhat)                                          | Actuator                      | Sets a relay to a given state on command. Supports 8-Relays-HAT via i2c                                   |
 
 # Architecture
 The main script is `sensor_reporter` which parses a configuration YAML file and handles operating system signal handling.
