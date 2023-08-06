@@ -21,14 +21,14 @@ Toggle events, e.g. from a RpiGpioSensor will get forwarded in any case.
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `local.local_conn.LocalConnection` |
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
-`Name` | X | | Name used to reference this connection in Actuators and Sensor's Connection parameter.
-`OnEq` | | String, use ' ' | Sends an ON message to the actuator(s) when the sensor value matches this parameter. 
-`OnGt` | | Number | Sends an ON message to the actuator(s) when sensor value is greater than this parameter.
-`OnLt` | | Number | Sends an ON message to the actuator(s) when the sensor value is lower than this parameter.
+| Parameter | Required | Restrictions                       | Purpose                                                                                    |
+|-----------|----------|------------------------------------|--------------------------------------------------------------------------------------------|
+| `Class`   | X        | `local.local_conn.LocalConnection` |                                                                                            |
+| `Level`   |          | DEBUG, INFO, WARNING, ERROR        | When provided, sets the logging level for the connection.                                  |
+| `Name`    | X        | Unique to sensor_reporter          | Name used to reference this connection in Actuators and Sensor's Connection parameter.     |
+| `OnEq`    |          | String, use ' '                    | Sends an ON message to the actuator(s) when the sensor value matches this parameter.       |
+| `OnGt`    |          | Number                             | Sends an ON message to the actuator(s) when sensor value is greater than this parameter.   |
+| `OnLt`    |          | Number                             | Sends an ON message to the actuator(s) when the sensor value is lower than this parameter. |
 
 One of `OnEq`, `OnGt`, or `OnLt` need to be present and `True`.
 If more than one is present and `True` the first one marked as `True` is selected in the order listed (e.g. if `OnGt` and `OnLt` are both `True`, `OnGt` will be used and `OnLt` will be ignored).
@@ -41,10 +41,10 @@ If none of the three optional parameters are supplied, the recieved messages wil
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The local connection uses following parameters:
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
-`StateDest` |  |  | optional return topic to publish the current device state / sensor readings. If not present the state won't get published.
+| Parameter    | Required          | Restrictions | Purpose                                                                                                                    |
+|--------------|-------------------|--------------|----------------------------------------------------------------------------------------------------------------------------|
+| `CommandSrc` | yes for actuators |              | specifies the topic to subscribe for actuator events                                                                       |
+| `StateDest`  |                   |              | optional return topic to publish the current device state / sensor readings. If not present the state won't get published. |
 
 #### Dictionary of connectors layout
 To configure a local connection in a sensor / actuator use following layout:

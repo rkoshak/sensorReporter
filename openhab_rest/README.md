@@ -16,24 +16,24 @@ sudo pip3 install sseclient-py
 
 ## Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `openhab_rest.rest_conn.OpenhabREST` |
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
-`Name` | X | | Unique to sensor_reporter | Name for the connection, used in the list of Connections for Actuators and Sensors.
-`URL` | X | http URL | The base URL and port of the openHAB instance.
-`RefreshItem` | X | | Name of a Switch Item; sending an ON command to the Item will cause sensor_reporter to publish the most recent state of all the sensors.
-`openHAB-Version` | | float | Version of the OpenHAB server to connect to as floating point figure. Default is '2.0'.
-`API-Token` | | | The API token generated on the [web interface](https://www.openhab.org/docs/configuration/apitokens.html). Only needed if 'settings > API-security > implicit user role (advanced settings)' is disabled. If no API token is specified sensor_reporter tries to connect without authentication.
+| Parameter         | Required | Restrictions                         | Purpose                                                                                                                                                                                                                                                                                         |
+|-------------------|----------|--------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`           | X        | `openhab_rest.rest_conn.OpenhabREST` |                                                                                                                                                                                                                                                                                                 |
+| `Level`           |          | DEBUG, INFO, WARNING, ERROR          | When provided, sets the logging level for the connection.                                                                                                                                                                                                                                       |
+| `Name`            | X        | Unique to sensor_reporter            | Name for the connection, used in the list of Connections for Actuators and Sensors.                                                                                                                                                                                                             |
+| `URL`             | X        | http URL                             | The base URL and port of the openHAB instance.                                                                                                                                                                                                                                                  |
+| `RefreshItem`     | X        |                                      | Name of a Switch Item; sending an ON command to the Item will cause sensor_reporter to publish the most recent state of all the sensors.                                                                                                                                                        |
+| `openHAB-Version` |          | float                                | Version of the OpenHAB server to connect to as floating point figure. Default is '2.0'.                                                                                                                                                                                                         |
+| `API-Token`       |          |                                      | The API token generated on the [web interface](https://www.openhab.org/docs/configuration/apitokens.html). Only needed if 'settings > API-security > implicit user role (advanced settings)' is disabled. If no API token is specified sensor_reporter tries to connect without authentication. |
 
 ### Actuator / sensor relevant parameters
 
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The openHAB REST connection uses following parameters:
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Item` | yes | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands
+| Parameter | Required | Restrictions                    | Purpose                                                                                                                                                                                                                |
+|-----------|----------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Item`    | yes      | Alphanumeric & underscores only | specifies the topic to subscribe for actuator events and the return topic to publish the current device state / sensor reading. Device state is published as item update. Actuators are only triggerd on item commands |
 
 ### Dictionary of connectors layout
 To configure a openHAB REST connection in a sensor / actuator use following layout:

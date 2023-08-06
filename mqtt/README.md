@@ -19,21 +19,21 @@ sudo pip3 install paho-mqtt
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `mqtt.mqtt_conn.MqttConnection` |
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
-`Name` | X | | Unique to sensor_reporter | Name for the connection, used in the list of Connections for Actuators and Sensors.
-`Client` | X | Unique to the broker | Name used when connecting to the MQTT broker.
-`User` | X | | MQTT broker login name.
-`Password` | X | | Password for the broker login.
-`Host` | X | | Hostname or IP address for the MQTT broker.
-`Port` | X | Integer | Port number the MQTT broker is listening on.
-`Keepalive` | X | Seconds | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed.
-`RootTopic` | X | Valid MQTT topic, no wild cards | Serves as the root topic for all the messages published. For example, if an RpiGpioSensor has a destination "back-door", the actual topic published to will be `<RootTopic>/back-door`.
-`TLS` | | Boolean | If set to `True`, will use TLS encryption in the connection to the MQTT broker.  
-`CAcert` | | String | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.  
-`TLSinsecure` | | Boolean | Optional parameter to configure verification of the server hostname in the server certificate. Default is `False`.  
+| Parameter     | Required | Restrictions                    | Purpose                                                                                                                                                                                              |
+|---------------|----------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `mqtt.mqtt_conn.MqttConnection` |                                                                                                                                                                                                      |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR     | When provided, sets the logging level for the connection.                                                                                                                                            |
+| `Name`        | X        | Unique to sensor_reporter       | Name for the connection, used in the list of Connections for Actuators and Sensors.                                                                                                                  |
+| `Client`      | X        | Unique to the broker            | Name used when connecting to the MQTT broker.                                                                                                                                                        |
+| `User`        | X        |                                 | MQTT broker login name.                                                                                                                                                                              |
+| `Password`    | X        |                                 | Password for the broker login.                                                                                                                                                                       |
+| `Host`        | X        |                                 | Hostname or IP address for the MQTT broker.                                                                                                                                                          |
+| `Port`        | X        | Integer                         | Port number the MQTT broker is listening on.                                                                                                                                                         |
+| `Keepalive`   | X        | Seconds                         | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed. |
+| `RootTopic`   | X        | Valid MQTT topic, no wild cards | Serves as the root topic for all the messages published. For example, if an RpiGpioSensor has a destination "back-door", the actual topic published to will be `<RootTopic>/back-door`.              |
+| `TLS`         |          | Boolean                         | If set to `True`, will use TLS encryption in the connection to the MQTT broker.                                                                                                                      |
+| `CAcert`      |          | String                          | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.                                                                     |
+| `TLSinsecure` |          | Boolean                         | Optional parameter to configure verification of the server hostname in the server certificate. Default is `False`.                                                                                   |
 
 There are two hard coded topics the Connection will use:
 
@@ -45,11 +45,11 @@ There are two hard coded topics the Connection will use:
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The MQTT connection uses following parameters:
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`CommandSrc` | yes for actuators |  | specifies the topic to subscribe for actuator events
-`StateDest` |  |  | return topic to publish the current device state / sensor readings. If not present the state won't get published.
-`Retain` |  | boolean | If True, MQTT will publish messages with the retain flag. Default is False.
+| Parameter    | Required          | Restrictions | Purpose                                                                                                           |
+|--------------|-------------------|--------------|-------------------------------------------------------------------------------------------------------------------|
+| `CommandSrc` | yes for actuators |              | specifies the topic to subscribe for actuator events                                                              |
+| `StateDest`  |                   |              | return topic to publish the current device state / sensor readings. If not present the state won't get published. |
+| `Retain`     |                   | boolean      | If True, MQTT will publish messages with the retain flag. Default is False.                                       |
 
 #### Dictionary of connectors layout
 To configure a MQTT connection in a sensor / actuator use following layout:
@@ -123,21 +123,21 @@ $ sudo pip3 install homie-spec
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `mqtt.homie_conn.HomieConnection` |
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the connection.
-`Name` | X | | Unique to sensor_reporter | Name for the connection, used in the list of Connections for Actuators and Sensors.
-`Client` |  | Unique to the broker | Name used when connecting to the MQTT broker. If not defined the `DeviceID` is used.
-`User` | X | | MQTT broker login name.
-`Password` | X | | Password for the broker login.
-`Host` | X | | Hostname or IP address for the MQTT broker.
-`Port` | X | Integer | Port number the MQTT broker is listening on.
-`Keepalive` | X | Seconds | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed.
-`DeviceID` | X | Unique Homie name, a-z, 0-9 | This name will show up in the auto discover / inbox of the home automation software e. g. openHAB
-`TLS` | | Boolean | If set to `True`, will use TLS encryption in the connection to the MQTT broker.  
-`CAcert` | | String | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.  
-`TLSinsecure` | | Boolean | Optional parameter to configure verification of the server hostname in the server certificate. Default is `False`.  
+|   Parameter   | Required | Restrictions                          | Purpose                                                                                                                                                                                              |
+|---------------|----------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `mqtt.homie_conn.HomieConnection`     |                                                                                                                                                                                                      |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR           | When provided, sets the logging level for the connection.                                                                                                                                            |
+| `Name`        | X        | Unique to sensor_reporter             | Name for the connection, used in the list of Connections for Actuators and Sensors.                                                                                                                  |
+| `Client`      |          | Unique to the broker                  | Name used when connecting to the MQTT broker. If not defined the `DeviceID` is used.                                                                                                                 |
+| `User`        | X        |                                       | MQTT broker login name.                                                                                                                                                                              |
+| `Password`    | X        |                                       | Password for the broker login.                                                                                                                                                                       |
+| `Host`        | X        |                                       | Hostname or IP address for the MQTT broker.                                                                                                                                                          |
+| `Port`        | X        | Integer                               | Port number the MQTT broker is listening on.                                                                                                                                                         |
+| `Keepalive`   | X        | Seconds                               | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed. |
+| `DeviceID`    | X        | Unique Homie name, a-z, 0-9, "-", "_" | This name will show up in the auto discover / inbox of the home automation software e. g. openHAB                                                                                                    |
+| `TLS`         |          | Boolean                               | If set to `True`, will use TLS encryption in the connection to the MQTT broker.                                                                                                                      |
+| `CAcert`      |          | String                                | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.                                                                     |
+| `TLSinsecure` |          | Boolean                               | Optional parameter to configure verification of the server hostname in the server certificate. Default is `False`.                                                                                   |
 
 There are two hard coded topics the Connection will use:
 
@@ -149,10 +149,10 @@ There are two hard coded topics the Connection will use:
 To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The Homie connection uses following parameters:
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Name` | x | a-Z, 0-9 | Specifies the visible name for the device
-`Type` |  |  | Type of the device (homie node), might change the behavior of the smart home server. (default value is empty string '')
+| Parameter | Required | Restrictions       | Purpose                                                                                                                                                                                                            |
+|-----------|----------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Name`    | X        | a-Z, 0-9, "-", "_" | Specifies the visible name for the device                                                                                                                                                                          |
+| `Type`    |          |                    | Type of the device (homie node, see $type in [Node Attributes](https://homieiot.github.io/specification/#node-attributes)), might change the behavior of the smart home server. (default value is empty string '') |
 
 #### Dictionary of connectors layout
 To configure a Homie connection in a sensor / actuator use following layout:
