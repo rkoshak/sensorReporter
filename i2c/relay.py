@@ -48,13 +48,15 @@ class EightRelayHAT(Actuator):
         ON for half a second and then back to OFF.
 
         Parameters:
-            - "Stack": Stack Address 0..7
-            - "Relay": Relay No. 1..8
-            - "InitialState": The pin state to set when coming online, defaults
-            to "OFF", optional.
+            - "Stack":          Stack Address 0..7
+            - "Relay":          Relay No. 1..8
+            - "InitialState":   The relay state to set when coming online,
+                                defaults to "OFF", optional.
             - "SimulateButton": Optional parameter that when set to "True" causes any
-            message received to result in setting the pin to HIGH, sleep for
-            half a second, then back to LOW.
+                                message received to result in setting the pin to HIGH, sleep for
+                                half a second, then back to LOW.
+            - "ToggleDebounce": The interval in seconds during which repeated
+                                toggle commands are ignored (default 0.15 seconds)
         """
         super().__init__(connections, dev_cfg)
 

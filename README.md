@@ -35,6 +35,7 @@ Go into the subfolders for details in each subfolder's README.
 | [`openhab_rest.rest_conn.OpenhabREST`](openhab_rest/README.md#openhab-rest-connection)                    | Connection                    | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.               |
 | [`roku.roku_addr.RokuAddressSensor`](roku/README.md#roku-address-sensor-deprecated)                       | Polling Sensor                | Periodically requests the addresses of all the Rokus on the subnet.                                       |
 | [`ic2.relay.EightRelayHAT`](i2c/README.md#i2crelayeightrelayhat)                                          | Actuator                      | Sets a relay to a given state on command. Supports 8-Relays-HAT via i2c                                   |
+| [`ic2.triac.TriacDimmer`](i2c/README.md#i2ctriactriacdimmer)                                              | Actuator                      | Sets a triac PWM to a given duty cycle on command. Supports 2-Ch Triac HAT via i2c                        |
 
 # Architecture
 The main script is `sensor_reporter` which parses a configuration YAML file and handles operating system signal handling.
@@ -69,7 +70,7 @@ Each plugin will have it's own dependency.
 See the readmes in the subfolders for details.
 
 # Usage
-`python3 sensor_reporter configuration.yml`
+`python3 sensor_reporter.py configuration.yml`
 
 An example systemd service file is provided for your reference.
 The following steps describe how to setup the service:

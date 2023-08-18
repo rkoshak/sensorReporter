@@ -255,12 +255,14 @@ class RpiGpioActuator(Actuator):
         HIGH for half a second and then back to LOW.
 
         Parameters:
-            - "Pin": The GPIO pin in BCM numbering
-            - "InitialState": The pin state to set when coming online, defaults
-            to "OFF".
+            - "Pin":            The GPIO pin in BCM numbering
+            - "InitialState":   The pin state to set when coming online,
+                                defaults to "OFF".
             - "SimulateButton": Optional parameter that when set to "True" causes any
-            message received to result in setting the pin to HIGH, sleep for
-            half a second, then back to LOW.
+                                message received to result in setting the pin to HIGH, sleep for
+                                half a second, then back to LOW.
+            - "ToggleDebounce": The interval in seconds during which repeated
+                                toggle commands are ignored (default 0.15 seconds)
         """
         super().__init__(connections, dev_cfg)
 
