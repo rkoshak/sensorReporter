@@ -89,11 +89,11 @@ class _I2cDriver():
 
         duty_cycle_pct = 0 will switch off the channel, while 100 will set it to alway on
         """
-        #validate given channel
+        # validate given channel
         if channel < 1 or channel > 2:
             log.error("Channel out of bounds, allowed 1 & 2! Value: %s", channel)
             return
-        #validate given duty_cycle_pct
+        # validate given duty_cycle_pct
         if duty_cycle_pct < 0 or duty_cycle_pct > 100:
             log.error("PWM (duty_cycle_pct) out of range, 0-100 allowed! Value: %s",
                       duty_cycle_pct)
@@ -103,31 +103,31 @@ class _I2cDriver():
         # check if channel 1 or 2 needs the be enabled / disabled
         if  duty_cycle_pct > 0:
             if channel == 1:
-                #enable channel 1
+                # enable channel 1
                 self.enabled_channels = self.enabled_channels | CHANNEL1_ENABLE
             else:
-                #enable channel 2
+                # enable channel 2
                 self.enabled_channels = self.enabled_channels | CHANNEL2_ENABLE
         else:
             if channel == 1:
-                #preserve channel 2 setting, disable ch 1
+                # preserve channel 2 setting, disable ch 1
                 self.enabled_channels = self.enabled_channels & CHANNEL2_ENABLE
             else:
-                #preserve channel 1 setting, disable ch 2
+                # preserve channel 1 setting, disable ch 2
                 self.enabled_channels = self.enabled_channels & CHANNEL1_ENABLE
 
         # only write channel register on change
         if channels_last_state != self.enabled_channels:
             log.debug("Triac driver updated enabled_channels to %d", self.enabled_channels)
             self._bus_write(REG_CHANNEL_ENABLE, self.enabled_channels)
-            #wait 50ms so the HAT can proecess the command
+            # wait 50ms so the HAT can proecess the command
             sleep(0.05)
 
         # the triac expects values from 0 to 179,
         # convert duty_cycle_pct to expected angel values
         angle = round( duty_cycle_pct / 100 * 179 )
 
-        #select the correct register for the given channel
+        # select the correct register for the given channel
         if channel == 1:
             self._bus_write(REG_CHANNEL1_ANGLE, angle)
         elif channel == 2:
@@ -145,7 +145,7 @@ class _I2cDriver():
         """
         if frequency in [50, 60]:
             self._bus_write(REG_GRID_FREQUENCY, frequency)
-            #wait 50ms so the HAT can proecess the command
+            # wait 50ms so the HAT can proecess the command
             sleep(0.05)
         else:
             log.warning("Unsupported mains frequency %s! Frequency not set", frequency)
@@ -154,7 +154,7 @@ class _I2cDriver():
 try:
     _driver_singleton = _I2cDriver()
 except OSError:
-    #catch triac Hat not set up for i2c
+    # catch triac Hat not set up for i2c
     _driver_singleton = None
 def i2c_driver():
     """ Use the singleton pattern to make sure only one instance for _I2cDriver()
@@ -192,7 +192,7 @@ class TriacDimmer(Actuator):
         self.channel = int(dev_cfg["Channel"])
         self.freq = dev_cfg.get("MainsFreq", 50)
 
-        #default state if not configured = 0%
+        # default state if not configured = 0%
         self.state = SimpleNamespace(initial=None, current=None, last=None, before_dimming=0)
         self.state.initial =  int(dev_cfg.get("InitialState", 0))
 
@@ -206,19 +206,19 @@ class TriacDimmer(Actuator):
                            "Switch and jumpers on the HAT should be in position 'B'!",
                            self.name)
 
-        #default debaunce time 0.15 seconds
+        # default debaunce time 0.15 seconds
         self.toggle = SimpleNamespace(debounce=None, last_time=None)
         self.toggle.debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
         self.toggle.last_time = datetime.datetime.fromordinal(1)
 
-        #remember the current output state, set last laste for toggle command
+        # remember the current output state, set last laste for toggle command
         self.state.current = self.state.initial
         if self.state.initial == 0:
             self.state.last = 100
         else:
             self.state.last = self.state.initial
 
-        #read settings for the dimmer options
+        # read settings for the dimmer options
         self.dimmer = SimpleNamespace(dim_interval = float(self.dev_cfg.get("DimInterval", 0.2)),
                                       dim_delay = float(self.dev_cfg.get("DimDelay", 0.5)),
                                       smooth_change_interval = float(self.dev_cfg.get(
@@ -237,8 +237,8 @@ class TriacDimmer(Actuator):
         configure_device_channel(self.comm, is_output=False,
                                  name="set duty cycle", datatype=ChanType.INTEGER,
                                  unit="%", restrictions="0:100")
-        #the actuator gets registered twice, at core-actuator and here
-        # currently this is the only way to pass the device_channel_config to homie_conn
+        # The actuator gets registered twice, at core-actuator and here.
+        # Currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
     def on_message(self, msg):
@@ -249,29 +249,29 @@ class TriacDimmer(Actuator):
                            self.name, self.channel, msg)
 
         if msg.isdigit():
-            #msg contrains digits convert it from string to int
+            # msg contrains digits convert it from string to int
             value = int(msg)
         elif msg == "ON":
-            #handle openHab item sending ON
+            # handle openHab item sending ON
             value = 100
         elif msg == "OFF":
-            #handle openHab item sending OFF
+            # handle openHab item sending OFF
             value = 0
         elif msg == "DIM":
-            #ignore the DIM command if smooth_change_in_progress
+            # ignore the DIM command if smooth_change_in_progress
             if not self.dimmer.smooth_change_in_progress:
                 if isinstance(self.dimmer.thread, Thread):
-                    #Info: waiting for the thread will rais toggle time for local connections,
+                    # Info: waiting for the thread will raise toggle time for local connections,
                     # so there might occure no short toggle event.
                     # But there should be no running thread anyway
                     self.dimmer.thread.join(timeout=None)
                 self.dimmer.stop_thread = False
-                #set target_value to 0 if current state > 0
+                # set target_value to 0 if current state > 0
                 if self.state.current:
                     target_value = 0
                 else:
                     target_value = 100
-                #start manual dimming with start_delay
+                # start manual dimming with start_delay
                 self.dimmer.thread = Thread(target=self._smooth_dimmer,
                                             args=(self.dimmer.dim_delay,
                                                   self.dimmer.dim_interval, target_value))
@@ -281,9 +281,9 @@ class TriacDimmer(Actuator):
 
             return
         elif msg == "STOP":
-            #make sure we don't interrupt the smooth change
+            # make sure we don't interrupt the smooth change
             if not self.dimmer.smooth_change_in_progress:
-                #stop dimming thread and publish actuator state
+                # stop dimming thread and publish actuator state
                 self.dimmer.stop_thread = True
                 if isinstance(self.dimmer.thread, Thread):
                     # Wait max. 200ms for the thread,
@@ -292,7 +292,7 @@ class TriacDimmer(Actuator):
                     self.dimmer.thread.join(timeout=0.2)
                     # if thread is not alive = no timeout
                     if not self.dimmer.thread.is_alive():
-                        #after thread closes check if the state (value) has changed
+                        # after thread closes check if the state (value) has changed
                         if self.state.before_dimming != self.state.current:
                             self.log.info("%s dimmed triac channel %d to PWM %d%%",
                                           self.name, self.channel, self.state.current)
@@ -303,26 +303,26 @@ class TriacDimmer(Actuator):
 
             return
         elif is_toggle_cmd(msg):
-            #remember time for toggle debounce
+            # remember time for toggle debounce
             time_now = datetime.datetime.now()
             seconds_since_toggle = (time_now - self.toggle.last_time).total_seconds()
             if seconds_since_toggle < self.toggle.debounce:
-                #filter close toggle commands to make sure no double switching occures
+                # filter close toggle commands to make sure no double switching occures
                 self.log.info("%s triac channel %d received toggle command %s"
                               " within debounce time. Ignoring command!",
                              self.name, self.channel, msg)
                 return
             self.toggle.last_time = time_now
-            #invert current state on toggle command
+            # invert current state on toggle command
             if self.state.current > 0:
                 value = 0
             else:
                 value = self.state.last
-            #remeber last value for later if not zero
+            # remeber last value for later if not zero
             if self.state.current:
                 self.state.last = self.state.current
         else:
-            #if command is not recognized ignor it
+            # if command is not recognized ignor it
             self.log.warning("%s  triac channel %d received unrecognized command %s",
                              self.name, self.channel, msg)
             return
@@ -338,10 +338,10 @@ class TriacDimmer(Actuator):
                       self.name, self.channel, value)
 
         if self.dimmer.smooth_change_interval:
-            #start smooth dim thread, if self.dimmer.smooth_change_interval != 0
+            # start smooth dim thread, if self.dimmer.smooth_change_interval != 0
             self.dimmer.stop_thread = True
             if isinstance(self.dimmer.thread, Thread):
-                #make sure thread is not running before starting another one
+                # make sure thread is not running before starting another one
                 self.dimmer.thread.join(timeout=None)
             self.dimmer.stop_thread = False
             self.dimmer.thread = Thread(target=self._smooth_dimmer,
@@ -351,7 +351,7 @@ class TriacDimmer(Actuator):
             self.dimmer.smooth_change_in_progress = True
             self.dimmer.thread.start()
         else:
-            #set duty cycle based on the message
+            # set duty cycle based on the message
             self.driver.set_duty_cycle(self.log, self.channel, value)
 
         self.state.current = value
@@ -360,7 +360,7 @@ class TriacDimmer(Actuator):
 
     def publish_actuator_state(self):
         """Publishes the current state of the actuator."""
-        #openHab only likes string messages, so convert the int
+        # openHab only likes string messages, so convert the int
         msg = str(self.state.current)
         self._publish(msg, self.comm)
 
@@ -381,12 +381,12 @@ class TriacDimmer(Actuator):
         # that regular toggle commands still get through.
         waited = 0
         while waited < start_delay and not self.dimmer.stop_thread:
-            #sleep in 100ms steps to make the start_delay interruptable
+            # sleep in 100ms steps to make the start_delay interruptable
             sleep(0.1)
             waited += 0.1
         current_value = self.state.current
 
-        #loop until target value is reached or external stop trigger
+        # loop until target value is reached or external stop trigger
         while current_value != target_value and not self.dimmer.stop_thread:
             sleep(interval_time)
             if abs(current_value - target_value) < 5:
@@ -402,6 +402,6 @@ class TriacDimmer(Actuator):
                 # set target to 100 for bidirectional dimming
                 target_value = 100
 
-        #save value since its now the current state
+        # save value since its now the current state
         self.state.current = current_value
         self.dimmer.smooth_change_in_progress = False

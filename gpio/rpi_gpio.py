@@ -27,7 +27,7 @@ from core.actuator import Actuator
 from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
                         get_msg_from_values, DEFAULT_SECTION, configure_device_channel, ChanType
 
-#constants
+# constants
 OUT_SWITCH = "Switch"
 OUT_SHORT_PRESS = "ShortButtonPress"
 OUT_LONG_PRESS = "LongButtonPress"
@@ -128,7 +128,7 @@ class RpiGpioSensor(Sensor):
 
         self.btn = ButtonPressCfg(dev_cfg, self)
 
-        #verify that defined output channels in Connections section are valid!
+        # verify that defined output channels in Connections section are valid!
         verify_connections_layout(self.comm, self.log, self.name,
                                   [OUT_SWITCH, OUT_SHORT_PRESS, OUT_LONG_PRESS])
 
@@ -142,7 +142,7 @@ class RpiGpioSensor(Sensor):
 
         self.publish_state()
 
-        #configure_output for homie etc. after debug output, so self.comm is clean
+        # configure_output for homie etc. after debug output, so self.comm is clean
         configure_device_channel(self.comm, is_output=True, output_name=OUT_SWITCH,
                                  name="switch state")
         configure_device_channel(self.comm, is_output=True, output_name=OUT_SHORT_PRESS,
@@ -199,14 +199,14 @@ class ButtonPressCfg():
             - caller     : the objetc of the calling sensor
         """
         self.high_time = None
-        #expect threshold in seconds
+        # expect threshold in seconds
         self.short_press_time = float(dev_cfg.get("Short_Press-Threshold", 0))
         self.long_press_time = float(dev_cfg.get("Long_Press-Threshold",0))
 
         try:
             self.state_when_pressed = GPIO.LOW if dev_cfg["Btn_Pressed_State"]=="LOW" else GPIO.HIGH
         except KeyError:
-            #if value not in the config, determind it from PUD
+            # if value not in the config, determind it from PUD
             self.state_when_pressed = GPIO.LOW if caller.pud == GPIO.PUD_UP else GPIO.HIGH
 
         caller.log.info('%s configued button press events, with short press threshold %s, '
@@ -222,7 +222,7 @@ class ButtonPressCfg():
              - caller : the object of the caller
                         so self.log and self.publish_button_state can be accessed
          """
-        #get time during button was closed
+        # get time during button was closed
         if caller.state == self.state_when_pressed:
             self.high_time = datetime.datetime.now()
         elif self.high_time is None:
@@ -289,11 +289,11 @@ class RpiGpioActuator(Actuator):
         except KeyError:
             self.sim_button = dev_cfg.get("Toggle", False)
 
-        #default debaunce time 0.15 seconds
+        # default debaunce time 0.15 seconds
         self.toggle_debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
         self.last_toggle = datetime.datetime.fromordinal(1)
 
-        #remember the current output state
+        # remember the current output state
         if self.sim_button:
             self.current_state = None
         else:
@@ -313,7 +313,7 @@ class RpiGpioActuator(Actuator):
         configure_device_channel(self.comm, is_output=False,
                                  name="set digital output", datatype=ChanType.ENUM,
                                  restrictions="ON,OFF,TOGGLE")
-        #the actuator gets registered twice, at core-actuator and here
+        # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
@@ -357,7 +357,7 @@ class RpiGpioActuator(Actuator):
                           highlow_to_str(self.init_state),
                           highlow_to_str(not self.init_state))
             GPIO.output(self.pin, int(not self.init_state))
-            #  "sleep" will block a local connecten and therefore
+            # "sleep" will block a local connecten and therefore
             # distort the time detection of button press event's
             sleep(.5)
             self.log.info("%s toggles pin %s (%s) %s to %s",
@@ -388,7 +388,7 @@ class RpiGpioActuator(Actuator):
                               highlow_to_str(out))
                 GPIO.output(self.pin, out)
 
-                #publish own state back to remote connections
+                # publish own state back to remote connections
                 self.publish_actuator_state()
 
     def publish_actuator_state(self):
