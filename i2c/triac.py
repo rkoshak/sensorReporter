@@ -118,6 +118,14 @@ class _I2cDriver():
 
         # only write channel register on change
         if channels_last_state != self.enabled_channels:
+            # Before enabling or disabeling the selected channel set angel to zero
+            # otherwise PWM will turn on fully for a short time, when enabling
+            if channel == 1:
+                self._bus_write(REG_CHANNEL1_ANGLE, 0)
+            elif channel == 2:
+                self._bus_write(REG_CHANNEL2_ANGLE, 0)
+            sleep(0.05)
+
             log.debug("Triac driver updated enabled_channels to %d", self.enabled_channels)
             self._bus_write(REG_CHANNEL_ENABLE, self.enabled_channels)
             # wait 50ms so the HAT can proecess the command
@@ -164,6 +172,158 @@ def i2c_driver():
     return _driver_singleton
 
 
+class _SmoothDimmer():
+    """ Handles smooth value changes and dimming commands
+        to dim an actuator in a new thread
+    """
+
+    def __init__(self, caller, callback_set_pwm):
+        """ Initialises dimmer relevant var's
+
+        Parameters:
+            - "caller"                  : 'self' instance of the calling class
+                                          The following objects are expected:
+                                          - self.log            : log instance of the actuator
+                                          - self.name           : name of the actuator
+                                          - self.state.current  : current state of the actuator(int)
+                                          - self.dev_cfg        : device config dictionary
+            - "callback_set_pwm"        : Callback method to access the PWM driver and set a value
+                                          Prototype: 'def callback_set_pwm(value):'
+
+        The following optional parameters are read from device config:
+            - "SmoothChangeInterval"  : Time steps in seconds between PWM changes
+                                        while smoothly switching on or off
+            - "DimDelay"              : Delay in seconds befor starting to dim the PWM
+            - "DimInterval"           : Time steps in seconds between PWM changes while dimming
+        """
+        self.caller = caller
+        self.set_pwm = callback_set_pwm
+
+        self.dimming = SimpleNamespace(interval = None, delay = None, state_before = 0)
+        self.dimming.interval = float(caller.dev_cfg.get("DimInterval", 0.2))
+        self.dimming.delay = float(caller.dev_cfg.get("DimDelay", 0.5))
+
+        self.smooth_change = SimpleNamespace(interval = None, in_progress = False)
+        self.smooth_change.interval = float(caller.dev_cfg.get("SmoothChangeInterval", 0.05))
+
+        self._thread = None
+        self._stop_thread = False
+
+    def apply_value_change(self, value):
+        """ Changes the PWM to the specified value.
+            If 'SmoothChangeInterval' is configured to > 0 the value is changed shoothly
+        """
+        if self.smooth_change.interval:
+            self._stop_thread = True
+            self.smooth_change.in_progress = True
+            self._start_thread(0, self.smooth_change.interval, value)
+        else:
+            # if interval == 0 set PWM directly
+            self.set_pwm(value)
+
+    def start_dimming(self):
+        """ Handle manual dimming
+
+            Start related thread to start dimming after configured
+            'DimDelay' if stop_dimming() is not called
+        """
+        # ignore the DIM command if smooth_change.in_progress
+        if not self.smooth_change.in_progress:
+            self.dimming.state_before = self.caller.state.current
+            # set value to 0 if current state > 0
+            if self.caller.state.current:
+                value = 0
+            else:
+                value = 100
+            # start manual dimming with start_delay
+            self._start_thread(self.dimming.delay, self.dimming.interval, value)
+
+    def stop_dimming(self):
+        """ Stops dimming thread if invoked by start_dimming()
+
+            Returns new current_state if dimming has occurred otherwise 'None'.
+            The calling class should store the returned current_state in it's on variable.
+        """
+        # make sure we don't interrupt the smooth change
+        if not self.smooth_change.in_progress:
+            # stop dimming thread and publish actuator state
+            self._stop_thread = True
+            if isinstance(self._thread, Thread):
+                # Wait max. 200ms for the thread,
+                # so that local connection call doesn't get stuck here.
+                # otherwise short toggle event with local connections are not possible
+                self._thread.join(timeout=0.2)
+                # if thread is not alive = no timeout
+                if not self._thread.is_alive():
+                    # after thread closes check if the state (value) has changed
+                    if self.dimming.state_before != self.caller.state.current:
+                        # Return 'self.caller.state.current' to the caller,
+                        # otherwise the new state will not be visible in the calling class
+                        return self.caller.state.current
+                else:
+                    self.caller.log.debug("%s triac smooth dimmer thread still active,"
+                                          " PWM value not published", self.caller.name)
+        return None
+
+    def _start_thread(self, start_delay, interval_time, value):
+        """ Create a new thread to change the PWM in small steps,
+            stop existing thread if present
+
+            This is needed to unblock the calling thread, e. g. to make local
+            connections work properly.
+        """
+        if isinstance(self._thread, Thread):
+            # make sure thread is not running before starting another one
+            self._thread.join(timeout=None)
+        self._stop_thread = False
+        self._thread = Thread(target=self._smooth_dimmer,
+                              args=(start_delay, interval_time, value))
+        # smooth_dimmer args=       |            |              |
+        #                 start_delay            interval_time  target_value
+        self._thread.start()
+
+    def _smooth_dimmer(self, start_delay, interval_time, target_value):
+        """ Change triac PWM smoothly to the target_value
+
+        This method is used to create a thread for smoothly changeing the PWM when:
+        * changeing to defined setpoint (start_delay = 0)
+        * when manual dimming (start_delay > 0)
+
+        Parameter:
+            - "start_delay":     Delay in seconds befor starting the dimming
+                                (0 = off, 0.1 steps)
+            - "interval_time":   Time in seconds beween PWM steps
+            - "target_value":    The PWM percentage to dim to
+        """
+        # Manual dimming starts with a delay to ensure
+        # that regular toggle commands still get through.
+        waited = 0
+        while waited < start_delay and not self._stop_thread:
+            # sleep in 100ms steps to make the start_delay interruptable
+            sleep(0.1)
+            waited += 0.1
+        current_value = self.caller.state.current
+
+        # loop until target value is reached or external stop trigger
+        while current_value != target_value and not self._stop_thread:
+            sleep(interval_time)
+            if abs(current_value - target_value) < 5:
+                current_value = target_value
+            else:
+                if current_value < target_value:
+                    current_value += 5
+                else:
+                    current_value -= 5
+            self.set_pwm(current_value)
+            if start_delay and current_value == 0 and target_value == 0:
+                # if start_delay > 0 assume manual dimming,
+                # set target to 100 for bidirectional dimming
+                target_value = 100
+
+        # save value since its now the current state
+        self.caller.state.current = current_value
+        self.smooth_change.in_progress = False
+
 class TriacDimmer(Actuator):
     """Allows one triac channel to be dimmed on Waveshare 2CH-Triac-HAT.
     Also supports toggling.
@@ -182,10 +342,6 @@ class TriacDimmer(Actuator):
                                         defaults to "0", optional.
             - "ToggleDebounce":         The interval in seconds during which repeated
                                         toggle commands are ignored (default 0.15 seconds)
-            - "SmoothChangeInterval":   Time steps in seconds between PWM changes
-                                        while smoothly switching on or off
-            - "DimDelay":               Delay in seconds befor starting to dim the PWM
-            - "DimInterval":            Time steps in seconds between PWM changes while dimming
         """
         super().__init__(connections, dev_cfg)
 
@@ -218,13 +374,11 @@ class TriacDimmer(Actuator):
         else:
             self.state.last = self.state.initial
 
-        # read settings for the dimmer options
-        self.dimmer = SimpleNamespace(dim_interval = float(self.dev_cfg.get("DimInterval", 0.2)),
-                                      dim_delay = float(self.dev_cfg.get("DimDelay", 0.5)),
-                                      smooth_change_interval = float(self.dev_cfg.get(
-                                                                     "SmoothChangeInterval", 0.05)),
-                                      smooth_change_in_progress=False,
-                                      thread=None, stop_thread=False)
+        # define callback method for smooth dimmer thread
+        def set_pwm_value(value):
+            self.driver.set_duty_cycle(self.log, self.channel, value)
+        # read settings for the dimmer options, create instance of _SmoothDimmer
+        self.dimmer = _SmoothDimmer(caller = self, callback_set_pwm = set_pwm_value)
 
         self.log.info("Configued TriacDimmer %s: channel %d, mains frequency %dHz, PWM %s%%",
                       self.name, self.channel, self.freq, self.state.initial)
@@ -258,48 +412,16 @@ class TriacDimmer(Actuator):
             # handle openHab item sending OFF
             value = 0
         elif msg == "DIM":
-            # ignore the DIM command if smooth_change_in_progress
-            if not self.dimmer.smooth_change_in_progress:
-                if isinstance(self.dimmer.thread, Thread):
-                    # Info: waiting for the thread will raise toggle time for local connections,
-                    # so there might occure no short toggle event.
-                    # But there should be no running thread anyway
-                    self.dimmer.thread.join(timeout=None)
-                self.dimmer.stop_thread = False
-                # set target_value to 0 if current state > 0
-                if self.state.current:
-                    target_value = 0
-                else:
-                    target_value = 100
-                # start manual dimming with start_delay
-                self.dimmer.thread = Thread(target=self._smooth_dimmer,
-                                            args=(self.dimmer.dim_delay,
-                                                  self.dimmer.dim_interval, target_value))
-                #  _smooth_dimmer args= start_delay, interval_time, target_value
-                self.state.before_dimming = self.state.current
-                self.dimmer.thread.start()
-
+            self.dimmer.start_dimming()
             return
         elif msg == "STOP":
-            # make sure we don't interrupt the smooth change
-            if not self.dimmer.smooth_change_in_progress:
-                # stop dimming thread and publish actuator state
-                self.dimmer.stop_thread = True
-                if isinstance(self.dimmer.thread, Thread):
-                    # Wait max. 200ms for the thread,
-                    # so that local connection call doesn't get stuck here.
-                    # otherwise short toggle event with local connections are not possible
-                    self.dimmer.thread.join(timeout=0.2)
-                    # if thread is not alive = no timeout
-                    if not self.dimmer.thread.is_alive():
-                        # after thread closes check if the state (value) has changed
-                        if self.state.before_dimming != self.state.current:
-                            self.log.info("%s dimmed triac channel %d to PWM %d%%",
-                                          self.name, self.channel, self.state.current)
-                            self.publish_actuator_state()
-                    else:
-                        self.log.debug("%s triac smooth dimmer thread still active,"
-                                       " PWM value not published", self.name)
+            current_state = self.dimmer.stop_dimming()
+            if current_state is not None:
+                # remember current state
+                self.state.current = current_state
+                self.log.info("%s dimmed triac channel %d to PWM %d%%",
+                              self.name, self.channel, self.state.current)
+                self.publish_actuator_state()
 
             return
         elif is_toggle_cmd(msg):
@@ -337,22 +459,7 @@ class TriacDimmer(Actuator):
         self.log.info("%s set triac channel %d to PWM %d%%",
                       self.name, self.channel, value)
 
-        if self.dimmer.smooth_change_interval:
-            # start smooth dim thread, if self.dimmer.smooth_change_interval != 0
-            self.dimmer.stop_thread = True
-            if isinstance(self.dimmer.thread, Thread):
-                # make sure thread is not running before starting another one
-                self.dimmer.thread.join(timeout=None)
-            self.dimmer.stop_thread = False
-            self.dimmer.thread = Thread(target=self._smooth_dimmer,
-                                        args=(0, self.dimmer.smooth_change_interval, value))
-            #                                 |  |                                   |
-            # smooth_dimmer args=   start_delay  interval_time                       target_value
-            self.dimmer.smooth_change_in_progress = True
-            self.dimmer.thread.start()
-        else:
-            # set duty cycle based on the message
-            self.driver.set_duty_cycle(self.log, self.channel, value)
+        self.dimmer.apply_value_change(value)
 
         self.state.current = value
         self.publish_actuator_state()
@@ -363,45 +470,3 @@ class TriacDimmer(Actuator):
         # openHab only likes string messages, so convert the int
         msg = str(self.state.current)
         self._publish(msg, self.comm)
-
-    def _smooth_dimmer(self, start_delay, interval_time, target_value):
-        """Change triac PWM smoothly to the target_value
-
-        This method is used to create a thread for smoothly changeing the PWM when:
-        * changeing to defined setpoint (start_delay = 0)
-        * when manual dimming (start_delay > 0)
-
-        Parameter:
-            - "start_delay":     Delay in seconds befor starting the dimming
-                                (0 = off, 0.1 steps)
-            - "interval_time":   Time in seconds beween PWM steps
-            - "target_value":    The PWM percentage to dim to
-        """
-        # Manual dimming starts with a delay to ensure
-        # that regular toggle commands still get through.
-        waited = 0
-        while waited < start_delay and not self.dimmer.stop_thread:
-            # sleep in 100ms steps to make the start_delay interruptable
-            sleep(0.1)
-            waited += 0.1
-        current_value = self.state.current
-
-        # loop until target value is reached or external stop trigger
-        while current_value != target_value and not self.dimmer.stop_thread:
-            sleep(interval_time)
-            if abs(current_value - target_value) < 5:
-                current_value = target_value
-            else:
-                if current_value < target_value:
-                    current_value += 5
-                else:
-                    current_value -= 5
-            self.driver.set_duty_cycle(self.log, self.channel, current_value)
-            if start_delay and current_value == 0 and target_value == 0:
-                # if start_delay > 0 assume manual dimming,
-                # set target to 100 for bidirectional dimming
-                target_value = 100
-
-        # save value since its now the current state
-        self.state.current = current_value
-        self.dimmer.smooth_change_in_progress = False
