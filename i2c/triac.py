@@ -349,13 +349,13 @@ class TriacDimmer(Actuator):
         self.freq = dev_cfg.get("MainsFreq", 50)
 
         # default state if not configured = 0%
-        self.state = SimpleNamespace(initial=None, current=None, last=None, before_dimming=0)
-        self.state.initial =  int(dev_cfg.get("InitialState", 0))
+        self.state = SimpleNamespace(current=None, last=None)
+        inital_state =  int(dev_cfg.get("InitialState", 0))
 
         try:
             self.driver = i2c_driver()
             self.driver.set_power_grid_frequency(self.log, self.freq)
-            self.driver.set_duty_cycle(self.log, self.channel, self.state.initial)
+            self.driver.set_duty_cycle(self.log, self.channel, inital_state)
         except AttributeError:
             self.log.error("%s could not setup TriacDimmer. "
                            "Ensure that the Triac HAT is correctly installed. "
@@ -368,11 +368,11 @@ class TriacDimmer(Actuator):
         self.toggle.last_time = datetime.datetime.fromordinal(1)
 
         # remember the current output state, set last laste for toggle command
-        self.state.current = self.state.initial
-        if self.state.initial == 0:
+        self.state.current = inital_state
+        if inital_state == 0:
             self.state.last = 100
         else:
-            self.state.last = self.state.initial
+            self.state.last = inital_state
 
         # define callback method for smooth dimmer thread
         def set_pwm_value(value):
@@ -381,7 +381,7 @@ class TriacDimmer(Actuator):
         self.dimmer = _SmoothDimmer(caller = self, callback_set_pwm = set_pwm_value)
 
         self.log.info("Configued TriacDimmer %s: channel %d, mains frequency %dHz, PWM %s%%",
-                      self.name, self.channel, self.freq, self.state.initial)
+                      self.name, self.channel, self.freq, inital_state)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
