@@ -25,7 +25,8 @@ from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
-                        get_msg_from_values, DEFAULT_SECTION, configure_device_channel, ChanType
+                        get_msg_from_values, DEFAULT_SECTION, \
+                        configure_device_channel, ChanType, Debounce
 
 # constants
 OUT_SWITCH = "Switch"
@@ -33,11 +34,11 @@ OUT_SHORT_PRESS = "ShortButtonPress"
 OUT_LONG_PRESS = "LongButtonPress"
 
 def set_gpio_mode(dev_cfg, log):
-    """Set GPIO mode (BCM or BOARD) for all Sensors and Actuators
-    put a Warning if it was changed or set multible times
-    Parameters:
-        - params : the lamda function that stores the config values for a sensor
-        - log    : the self.log instance of the calling sensor
+    """ Set GPIO mode (BCM or BOARD) for all Sensors and Actuators
+        put a Warning if it was changed or set multible times
+        Parameters:
+            - params : the lamda function that stores the config values for a sensor
+            - log    : the self.log instance of the calling sensor
     """
     gpio_mode = GPIO.BOARD if dev_cfg.get("PinNumbering") == "BOARD" else GPIO.BCM
 
@@ -50,11 +51,11 @@ def set_gpio_mode(dev_cfg, log):
     return "BCM" if gpio_mode == GPIO.BCM else "BOARD"
 
 def highlow_to_str(output):
-    """Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
+    """    Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
 
-    Parameter: - "output": the GPIO constant (HIGH or LOW)
+           Parameter: - "output": the GPIO constant (HIGH or LOW)
 
-    Returns string HIGH/LOW
+           Returns string HIGH/LOW
     """
     if output:
         return "HIGH"
@@ -65,23 +66,23 @@ class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
     def __init__(self, publishers, dev_cfg):
-        """Initializes the connection to the GPIO pin and if "EventDetection"
-        if defined and valid, will subscibe fo events. If missing, than it
-        requires the "Poll" parameter be defined and > 0. By default it will
-        publish CLOSED/OPEN for 0/1 which can be overridden by the "Values" which
-        should be a comma separated list of two paameters, the first one is
-        CLOSED and second one is OPEN.
+        """ Initializes the connection to the GPIO pin and if "EventDetection"
+            if defined and valid, will subscibe fo events. If missing, than it
+            requires the "Poll" parameter be defined and > 0. By default it will
+            publish CLOSED/OPEN for 0/1 which can be overridden by the "Values" which
+            should be a comma separated list of two paameters, the first one is
+            CLOSED and second one is OPEN.
 
-        Parameters:
-            - "Pin": the IO pin in BCM/BOARD numbering
-            - "Values": Alternative values to publish for 0 and 1, defaults to
-            OPEN and CLOSED for 0 and 1 respectively.
-            - "PUD": Pull up or down setting, if "UP" uses PULL_UP, all other
-            values result in PULL_DOWN.
-            - "EventDetection": when set instead of depending on sensor_reporter
-            to poll it will reliy on the event detection built into the GPIO
-            library. Valid values are "RISING", "FALLING" and "BOTH". When not
-            defined "Poll" must be set to a positive value.
+            Parameters:
+                - "Pin"           : the IO pin in BCM/BOARD numbering
+                - "Values"        : Alternative values to publish for 0 and 1, defaults to
+                                    OPEN and CLOSED for 0 and 1 respectively.
+                - "PUD"           : Pull up or down setting, if "UP" uses PULL_UP, all other
+                                    values result in PULL_DOWN.
+                - "EventDetection": when set instead of depending on sensor_reporter
+                                    to poll it will reliy on the event detection built into the GPIO
+                                    library. Valid values are "RISING", "FALLING" and "BOTH". 
+                                    When not defined "Poll" must be set to a positive value.
         """
         super().__init__(publishers, dev_cfg)
 
@@ -152,10 +153,10 @@ class RpiGpioSensor(Sensor):
         self._register(self.comm)
 
     def check_state(self):
-        """Checks the current state of the pin and if it's different from the
-        last state publishes it. With event detection this method gets called
-        when the GPIO pin changed states. When polling this method gets called
-        on each poll.
+        """ Checks the current state of the pin and if it's different from the
+            last state publishes it. With event detection this method gets called
+            when the GPIO pin changed states. When polling this method gets called
+            on each poll.
         """
         value = GPIO.input(self.pin)
         if value != self.state:
@@ -189,10 +190,9 @@ class RpiGpioSensor(Sensor):
             GPIO.cleanup()
 
 class ButtonPressCfg():
-    """ stores all button related parameters
-    """
+    """ Stores all button related parameters """
     def __init__(self, dev_cfg, caller):
-        """ read optional button press  related parametes from the config
+        """ Read optional button press  related parametes from the config
 
             Parameters:
             - dev_cfg : the dictionary that stores the config values for a sensor
@@ -215,12 +215,12 @@ class ButtonPressCfg():
                         highlow_to_str(self.state_when_pressed))
 
     def check_button_press(self, caller):
-        """checks the duration the contact was closed and
-         rises the event configured with that duration
+        """ Checks the duration the contact was closed and
+            rises the event configured with that duration
 
-         Parameter:
-             - caller : the object of the caller
-                        so self.log and self.publish_button_state can be accessed
+            Parameter:
+                 - caller : the object of the caller
+                            so self.log and self.publish_button_state can be accessed
          """
         # get time during button was closed
         if caller.state == self.state_when_pressed:
@@ -244,25 +244,26 @@ class ButtonPressCfg():
                     caller.publish_button_state(is_short_press = True)
 
 class RpiGpioActuator(Actuator):
-    """Allows for setting a GPIO pin to high or low on command. Also supports
-    toggling.
+    """ Allows for setting a GPIO pin to high or low on command.
+        Also supports toggling.
     """
 
     def __init__(self, connections, dev_cfg):
-        """Initializes the GPIO subsystem and sets the pin to the InitialState.
-        If InitialState is not povided in paams it defaults to GPIO.HIGH. If
-        "SimulateButton" is defined on any message will result in the pin being set to
-        HIGH for half a second and then back to LOW.
+        """ Initializes the GPIO subsystem and sets the pin to the InitialState.
+            If InitialState is not povided in paams it defaults to GPIO.HIGH. If
+            "SimulateButton" is defined on any message will result in the pin being set to
+            HIGH for half a second and then back to LOW.
 
-        Parameters:
-            - "Pin":            The GPIO pin in BCM numbering
-            - "InitialState":   The pin state to set when coming online,
-                                defaults to "OFF".
-            - "SimulateButton": Optional parameter that when set to "True" causes any
-                                message received to result in setting the pin to HIGH, sleep for
-                                half a second, then back to LOW.
-            - "ToggleDebounce": The interval in seconds during which repeated
-                                toggle commands are ignored (default 0.15 seconds)
+            Parameters:
+                - "Pin"           : The GPIO pin in BCM numbering
+                - "InitialState"  : The pin state to set when coming online,
+                                    defaults to "OFF".
+                - "SimulateButton": Optional parameter that when set to "True" causes any
+                                    message received to result in setting the pin to HIGH, sleep for
+                                    half a second, then back to LOW.
+            Parameters included in external classes:
+                - "ToggleDebounce": The interval in seconds during which repeated
+                                    toggle commands are ignored (default 0.15 seconds)
         """
         super().__init__(connections, dev_cfg)
 
@@ -289,9 +290,8 @@ class RpiGpioActuator(Actuator):
         except KeyError:
             self.sim_button = dev_cfg.get("Toggle", False)
 
-        # default debaunce time 0.15 seconds
-        self.toggle_debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
-        self.last_toggle = datetime.datetime.fromordinal(1)
+        # Init debounce with 0.15s default
+        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
 
         # remember the current output state
         if self.sim_button:
@@ -318,8 +318,8 @@ class RpiGpioActuator(Actuator):
         self._register(self.comm, None)
 
     def on_message(self, msg):
-        """Called when the actuator receives a message. If SimulateButton is not enabled
-        sets the pin to HIGH if the message is ON and LOW if the message is OFF.
+        """ Called when the actuator receives a message. If SimulateButton is not enabled
+            sets the pin to HIGH if the message is ON and LOW if the message is OFF.
         """
         # ignore command echo which occure with multiple connections:
         # do nothing when the command (msg) equals the current state,
@@ -332,19 +332,12 @@ class RpiGpioActuator(Actuator):
                                   self.name, msg)
                     return
             elif is_toggle_cmd(msg):
-                # If the string has length 26 and the char at index 10
-                # is T then its porbably a ISO 8601 formated datetime value,
-                # which was send from RpiGpioSensor
-                time_now = datetime.datetime.now()
-                seconds_since_toggle = (time_now - self.last_toggle).total_seconds()
-                if seconds_since_toggle < self.toggle_debounce:
+                if self.debounce.is_within_debounce_time():
                     # filter close toggle commands to make sure no double switching occures
                     self.log.info("%s received toggle command %s"
                                   " within debounce time. Ignoring command!",
                                   self.name, msg)
                     return
-
-                self.last_toggle = time_now
                 msg = "TOGGLE"
 
         self.log.info("%s received command %s, SimulateButton = %s, Invert = %s, Pin = %d (%s)",

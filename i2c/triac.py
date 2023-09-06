@@ -18,14 +18,13 @@
 Classes:
     - TriacHAT: 2 channel triac for light dimming.
 """
-import datetime
 from types import SimpleNamespace
 from threading import Thread
 from time import sleep
 import smbus2       # https://smbus2.readthedocs.io/en/latest/
 import yaml
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, configure_device_channel, ChanType
+from core.utils import is_toggle_cmd, configure_device_channel, ChanType, Debounce
 
 # Constans for 2-CH_TRIAC_HAT Register addresses
 # https://www.waveshare.com/wiki/2-CH_TRIAC_HAT
@@ -332,16 +331,22 @@ class TriacDimmer(Actuator):
     """
 
     def __init__(self, connections, dev_cfg):
-        """Initialises the I2C subsystem and sets the triac to the InitialState.
-        If InitialState is not provided in params it defaults to 0%.
+        """ Initialises the I2C subsystem and sets the triac to the InitialState.
+            If InitialState is not provided in params it defaults to 0%.
 
-        Parameters:
-            - "Channel":                Triac channel No. 1 or 2
-            - "MainsFreq":              Power grid frequency in Hz 50 or 60, default 50
-            - "InitialState":           PWM duty cycle in % when coming online,
-                                        defaults to "0", optional.
-            - "ToggleDebounce":         The interval in seconds during which repeated
-                                        toggle commands are ignored (default 0.15 seconds)
+            Parameters:
+                - "Channel"               : Triac channel No. 1 or 2
+                - "MainsFreq"             : Power grid frequency in Hz 50 or 60, default 50
+                - "InitialState"          : PWM duty cycle in % when coming online,
+                                            defaults to "0", optional.
+
+            Parameters included in external classes:
+                - "SmoothChangeInterval"  : Time steps in seconds between PWM changes
+                                            while smoothly switching on or off
+                - "DimDelay"              : Delay in seconds befor starting to dim the PWM
+                - "DimInterval"           : Time steps in seconds between PWM changes while dimming
+                - "ToggleDebounce"        : The interval in seconds during which repeated
+                                            toggle commands are ignored
         """
         super().__init__(connections, dev_cfg)
 
@@ -362,11 +367,6 @@ class TriacDimmer(Actuator):
                            "Switch and jumpers on the HAT should be in position 'B'!",
                            self.name)
 
-        # default debaunce time 0.15 seconds
-        self.toggle = SimpleNamespace(debounce=None, last_time=None)
-        self.toggle.debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
-        self.toggle.last_time = datetime.datetime.fromordinal(1)
-
         # remember the current output state, set last laste for toggle command
         self.state.current = inital_state
         if inital_state == 0:
@@ -379,6 +379,7 @@ class TriacDimmer(Actuator):
             self.driver.set_duty_cycle(self.log, self.channel, value)
         # read settings for the dimmer options, create instance of _SmoothDimmer
         self.dimmer = _SmoothDimmer(caller = self, callback_set_pwm = set_pwm_value)
+        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
 
         self.log.info("Configued TriacDimmer %s: channel %d, mains frequency %dHz, PWM %s%%",
                       self.name, self.channel, self.freq, inital_state)
@@ -425,16 +426,12 @@ class TriacDimmer(Actuator):
 
             return
         elif is_toggle_cmd(msg):
-            # remember time for toggle debounce
-            time_now = datetime.datetime.now()
-            seconds_since_toggle = (time_now - self.toggle.last_time).total_seconds()
-            if seconds_since_toggle < self.toggle.debounce:
+            if self.debounce.is_within_debounce_time():
                 # filter close toggle commands to make sure no double switching occures
                 self.log.info("%s triac channel %d received toggle command %s"
                               " within debounce time. Ignoring command!",
                              self.name, self.channel, msg)
                 return
-            self.toggle.last_time = time_now
             # invert current state on toggle command
             if self.state.current > 0:
                 value = 0
