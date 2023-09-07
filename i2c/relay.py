@@ -48,26 +48,28 @@ class EightRelayHAT(Actuator):
         ON for half a second and then back to OFF.
 
         Parameters:
-            - "Stack": Stack Address 0..7
-            - "Relay": Relay No. 1..8
-            - "InitialState": The pin state to set when coming online, defaults
-            to "OFF", optional.
+            - "Stack":          Stack Address 0..7
+            - "Relay":          Relay No. 1..8
+            - "InitialState":   The relay state to set when coming online,
+                                defaults to "OFF", optional.
             - "SimulateButton": Optional parameter that when set to "True" causes any
-            message received to result in setting the pin to HIGH, sleep for
-            half a second, then back to LOW.
+                                message received to result in setting the pin to HIGH, sleep for
+                                half a second, then back to LOW.
+            - "ToggleDebounce": The interval in seconds during which repeated
+                                toggle commands are ignored (default 0.15 seconds)
         """
         super().__init__(connections, dev_cfg)
 
         self.stack = dev_cfg.get("Stack", 0)
 
-        #relays on the HAT v5.3 are scrambled up, map them correctly
-        #there is no relay 0 but array indexing starts at zero, first index is a filler
+        # relays on the HAT v5.3 are scrambled up, map them correctly
+        # there is no relay 0 but array indexing starts at zero, first index is a filler
         relay_map = [0, 1, 2, 5, 6, 7, 8, 4, 3]
 
         self.relay = int(dev_cfg["Relay"])
         self.mapped_relay = relay_map[self.relay]
 
-        #default state if not configured = False = off
+        # default state if not configured = False = off
         self.init_state =  dev_cfg.get("InitialState", False)
 
         try:
@@ -80,11 +82,11 @@ class EightRelayHAT(Actuator):
 
         self.sim_button = dev_cfg.get("SimulateButton", False)
 
-        #default debaunce time 0.15 seconds
+        # default debaunce time 0.15 seconds
         self.toggle_debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
         self.last_toggle = datetime.datetime.fromordinal(1)
 
-        #remember the current output state
+        # remember the current output state
         if self.sim_button:
             self.current_state = None
         else:
@@ -102,7 +104,7 @@ class EightRelayHAT(Actuator):
         configure_device_channel(self.comm, is_output=False,
                                  name="set relay", datatype=ChanType.ENUM,
                                  restrictions="ON,OFF,TOGGLE")
-        #the actuator gets registered twice, at core-actuator and here
+        # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
@@ -144,7 +146,7 @@ class EightRelayHAT(Actuator):
                           onoff_to_str(self.init_state),
                           onoff_to_str(not self.init_state))
             lib8relay.set(self.stack, self.mapped_relay, int(not self.init_state))
-            #  "sleep" will block a local connecten and therefore
+            # "sleep" will block a local connecten and therefore
             # distort the time detection of button press event's
             sleep(.5)
             self.log.info("%s toggles Stack %d Relay %d,  %s to %s",
@@ -173,7 +175,7 @@ class EightRelayHAT(Actuator):
                               onoff_to_str(out))
                 lib8relay.set(self.stack, self.mapped_relay, out)
 
-                #publish own state back to remote connections
+                # publish own state back to remote connections
                 self.publish_actuator_state()
 
     def publish_actuator_state(self):
