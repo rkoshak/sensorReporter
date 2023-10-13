@@ -4,3 +4,5 @@ __pycache__
 .vscode/settings.json
 .idea
 sensor_reporter.yml
+sensorReporter.egg-info
+
