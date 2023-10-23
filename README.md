@@ -60,14 +60,28 @@ However, some parmeters will be common.
 - All sections have an optional Level parameter where the logging level for that plugin or sensor_reporter overall can be set. Supported levels are DEBUG, INFO, WARNING, and ERROR.
 
 # Dependencies
-sensor_reporter only runs in Python 3 and has only been tested in Python 3.7.
-It uses PyYAML for parsing the configuration file:
+sensor_reporter only runs in Python 3 and has only been tested in Python 3.7 through Python 3.11.2.
+It uses PyYAML for parsing the configuration file.
 
+## Debian based systems prior to bookworm
 ```
 sudo pip3 install PyYAML
 ```
 Each plugin will have it's own dependency.
 See the readmes in the subfolders for details.
+
+## Debian based systems bookworm or later
+Debian bookworm no longer allows easily globally installing PyPy libraries and many of those used by sensor_reporter, including `PyYAML` are not available to be installed globally.
+In these cases you must run sensor_reporter in a virtualenv.
+After cloning this repo to a folder (e.g. `/srv/sensorReporter`) run the following commands:
+
+```
+cd /srv/sensorReporter
+python -m venv .
+source bin/activate
+pip install PyYAML # repeat for all libraries you may be using or
+pip install -r requirements.txt # install all libraries used by all modiles. 
+```
 
 # Usage
 `python3 sensor_reporter.py configuration.yml`
@@ -75,7 +89,7 @@ See the readmes in the subfolders for details.
 An example systemd service file is provided for your reference.
 The following steps describe how to setup the service:
 
-1. clone this repo into `/opt/sensor_reporter`
+1. clone this repo into `/srv/sensorReporter`
 2. create a `sensorReporter` system user:  `sudo adduser --system --force-badname --home /opt/sensor_reporter sensorReporter`
 3. write your config file and save it to `/opt/sensor_reporter/sensor_reporter.yml`
 4. change owner of the config file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.yml`
