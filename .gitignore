@@ -4,3 +4,8 @@ __pycache__
 .vscode/settings.json
 .idea
 sensor_reporter.yml
+bin
+lib
+lib64
+pyvenv.cfg
+share
