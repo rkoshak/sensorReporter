@@ -5,10 +5,10 @@ Wants=network-online.target
 After=network.target network-online.target
 
 [Service]
-WorkingDirectory=/opt/sensor_reporter
+WorkingDirectory=/srv/sensorReporter
 User=sensorReporter
 Type=simple
-ExecStart=python3 sensor_reporter.py sensor_reporter.yml
+ExecStart=/srv/sensorReporter/bin/python sensor_reporter.py sensor_reporter.yml
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]

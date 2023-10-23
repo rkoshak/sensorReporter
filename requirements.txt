@@ -1,0 +1,10 @@
+bluepy
+bleson
+RPI.GPIO
+adafruit-blinka
+adafruit-circuitpython-dht
+paho-mqtt
+scapy
+requests
+sseclient-py
+pyYAML
