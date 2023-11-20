@@ -86,21 +86,18 @@ For examples see plug-in readme's.
 
 # Usage
 
-1. Execute [setup.sh](#setup)
-2. Write your config file and save it to `/srv/sensorReporter/sensor_reporter.yml`
-    a. For details see section [configuration](#configuration) and the plug-in readme's
-3. For additional security:
-    a. Change owner of the config file to user 'sensorReporter' (only available then service is installed):  `sudo chown sensorReporter:nogroup /srv/sensorReporter/sensor_reporter.yml`
-    b. Limit read write to owner:  `sudo chmod 600 /srv/sensorReporter/sensor_reporter.yml`
-4. Start sensor_reporter manually to test the configuration with:
+1. Download sensor_reporter and execute setup.sh see section [setup](#setup)
+2. Write your config file and save it to `/srv/sensorReporter/sensor_reporter.yml`. For details see section [configuration](#configuration) and the plug-in readme's
+3. Start sensor_reporter manually to test the configuration with:
 
 ```bash
 cd /srv/sensorReporter
 bin/python sensor_reporter.py sensor_reporter.yml
 ```
 (optional) enable & start the service:
-5. set service to auto start:  `sudo systemctl enable sensor_reporter.service`
-6. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
+
+4. set service to auto start:  `sudo systemctl enable sensor_reporter.service`
+5. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
 
 To reload a modified sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
 After large changes to the configuration, e. g. sensors/actuators has been removed/added, a restart of the service is recommended.
@@ -113,6 +110,7 @@ All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
 *Security advice:* make sure your sensor_reporter.yml is owned by the user `sensorReporter` and only that user has read and write permissions.
+This user is automatically created when choosing 'install service' in setup.sh.
 
 `sudo chown sensorReporter:nogroup sensor_reporter.yml`  
 `sudo chmod 600 sensor_reporter.yml`

@@ -134,8 +134,7 @@ Additionally, the sensor can detect toggle events and report the time of the eve
 ### Dependencies
 
 Depends on `RPi.GPIO` Python library.
-The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
+The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
 cd /srv/sensorReporter
@@ -265,8 +264,7 @@ A received command will be sent back on all configured connections to the config
 ### Dependencies
 
 Depends on `RPi.GPIO` Python library.
-The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
+The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
 cd /srv/sensorReporter
@@ -381,8 +379,7 @@ A recieved command will be sent back on all configured connections to the config
 ### Dependencies
 
 Depends on `RPi.GPIO` Python library.
-The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
+The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
 cd /srv/sensorReporter

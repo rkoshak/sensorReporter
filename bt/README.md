@@ -37,7 +37,8 @@ When no packet is received for a device of interest, the OFF value is published.
 
 ### Dependencies
 
-This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets. It depends also on the packages `libglib2.0-dev` and `bluetooth`.
+This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets.
+It depends also on the packages `libglib2.0-dev` and `bluetooth`.
 
 ```bash
 cd /srv/sensorReporter
@@ -134,7 +135,8 @@ Run the script and put the device into pairing mode and the MAC address and devi
 
 ### Dependencies
 
-The sensor uses [PyBluez](https://github.com/pybluez/pybluez) to scan for BT devices. It depends also on the packages `bluetooth` and `bluez`
+The sensor uses [PyBluez](https://github.com/pybluez/pybluez) to scan for BT devices.
+It depends also on the packages `bluetooth` and `bluez`
 
 ```bash
 cd /srv/sensorReporter
