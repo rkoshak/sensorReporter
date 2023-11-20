@@ -13,13 +13,11 @@ A polling sensor that reads temperature and humidity from a DHT11, DHT22, or AM2
 
 ### Dependencies
 
-This sensor uses the [adaFruit CircuitPython libraries](https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/python-setup).
+This sensor uses the [adaFruit CircuitPython libraries](https://learn.adafruit.com/dht-humidity-sensing-on-raspberry-pi-with-gdocs-logging/python-setup) (adafruit-blinka, adafruit-circuitpython-dht), RPI.GPIO and libgpiod2.
 
 ```bash
-sudo apt-get install libgpiod2
-sudo pip3 install RPI.GPIO
-sudo pip3 install adafruit-blinka
-sudo pip3 install adafruit-circuitpython-dht
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh gpio
 ```
 
 ### Parameters
@@ -135,17 +133,13 @@ Additionally, the sensor can detect toggle events and report the time of the eve
 
 ### Dependencies
 
+Depends on `RPi.GPIO` Python library.
 The user running sensor_reporter must have permission to access the GPIO pins.
 To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
 
 ```bash
-sudo adduser sensorReporter gpio
-```
-
-Depends on `RPi.GPIO`:
-
-```bash
-sudo pip3 install RPI.GPIO
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh gpio
 ```
 
 ### Basic parameters
@@ -270,17 +264,13 @@ A received command will be sent back on all configured connections to the config
 
 ### Dependencies
 
+Depends on `RPi.GPIO` Python library.
 The user running sensor_reporter must have permission to access the GPIO pins.
 To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
 
 ```bash
-sudo adduser sensorReporter gpio
-```
-
-Depends on `RPi.GPIO`:
-
-```bash
-sudo pip3 install RPI.GPIO
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh gpio
 ```
 
 ### Parameters
@@ -390,13 +380,13 @@ A recieved command will be sent back on all configured connections to the config
 
 ### Dependencies
 
+Depends on `RPi.GPIO` Python library.
 The user running sensor_reporter must have permission to access the GPIO pins.
-To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:  `$ sudo adduser sensorReporter gpio`
-
-Depends on RPi.GPIO.
+To grant the `sensorReporter` user GPIO permissions add the user to the group `gpio`:
 
 ```bash
-sudo pip3 install RPI.GPIO
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh gpio
 ```
 
 ### Parameters

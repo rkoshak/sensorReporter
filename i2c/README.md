@@ -27,13 +27,8 @@ The user running sensor_reporter must have permission to access the i2c interfac
 To grant the `sensorReporter` user i2c permissions add the user to the group `i2c`:
 
 ```bash
-sudo adduser sensorReporter i2c
-```
-
-Install `lib8relay` via:
-
-```bash
-sudo pip3 install lib8relay
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh i2c
 ```
 
 ### Parameters
@@ -110,13 +105,8 @@ The user running sensor_reporter must have permission to access the i2c interfac
 To grant the `sensorReporter` user i2c permissions add the user to the group `i2c`:
 
 ```bash
-sudo adduser sensorReporter i2c
-```
-
-Install `smbus2` via:
-
-```bash
-sudo pip3 install smbus2
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh i2c
 ```
 
 ### Parameters
