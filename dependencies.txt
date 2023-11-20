@@ -1,0 +1,9 @@
+[apt]
+# since debian bookworm we need to intall python dependencies to a virtual env
+python3-venv
+python3-pip
+python3-setuptools
+# for parsing yaml configuration
+python3-yaml
+# cannot install [pip] packages at this point, because python venv is not jet setup
+

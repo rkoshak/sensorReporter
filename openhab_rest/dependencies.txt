@@ -1,0 +1,4 @@
+[pip]
+# required by openHAB REST
+requests
+sseclient-py

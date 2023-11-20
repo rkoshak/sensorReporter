@@ -1,0 +1,5 @@
+[pip]
+# required by mqtt, homie
+paho-mqtt
+# required by homie
+homie-spec
