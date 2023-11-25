@@ -330,7 +330,7 @@ def configure_device_channel(comm:dict, *, is_output:bool,
                 sub[ChanConst.SETTABLE] = True
 
 class Debounce():
-    """ Checks the time difference between two  seqential events
+    """ Checks the time difference between two  sequential events
         and checks if the debounce time is already over
     """
 
@@ -341,17 +341,18 @@ class Debounce():
             - "dev_cfg"                  : 'dev_cfg' instance of the calling sensor / actuator
             - "default_debounce_time"    : time in seconds to use as default value for
                                            device config item 'ToggleDebounce' (float)
+                                           recommended value 0.15 (seconds)
 
             The following optional parameters are read from device config:
                 - "ToggleDebounce"       : The interval in seconds during which repeated
                                            toggle commands are ignored
         """
-        # default debaunce time 0.15 seconds
+        # store default debounce time
         self.debounce_time = float(dev_cfg.get("ToggleDebounce", default_debounce_time))
         self.last_time = datetime.datetime.fromordinal(1)
 
     def is_within_debounce_time(self):
-        """Checks the time difference between two  seqential events
+        """Checks the time difference between two  sequential events
            and checks if the debounce time is already over
 
            Returns True if the last call to this method is within the debounce time
@@ -360,7 +361,7 @@ class Debounce():
         # remember time for toggle debounce
         time_now = datetime.datetime.now()
         seconds_since_toggle = (time_now - self.last_time).total_seconds()
+        self.last_time = time_now
         if seconds_since_toggle < self.debounce_time:
             return True
-        self.last_time = time_now
         return False
