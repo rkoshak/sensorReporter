@@ -5,3 +5,5 @@ i2c
 lib8relay
 # required by TriacDimmer
 smbus2
+# required by adafruit 16ch PWM
+adafruit-circuitpython-pca9685
