@@ -20,6 +20,7 @@ Classes:
 """
 from threading import Thread
 import colorsys
+import struct
 import yaml
 import board
 import busio
@@ -42,11 +43,110 @@ def scale_color_val(value):
     val = abs(value) / 100
     return int(val * 0xffff)
 
+class ColorRGBW():
+    ''' Stores RGBW color values, which can range from 0 (= off) to 100 (= full brightness).
+        Allows read access to individual colors and a dictionary of all RGBW values.
+        Exposed property to set and get color in HSV format as CSV
+        e. g. green with full brightness =  '120,100,100'
+    '''
+    def __init__(self, red, green, blue, white, use_white_channel):
+        ''' Initializes colors to a given value (range 0 to 100)
+            Parameters:
+                * red, green, blue, white    Integer that defines the initial value for
+                                             the selected color.
+                                             Range: 0 (= off) to 100 (= full brightness)
+                * use_white_channel          Boolean, if true the 'color_hsv_str' property assumes
+                                             a white LED is present.
+                                             So HSV color 0,0,100 (no saturation) will be
+                                             converted to RGBW {red: 0, green: 0, blue:0, white:100}
+                                             If false: HSV color 0,0,100 will result in RGBW
+                                             {red: 100, green: 100, blue:100, white:0}
+        '''
+        if white != 0:
+            red = 0
+            green = 0
+            blue = 0
+
+        self._rgbw = {
+            C_RED   : red,
+            C_GREEN : green,
+            C_BLUE  : blue,
+            C_WHITE : white
+            }
+        self.use_white_ch = use_white_channel
+
+    def get_rgbw(self, color):
+        ''' Returns the  selected 'color' as an integer (range 0 to 100).
+            Raises an error if the specified color is not in the internal color dictionary.
+            Parameter:
+                * color    String, one of "Red", "Green", "Blue", "White"
+        '''
+        if color in self._rgbw:
+            return self._rgbw[color]
+        raise ValueError(f'Parameter \'color\' has unknown value: {color}')
+
+    @property
+    def get_rgbw_dict(self):
+        ''' Returns internal RGBW color dictionary for debugging and log messages
+        '''
+        return self._rgbw
+
+    @property
+    def color_hsv_str(self):
+        ''' Get or set the internal color in HSV color format
+            as comma separated value string without spaces: hue,saturation,value
+            E. g. pure red in full brightness = '0,100,100'
+        '''
+        # Build HSV color CSV str
+        if self._rgbw[C_WHITE] == 0:
+            # If white is not set use RGB values
+            # Normalize RGB values and calculate HSV color
+            hsv_tuple = colorsys.rgb_to_hsv(self._rgbw[C_RED]/100,
+                                            self._rgbw[C_GREEN]/100,
+                                            self._rgbw[C_BLUE]/100)
+            # Take HSV_tuple scale it and build hsv_color_str
+            hsv_color_str = ( f'{int(hsv_tuple[0]*360)},'
+                              f'{int(hsv_tuple[1]*100)},'
+                              f'{int(hsv_tuple[2]*100)}' )
+        else:
+            # Build HSV color str for case white color is set
+            # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
+            hsv_color_str = f"1,0,{int(self._rgbw[C_WHITE])}"
+            # In white mode RGB colors a not supported
+            #for color in C_RGB_ARRAY:
+            #    brightness_rgbw[color] = 0
+        return hsv_color_str
+
+    @color_hsv_str.setter
+    def color_hsv_str(self, hsv_str):
+        hsv = []
+        # We expect a string with 3 values: h,s,v
+        # Split and convert them to integer
+        for val in hsv_str.split(","):
+            hsv.append(int(val))
+
+        # Check if saturation (hsv[1]) equals 0 then set RGB = 0 w = value (hsv[2])
+        if hsv[1] == 0 and self.use_white_ch:
+            # Set RGB to off if configured
+            for color in C_RGB_ARRAY:
+                self._rgbw[color] = 0
+            # set white channel to saturation
+            self._rgbw[C_WHITE] = hsv[2]
+        else:
+            # Convert HSV color to RGB color tuple
+            color_rgb = colorsys.hsv_to_rgb(hsv[0]/360, hsv[1]/100, hsv[2]/100)
+            # Set white channel to 0
+            color_rgbw = color_rgb + (0,)
+            # store converted values
+            for (key, val) in zip(C_RGBW_ARRAY, color_rgbw):
+                self._rgbw[key] = round(val * 100)
+
+
 class PwmHatColorLED(Actuator):
     """ Allows to use 3 or 4 PWM channel to be dimmed on Adafruit 16-Channel PWM/Servo HAT.
-            Also supports toggling.
-            Documentation for the device is available at:
-            https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/overview
+        Also supports toggling.
+        Documentation for the device is available at:
+        https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/overview
     """
 
     def __init__(self, connections, dev_cfg):
@@ -54,22 +154,22 @@ class PwmHatColorLED(Actuator):
             Initializes the PWM duty cycle
             to the configured value.
 
-        Expected yaml config:
+        Expected YAML config:
         Class: i2c.pwm.PwmHatColorLED
         Channels:           #the pin's to use for the RGBW PWM
             Red: x
             Green: y
             Blue: z
             White: 0
-        InitialState:       #the inital state for the PWM duty cycle
-            Red: x          #(0 = off, 100 = on, full brigtness)
+        InitialState:       #the initial state for the PWM duty cycle
+            Red: x          #(0 = off, 100 = on, full brightness)
             Green: y
             Blue: z
             White: 100
-        PWM-Frequency: 240  #the frequecy for the PWM for all pin's
+        PWM-Frequency: 240  #the frequency for the PWM for all pin's
         InvertOut: True     #whether to invert the output, true for common anode LED's
         Stack: 0            #Optional, Stack address (I2C)
-        Connections:        #the connections dict
+        Connections:        #the connections dictionary
             xxx
         """
         super().__init__(connections, dev_cfg)
@@ -91,28 +191,12 @@ class PwmHatColorLED(Actuator):
             #        If this is the case and no local "InitialState" is configured
             #        this property might have the datatype bool, but we need a dict to proceed
             dev_cfg_init_state = {}
-        brightness_rgbw = {}
-        for color in C_RGBW_ARRAY:
-            brightness_rgbw[color] = dev_cfg_init_state.get(color, 0)
-
-        # Build HSV color str
-        if brightness_rgbw[C_WHITE] == 0:
-            # If white is not set use RGB values
-            # Normalize rgb values and calculate HSV color
-            hsv_tuple = colorsys.rgb_to_hsv(brightness_rgbw[C_RED]/100,
-                                             brightness_rgbw[C_GREEN]/100,
-                                             brightness_rgbw[C_BLUE]/100)
-            # Take HSV_tuple scale it and build hsv_color_str
-            self.hsv_color_str = ( f'{int(hsv_tuple[0]*360)},'
-                                   f'{int(hsv_tuple[1]*100)},'
-                                   f'{int(hsv_tuple[2]*100)}' )
-        else:
-            # Build HSV color str for case white color is set
-            # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
-            self.hsv_color_str = f"1,0,{int(brightness_rgbw[C_WHITE])}"
-            # In white mode RGB colors a not supported
-            for color in C_RGB_ARRAY:
-                brightness_rgbw[color] = 0
+        white_channel_in_use = self.channel[C_WHITE] != -1
+        self.color = ColorRGBW(dev_cfg_init_state.get(C_RED, 0),
+                               dev_cfg_init_state.get(C_GREEN, 0),
+                               dev_cfg_init_state.get(C_BLUE, 0),
+                               dev_cfg_init_state.get(C_WHITE, 0),
+                               white_channel_in_use)
 
         # If output should be inverted, add -100 to all brightness_rgbw values
         self.invert = -100 if dev_cfg.get("InvertOut", True) else 0
@@ -130,7 +214,7 @@ class PwmHatColorLED(Actuator):
                            "or no device with given stack address. Error Message: %s",
                            self.name, err)
             return
-        except Exception as err:
+        except struct.error as err:
             self.log.error("%s could not setup PWM HAT. PWM-Frequency out of Range "
                            "(allowed 30 - 1600). Error Message: %s",
                            self.name, err)
@@ -144,12 +228,12 @@ class PwmHatColorLED(Actuator):
             # Note: adafruit_pca9685 won't throw an error if one channel is taken multiple times
             self.pwm[key] = adafruit_pca9685.PWMChannel(self.pwm_hat, a_ch)
             # Set PWM duty cycle to initial value for each color, respect invert option
-            self.pwm[key].duty_cycle = scale_color_val(self.invert + brightness_rgbw[key])
+            self.pwm[key].duty_cycle = scale_color_val(self.invert + self.color.get_rgbw(key))
 
         self.log.info("Configured PWM-HAT %s: Channels: %s",
                       self.name, self.channel)
         self.log.debug("%s LED's set to: %s and has following configured connections: \n%s",
-                       self.name, brightness_rgbw, yaml.dump(self.comm))
+                       self.name, self.color.get_rgbw_dict, yaml.dump(self.comm))
 
         # Publish initial state to cmd_src
         self.publish_actuator_state()
@@ -168,45 +252,20 @@ class PwmHatColorLED(Actuator):
             Changes LED PWM duty cycle according to the message.
             Expects comma separated values formated as HSV color: 'h,s,v'
         """
-        self.hsv_color_str = msg
-        brightness_rgbw = {}
-        hsv = []
-        # We expect a string with 3 values: h,s,v
-        # Split and convert them to integer
-        for val in msg.split(","):
-            hsv.append(int(val))
+        self.color.color_hsv_str = msg
 
-        # Check if saturation (hsv[1]) equals 0 then set RGB = 0 w = value (hsv[2])
-        if hsv[1] == 0 and C_WHITE in self.pwm:
-            # Set RGB to off if configured
-            for color in C_RGB_ARRAY:
-                if color in self.pwm:
-                    brightness_rgbw[color] = 0
-                    self.pwm[color].duty_cycle = scale_color_val(self.invert)
-            brightness_rgbw[C_WHITE] = hsv[2]
-            self.pwm[C_WHITE].duty_cycle = scale_color_val(self.invert + brightness_rgbw[C_WHITE])
-        else:
-            # Convert HSV color to RGB color tuple
-            rgb = colorsys.hsv_to_rgb(hsv[0]/360, hsv[1]/100, hsv[2]/100)
-            # Set white channel to 0
-            rgbw = rgb + (0,)
-            # Interate over self.pin.keys() to make sure there are always 4 items like in RGBW
-            for (key, val) in zip(self.channel.keys(), rgbw):
-                if key in self.pwm:
-                    # Remember received brightness
-                    brightness_rgbw[key] = round(val * 100)
-                    # Change PWM duty cycle to new brightness, respect invert option
-                    self.pwm[key].duty_cycle = scale_color_val(self.invert + brightness_rgbw[key])
+        for (key, pwm) in self.pwm.items():
+            pwm.duty_cycle = scale_color_val(self.invert + self.color.get_rgbw(key))
 
         self.log.info("%s received %s, setting LED to %s",
-                      self.name, msg, brightness_rgbw)
+                      self.name, msg, self.color.get_rgbw_dict)
 
         # Publish own state back to remote connections
         self.publish_actuator_state()
 
     def publish_actuator_state(self):
         """ Publishes the current state of the actuator."""
-        self._publish(self.hsv_color_str, self.comm)
+        self._publish(self.color.color_hsv_str, self.comm)
 
 
     def cleanup(self):
