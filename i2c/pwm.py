@@ -467,7 +467,7 @@ class PwmHatColorLED(Actuator):
             # Set frequency, all channels share same value
             self.pwm_hat.frequency = int(dev_cfg.get("PWM-Frequency", 240))
         except ValueError as err:
-            self.log.error("%s could not setup PWM HAT. Stack No. out of Range (allowed 0-31) "
+            self.log.error("%s could not setup PWM HAT. Stack No. out of Range (allowed 0-61) "
                            "or no device with given stack address. Error Message: %s",
                            self.name, err)
             return

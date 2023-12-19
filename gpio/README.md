@@ -374,7 +374,7 @@ Circuit diagram
 ## `gpio.gpio_led.GpioColorLED`
 
 Commands 3 to 4 GPIO pins to control a RGB or RGBW LED via software PWM.
-A recieved command will be sent back on all configured connections to the configured return topic, to keep them up to date.
+A received command will be sent back on all configured connections to the configured return topic, to keep them up to date.
 
 ### Dependencies
 
@@ -388,25 +388,26 @@ sudo ./install_dependencies.sh gpio
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `gpio.gpio_led.GpioColorLED` |
-`Connections` | X | dictionary of connectors | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Pin` | X | dictionary of pin's | Pin to use as PWM output use sub parameter `Red`, `Green`, `Blue`, `White`, using the pin numbering defined in `PinNumbering` (see below). It is not nessesary to define pin's for all colors.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`InitialState` | | dictionary of values 0-100 | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)
-`InvertOut` | | Boolean | Use `True` for common anode LED (default setting). Otherwhise use `False`
+| Parameter       | Required | Restrictions                 | Purpose																																														 |
+|-----------------|----------|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`         | X        | `gpio.gpio_led.GpioColorLED` |																																																 |
+| `Connections`   | X        | dictionary of connectors     | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.				 |
+| `Pin`           | X        | dictionary of pin's          | Pin to use as PWM output. Use sub parameter `Red`, `Green`, `Blue`, `White`, using the pin numbering defined in `PinNumbering` (see below). It is not necessary to define pin's for all colors. |
+| `Level`         |          | DEBUG, INFO, WARNING, ERROR  | When provided, sets the logging level for the sensor.																																			 |
+| `InitialState`  |          | dictionary of values 0-100   | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)							 |
+| `InvertOut`     |          | Boolean                      | Use `True` for common anode LED (default setting). Otherwise use `False`																													     |
+| `PWM-Frequency` |			 | number						| Sets the PWM frequency in Hz (default 100 Hz)																																					 |
 
 ### Global parameters
-Can only be set for all GPIO devices (RpiGpioSensor, RpiGpioActuator and GpioColorLED). Global parametes are set in the `DEFAULT` section
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`PinNumbering` | | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM)
+Can only be set for all GPIO devices (RpiGpioSensor, RpiGpioActuator and GpioColorLED). Global parameters are set in the `DEFAULT` section
+| Parameter 	 | Required | Restrictions | Purpose																																										   |
+|----------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PinNumbering` | 			| BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM) |
 
 ### Outputs / Inputs
 The GpioColorLED has only one output and input.
 The input expects 3 comma separated values as command. 
-The values will set the LED color in HSV colorspace, e.g. `h,s,v`.
+The values will set the LED color in HSV color space, e.g. `h,s,v`.
 If the white pin is configured and the second value (saturation) = 0 then only the white LED will shine.
 The output will replay the LED color state in the same format.
 When using with the openHAB connection configure a color item.
