@@ -3,7 +3,7 @@
 This module contains:
 * [i2c.relay.EightRelayHAT](#i2crelayeightrelayhat)
 * [i2c.triac.TriacDimmer](#i2ctriactriacdimmer)
-* [i2c.pwm.PwmHatColorLED](#i2cpwmpwmhatvolorled)
+* [i2c.pwm.PwmHatColorLED](#i2cpwmpwmhatcolorled)
 
 
 ## `i2c.relay.EightRelayHAT`

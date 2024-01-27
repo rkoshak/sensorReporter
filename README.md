@@ -36,6 +36,7 @@ Go into the subfolders for details in each subfolder's README.
 | [`roku.roku_addr.RokuAddressSensor`](roku/README.md#roku-address-sensor-deprecated)                       | Polling Sensor                | Periodically requests the addresses of all the Rokus on the subnet.                                       |
 | [`ic2.relay.EightRelayHAT`](i2c/README.md#i2crelayeightrelayhat)                                          | Actuator                      | Sets a relay to a given state on command. Supports 8-Relays-HAT via i2c                                   |
 | [`ic2.triac.TriacDimmer`](i2c/README.md#i2ctriactriacdimmer)                                              | Actuator                      | Sets a triac PWM to a given duty cycle on command. Supports 2-Ch Triac HAT via i2c                        |
+| [`i2c.pwm.PwmHatColorLED`](i2c/README.md#i2cpwmpwmhatcolorled)											| Actuator						| Commands 3 to 4 Channels on a PWM HAT to control a RGB or RGBW LED										|  
 
 # Architecture
 The main script is `sensor_reporter.py` which parses a configuration YAML file and handles operating system signal handling.
