@@ -81,12 +81,12 @@ Plug-in dependencies can be installed on demand using the install_dependencies.s
 cd /srv/sensorReporter
 sudo ./install_dependencies.sh <plug-in folders separated by ','>
 ```
-Run command without parameters to list available plug-ins.
-For example:
+For example, install the mqtt and bt (bluetooth) dependencies:
 ```bash
 sudo ./install_dependencies.sh mqtt,bt
 ```
 For more examples see plug-in readme's.
+Run command without parameters to list available plug-ins.
 
 # Usage
 
