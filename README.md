@@ -71,8 +71,8 @@ cd /srv/sensorReporter
 sudo ./setup.sh
 ```
 This will install the base dependencies and setup a virtualenv for the Python packages.
-Each plugin will have it's own dependency.
-See the readmes in the subfolders for details.
+Each plug-in will have it's own dependency.
+See the readme's in the subfolders for details.
 
 ## Optional plug-in dependencies
 Plug-in dependencies can be installed on demand using the install_dependencies.sh from the base folder:
@@ -82,12 +82,16 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh <plug-in folders separated by ','>
 ```
 Run command without parameters to list available plug-ins.
-For examples see plug-in readme's.
+For example:
+```bash
+sudo ./install_dependencies.sh mqtt,bt
+```
+For more examples see plug-in readme's.
 
 # Usage
 
 1. Download sensor_reporter and execute setup.sh see section [setup](#setup)
-2. Write your config file and save it to `/srv/sensorReporter/sensor_reporter.yml`. For details see section [configuration](#configuration) and the plug-in readme's
+2. Write your configuration file and save it to `/srv/sensorReporter/sensor_reporter.yml`. For details see section [configuration](#configuration) and the plug-in readme's
 3. Start sensor_reporter manually to test the configuration with:
 
 ```bash

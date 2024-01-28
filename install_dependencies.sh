@@ -77,37 +77,37 @@ function install_dep()
 	KIND=$1
 	DEP=$2
 
-	if [ $KIND = '[apt]' ]; then
-		if [ $LIST_UNINSTALL_DEP ]; then
-			echo dep-package: $DEP
-		elif [ $UNINSTALL ]; then
+	if [ "$KIND" = '[apt]' ]; then
+		if [ "$LIST_UNINSTALL_DEP" ]; then
+			echo debian-package: "$DEP"
+		elif [ "$UNINSTALL" ]; then
 			echo "=== removing $DEP ==="
-			apt remove -y $DEP
+			apt remove -y "$DEP"
 		else
 			echo "=== installing $DEP ==="
-			apt install -y $DEP
+			apt install -y "$DEP"
 		fi
-	elif [ $KIND = '[groups]' ]; then
-		if [ $LIST_UNINSTALL_DEP ]; then
+	elif [ "$KIND" = '[groups]' ]; then
+		if [ "$LIST_UNINSTALL_DEP" ]; then
 			echo "user '$SR_USER' will be removed from group '$DEP'"
-		elif [ $UNINSTALL ]; then
+		elif [ "$UNINSTALL" ]; then
 			echo "=== removing user '$SR_USER' from groupe '$DEP' ==="
-			deluser $SR_USER $DEP
+			deluser "$SR_USER $DEP"
 		else
 			echo "=== adding user '$SR_USER' to groupe '$DEP' ==="
-			adduser $SR_USER $DEP
+			adduser "$SR_USER $DEP"
 		fi
-	elif [ $KIND = '[pip]' ]; then
-		if [ $LIST_UNINSTALL_DEP ]; then
-			echo pip-package: $DEP
-		elif [ $UNINSTALL ]; then
+	elif [ "$KIND" = '[pip]' ]; then
+		if [ "$LIST_UNINSTALL_DEP" ]; then
+			echo pip-package: "$DEP"
+		elif [ "$UNINSTALL" ]; then
 			echo "=== removing $DEP ==="
 			# don't run as root
-			su -c "bin/python -m pip uninstall -y $DEP" $USER
+			su -c "bin/python -m pip uninstall -y $DEP" "$USER"
 		else
 			echo "=== installing $DEP ==="
 			# don't run as root
-			su -c "bin/python -m pip install $DEP" $USER
+			su -c "bin/python -m pip install $DEP" "$USER"
 		fi
 	fi
 }
@@ -123,44 +123,56 @@ function parse_dep()
 	#	ignore lines starting with #
 	DEPENDENCIES=$(awk  '/\[/{prefix=$0; next}
 						/\#/{next}
-						$1{print prefix " " $0","}' $DEP_PATH)
+						$1{print prefix " " $0","}' "$DEP_PATH")
 
-	# restore old IFS to make sure 'read' works
-	IFS=$OLD_IFS
-	# Call installer for every dependency
+	IFS="$OLD_IFS"
+	# Call install function for every dependency
 	# Use custom internal field separator "," to separate DEPENDENCIES
 	# while using default IFS to process each entry
-	while IFS="," read -r kind dep; do
-		install_dep $kind $dep
+	while IFS="," read -r kind_dep; do
+		# variable '$kind_dep' contains one space ' '
+		# the default IFS will separate it in two arguements ($kind and $dep)
+		install_dep $kind_dep
 	done <<<"$DEPENDENCIES"
+}
+
+# Function print_usage() prints cli usage info and aviable plug-in folders
+function print_usage()
+{
+	echo "$USAGE_HINT"
+	echo "$SCRIPT_INFO"
+	echo -e "\nAvailable plug-in folders:"
+	# find DEP_FILE in subfolders, print only folder name, remove leading './'
+	find . -mindepth 2 -name "$DEP_FILE" -printf %h\\n | sed 's#./##'
 }
 
 ### start main script ###
 
-# if no parameters given or user is not root, exit 
-if [ $# -eq 0 ] || [ $ROOT_USER != `whoami` ]; then
-	echo $USAGE_HINT
-	echo $SCRIPT_INFO
-	echo -e "\nAvailable plug-in folders:"
-	# find DEP_FILE in subfolders, print only folder name, remove leading './'
-	find . -mindepth 2 -name $DEP_FILE -printf %h\\n | sed 's#./##'
+# if no parameters given or user is not root, print usage & exit 
+if [ "$#" -eq 0 ] || [ "$ROOT_USER" != "$(whoami)" ]; then
+	print_usage
 	exit 1
 fi
 
 # check PWD
-if [ $PWD != $SETUP_FOLDER ]; then
+if [ "$PWD" != "$SETUP_FOLDER" ]; then
 	echo "Warn: present working directory is $PWD,"
     echo "The recommended folder for sensorReporter is $SETUP_FOLDER."
     echo "This install script will only work if run from the sensorRepoter base folder!"
 	echo -n "Continue anyway? (y/n): "
-	read LINE
-	if [ $LINE != 'y' ]; then
+	read -r LINE
+	if [ "$LINE" != 'y' ]; then
 		exit 1
 	fi	
 fi
 
 # if uninstall flag is set activate LIST_UNINSTALL_DEP mode
-if [ $1 = $UNINSTALL_STR ]; then
+if [ "$1" = "$UNINSTALL_STR" ]; then
+	if [ "$#" -lt 2 ]; then
+		# if less then 2 arguments are used print usage and exit
+		print_usage
+		exit 1
+	fi
 	LIST_UNINSTALL_DEP=1
 	# save specified folder list
 	PATH_LIST=$2
@@ -176,46 +188,47 @@ else
 fi
 
 # get username of default user
-USER=`id -un -- $USER_ID`
+USER=$(id -un -- $USER_ID)
 
 # check if sensorRepoter user exists
-if [ `id $SR_USER >/dev/null 2>&1` ]; then
+if [ "$(id $SR_USER >/dev/null 2>&1)" ]; then
 	# if not use default user instead
-	SR_USER=$USER
+	SR_USER="$USER"
 fi
 
 # repeat while LIST_UNINSTALL_DEP or UNINSTALL or INSTALL are not empty
-while [ $INSTALL ] || [ $LIST_UNINSTALL_DEP ] || [ $UNINSTALL ]
+while [ "$INSTALL" ] || [ "$LIST_UNINSTALL_DEP" ] || [ "$UNINSTALL" ]
 do
 	# separate PATH_LIST to separate directories, which uses ',' as separator
-	OLD_IFS=$IFS
-	# set internal field separator to ','
+	OLD_IFS="$IFS"
+	# set internal field separator to ',' 
+	# since content of $PATH_LIST needs to be separated at ','
 	IFS="," 
 	for DIR in $PATH_LIST; do
 		# build dependency path
-		DEP_PATH=$PWD/$DIR/$DEP_FILE
+		DEP_PATH="$PWD/$DIR/$DEP_FILE"
 		# if dependency file exist parse contents
-		if [ -e $DEP_PATH ]; then
-			parse_dep $DEP_PATH
+		if [ -e "$DEP_PATH" ]; then
+			parse_dep "$DEP_PATH"
 		else
 			echo "Warn: no dependency file found for '$DIR', expected location: $DEP_PATH"
 		fi
 	done
 	
 	# handle while-loop exit conditions
-	if [ $LIST_UNINSTALL_DEP ]; then
-		# unset vars to exit until-loop
+	if [ "$LIST_UNINSTALL_DEP" ]; then
+		# unset vars to exit while-loop
 		LIST_UNINSTALL_DEP=
 		echo -n "Are you sure? (y/n): "
-		read LINE
-		if [ $LINE = 'y' ]; then
+		read -r LINE
+		if [ "$LINE" = 'y' ]; then
 			UNINSTALL=1
 		fi	
-	elif [ $UNINSTALL ]; then
+	elif [ "$UNINSTALL" ]; then
 		# unset vars to exit until-loop
 		UNINSTALL=
 		LIST_UNINSTALL_DEP=
-	elif [ $INSTALL ]; then
+	elif [ "$INSTALL" ]; then
 		# unset vars to exit until-loop
 		INSTALL=
 	fi
