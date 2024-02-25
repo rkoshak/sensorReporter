@@ -21,9 +21,9 @@
 #
 # Usage: sudo ./install_dependencies.sh [--uninstall] <folders,list,separated,by,,>
 #		 The expected parameter is a comma separated list of the folders within sensorReporter 
-#	     containing $DEP_FILE (dependencies.txt). 
+#	     that contain $DEP_FILE (dependencies.txt). 
 #		 To read the $DEP_FILE inside the sensorReporter base directory, pass '.' as parameter.
-# 		 Parameter '--uninstall' is optional to remove the dependencies listed in $DEP_FILE
+# 		 The '--uninstall' parameter is optional to remove the dependencies listed in $DEP_FILE
 #
 #	E.g. cd /srv/sensorReporter
 #		 sudo ./install_dependencies.sh gpio,bt
@@ -31,22 +31,25 @@
 #
 # Syntax for $DEP_FILE (dependencies.txt)
 # 		Section name, one of [apt], [pip], [groups]
-#				[apt]		installs/removes specified dep-packages via 'apt'
-#				[pip]		installs/uninstalls specified python-packages via 'pip' in the virtual Python envionment
-#				[groups]	adds/removes specidied groups to/from $SR_USER
-# 		Name of the package/group
-#		Comments can be added with a '#' at the beginning of the line
+#				[apt]		install/remove specified dep-packages via 'apt'
+#				[pip]		install/uninstall specified python-packages via 'pip' in the Python virtual envionment
+#				[groups]	add/remove specified groups to/from $SR_USER
+# 		Name of the package/group. pip packages can have version annotations e.g. paho-mqtt>=1.6.1,<2.0.0
+#		Comments can be added with a '#' at the beginning of the line.
 #
 #	E.g.
 #		[apt]
-#		# DhtSensor
+#		# required by DhtSensor
 #		libgpiod2
 #		[groups]
 #		gpio
 #		[pip]
-# 		DhtSensor, RpiGpioSensor, RpiGpioActuator, GpioColorLED
+# 		# required by DhtSensor, RpiGpioSensor, RpiGpioActuator, GpioColorLED
 #		RPI.GPIO
-
+#		# required by DhtSensor
+#		adafruit-blinka
+#		adafruit-circuitpython-dht
+#
 # Sources:
 # https://askubuntu.com/questions/252734/apt-get-mass-install-packages-from-a-file
 # https://stackoverflow.com/questions/49399984/parsing-ini-file-in-bash
@@ -56,21 +59,20 @@
 # https://www.gnu.org/savannah-checkouts/gnu/bash/manual/bash.html#Here-Strings
 
 # init vars
-SETUP_FOLDER='/srv/sensorReporter'
 DEP_FILE='dependencies.txt'
 SR_USER='sensorReporter'
 USER_ID=1000
 ROOT_USER='root'
 USAGE_HINT="Usage: sudo ./install_dependencies.sh [--uninstall] <plug-in folders separated by ','>"
-SCRIPT_INFO="This script will install/remove apt and pip dependencies listed in a specified '$DEP_FILE'."
+SCRIPT_INFO="This script will install/remove apt and pip dependencies listed in a given '$DEP_FILE'."
 UNINSTALL_STR='--uninstall'
 
 # Function install_dep() will install/remove apt, pip dependencies and add/remove groups to the SR_USER
 # Parameters:
 #	KIND		the kind of the dependency, currently supported:
-#				[apt]		installs/removes specified dep-packages via 'apt'
-#				[pip]		installs/uninstalls specified python-packages via 'pip' in the virtual Python envionment
-#				[groups]	adds/removes given specified to/from $SR_USER
+#				[apt]		install/remove specified dep-packages via 'apt'
+#				[pip]		install/uninstall specified python-packages via 'pip' in the virtual Python envionment
+#				[groups]	add/remove given specified to/from $SR_USER
 #	DEP			the name of the package/group
 function install_dep()
 {
@@ -92,10 +94,10 @@ function install_dep()
 			echo "user '$SR_USER' will be removed from group '$DEP'"
 		elif [ "$UNINSTALL" ]; then
 			echo "=== removing user '$SR_USER' from groupe '$DEP' ==="
-			deluser "$SR_USER $DEP"
+			deluser "$SR_USER" "$DEP"
 		else
 			echo "=== adding user '$SR_USER' to groupe '$DEP' ==="
-			adduser "$SR_USER $DEP"
+			adduser "$SR_USER" "$DEP"
 		fi
 	elif [ "$KIND" = '[pip]' ]; then
 		if [ "$LIST_UNINSTALL_DEP" ]; then
@@ -103,11 +105,13 @@ function install_dep()
 		elif [ "$UNINSTALL" ]; then
 			echo "=== removing $DEP ==="
 			# don't run as root
-			su -c "bin/python -m pip uninstall -y $DEP" "$USER"
+			# Escaped quotes will get resolved from su,
+			# these quotes around $DEP will allow pip dependencies with version e.g. paho-mqtt<2.0.0,>=1.6.1
+			su -c "bin/python -m pip uninstall -y \"$DEP\"" "$USER"
 		else
 			echo "=== installing $DEP ==="
 			# don't run as root
-			su -c "bin/python -m pip install $DEP" "$USER"
+			su -c "bin/python -m pip install \"$DEP\"" "$USER"
 		fi
 	fi
 }
@@ -123,13 +127,14 @@ function parse_dep()
 	#	ignore lines starting with #
 	DEPENDENCIES=$(awk  '/\[/{prefix=$0; next}
 						/\#/{next}
-						$1{print prefix " " $0","}' "$DEP_PATH")
+						$1{print prefix " " $0":"}' "$DEP_PATH")
 
 	IFS="$OLD_IFS"
 	# Call install function for every dependency
-	# Use custom internal field separator "," to separate DEPENDENCIES
-	# while using default IFS to process each entry
-	while IFS="," read -r kind_dep; do
+	# Use custom internal field separator ":" to separate DEPENDENCIES
+	# while using default IFS to process each entry.
+	# Following characters are note aviable as IFS cos they are used by pip: >=<,.
+	while IFS=":" read -r kind_dep; do
 		# variable '$kind_dep' contains one space ' '
 		# the default IFS will separate it in two arguements ($kind and $dep)
 		install_dep $kind_dep
@@ -154,16 +159,12 @@ if [ "$#" -eq 0 ] || [ "$ROOT_USER" != "$(whoami)" ]; then
 	exit 1
 fi
 
-# check PWD
-if [ "$PWD" != "$SETUP_FOLDER" ]; then
-	echo "Warn: present working directory is $PWD,"
-    echo "The recommended folder for sensorReporter is $SETUP_FOLDER."
-    echo "This install script will only work if run from the sensorRepoter base folder!"
-	echo -n "Continue anyway? (y/n): "
-	read -r LINE
-	if [ "$LINE" != 'y' ]; then
-		exit 1
-	fi	
+# check dependecies
+if [ ! -e "$PWD/$DEP_FILE" ]; then
+	echo "Err: Required dependency '$DEP_FILE' not found in present working directory ($PWD)!"
+	echo "     Make sure your run the install_dependencies script from the sensorRepoter base folder."
+	echo "$USAGE_HINT"
+	exit 1	
 fi
 
 # if uninstall flag is set activate LIST_UNINSTALL_DEP mode
