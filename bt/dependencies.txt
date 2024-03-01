@@ -1,0 +1,13 @@
+[apt]
+# required by BtleSensor
+libglib2.0-dev
+# required by SimpleBtSensor, BtleSensor
+bluetooth
+# required by SimpleBtSensor
+bluez
+python3-bluez
+[pip]
+# BtleSensor
+bluepy
+# GoveeSensor
+bleson

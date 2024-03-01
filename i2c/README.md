@@ -14,6 +14,7 @@ A received command will be sent back on all configured connections to the config
 ### Dependencies
 
 This actuator communicates via the i2c interface, therfore the GPIO 2 and 3 should be free and cannot get accessed directly e. g. with a RpiGPIOSensor.
+The user running sensor_reporter must be in the `i2c` group to have access to the i2c interface.
 Also the library `lib8relay` must be installed to make this actuator work.
 
 To enable the i2c interface open the Raspberry-Pi configuration via:
@@ -23,17 +24,11 @@ sudo raspi-config
 ```
 and choose Interface Options, then <b>I2C Interface</b> and yes.
 
-The user running sensor_reporter must have permission to access the i2c interface.
-To grant the `sensorReporter` user i2c permissions add the user to the group `i2c`:
+To install the dependencies run: 
 
 ```bash
-sudo adduser sensorReporter i2c
-```
-
-Install `lib8relay` via:
-
-```bash
-sudo pip3 install lib8relay
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh i2c
 ```
 
 ### Parameters
@@ -97,6 +92,7 @@ A received command will be sent back on all configured connections to the config
 ### Dependencies
 
 This actuator communicates via the i2c interface, therfore the GPIO 2 and 3 should be free and cannot get accessed directly e. g. with a RpiGPIOSensor.
+The user running sensor_reporter must be in the `i2c` group to have access to the i2c interface.
 Also the library `smbus2` must be installed to make this actuator work.
 
 To enable the i2c interface open the Raspberry-Pi configuration via:
@@ -106,17 +102,11 @@ sudo raspi-config
 ```
 and choose Interface Options, then <b>I2C Interface</b> and yes.
 
-The user running sensor_reporter must have permission to access the i2c interface.
-To grant the `sensorReporter` user i2c permissions add the user to the group `i2c`:
+To install the dependencies run:
 
 ```bash
-sudo adduser sensorReporter i2c
-```
-
-Install `smbus2` via:
-
-```bash
-sudo pip3 install smbus2
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh i2c
 ```
 
 ### Parameters

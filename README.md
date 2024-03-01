@@ -38,7 +38,7 @@ Go into the subfolders for details in each subfolder's README.
 | [`ic2.triac.TriacDimmer`](i2c/README.md#i2ctriactriacdimmer)                                              | Actuator                      | Sets a triac PWM to a given duty cycle on command. Supports 2-Ch Triac HAT via i2c                        |
 
 # Architecture
-The main script is `sensor_reporter` which parses a configuration YAML file and handles operating system signal handling.
+The main script is `sensor_reporter.py` which parses a configuration YAML file and handles operating system signal handling.
 
 It uses a `core.poll_mgr.PollMgr` manages running a polling loop used by Polling Sensors to control querying the devices.
 
@@ -63,45 +63,48 @@ However, some parmeters will be common.
 sensor_reporter only runs in Python 3 and has only been tested in Python 3.7 through Python 3.11.2.
 It uses PyYAML for parsing the configuration file.
 
-## Debian based systems prior to bookworm
-```
-sudo pip3 install PyYAML
-```
-Each plugin will have it's own dependency.
-See the readmes in the subfolders for details.
-
-## Debian based systems bookworm or later
-Debian bookworm no longer allows easily globally installing PyPy libraries and many of those used by sensor_reporter, including `PyYAML` are not available to be installed globally.
-In these cases you must run sensor_reporter in a virtualenv.
+## Setup
 After cloning this repo to a folder (e.g. `/srv/sensorReporter`) run the following commands:
 
-```
+```bash
 cd /srv/sensorReporter
-python -m venv .
-source bin/activate
-pip install PyYAML # repeat for all libraries you may be using or
-pip install -r requirements.txt # install all libraries used by all modiles. 
+sudo ./setup.sh
 ```
+This will install the base dependencies and setup a virtualenv for the Python packages.
+Each plug-in will have it's own dependency.
+See the readme's in the subfolders for details.
+
+## Optional plug-in dependencies
+Plug-in dependencies can be installed on demand using the install_dependencies.sh from the base folder:
+
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh <plug-in folders separated by ','>
+```
+For example, install the mqtt and bt (bluetooth) dependencies:
+```bash
+sudo ./install_dependencies.sh mqtt,bt
+```
+For more examples see plug-in readme's.
+Run command without parameters to list available plug-ins.
 
 # Usage
-`python3 sensor_reporter.py configuration.yml`
 
-An example systemd service file is provided for your reference.
-The following steps describe how to setup the service:
+1. Download sensor_reporter and execute setup.sh see section [setup](#setup)
+2. Write your configuration file and save it to `/srv/sensorReporter/sensor_reporter.yml`. For details see section [configuration](#configuration) and the plug-in readme's
+3. Start sensor_reporter manually to test the configuration with:
 
-1. clone this repo into `/srv/sensorReporter`
-2. create a `sensorReporter` system user:  `sudo adduser --system --force-badname --home /opt/sensor_reporter sensorReporter`
-3. write your config file and save it to `/opt/sensor_reporter/sensor_reporter.yml`
-4. change owner of the config file:  `sudo chown sensorReporter:nogroup /opt/sensor_reporter/sensor_reporter.yml`
-5. limit read write to owner:  `sudo chmod 600 sensor_reporter.yml`
-6. install service file:  `sudo cp sensor_reporter.service /etc/systemd/system`
-7. set service to autostart:  `sudo systemctl enable sensor_reporter.service`
-8. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
+```bash
+cd /srv/sensorReporter
+bin/python sensor_reporter.py sensor_reporter.yml
+```
+(optional) enable & start the service:
 
-Some plugins will reqire additional steps, see readmes in the subfolders for details.
+4. set service to auto start:  `sudo systemctl enable sensor_reporter.service`
+5. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
 
-To reload a modifierd sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
-After large changes to the configuration, e. g. sensors/actuators as been removed/added, a restart of the service is recommended.
+To reload a modified sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
+After large changes to the configuration, e. g. sensors/actuators has been removed/added, a restart of the service is recommended.
 
 # Configuration
 sensor_reporter uses an YAML file for configuration.
@@ -111,6 +114,7 @@ All logging will be published to standard out.
 In addition logging will be published to syslog or to a log file.
 
 *Security advice:* make sure your sensor_reporter.yml is owned by the user `sensorReporter` and only that user has read and write permissions.
+This user is automatically created when choosing 'install service' in setup.sh.
 
 `sudo chown sensorReporter:nogroup sensor_reporter.yml`  
 `sudo chmod 600 sensor_reporter.yml`

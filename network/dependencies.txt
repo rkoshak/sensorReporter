@@ -1,0 +1,8 @@
+[apt]
+# required by ArpSensor
+net-tools
+# required by DashSensor
+libpcap0.8
+[pip]
+# required by DashSensor
+scapy

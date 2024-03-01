@@ -13,8 +13,9 @@ A connection to publish and subscribe to MQTT topics.
 
 MQTT Communication is handled using the [phao-mqtt](https://pypi.org/project/paho-mqtt/) library.
 
-```
-sudo pip3 install paho-mqtt
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh mqtt
 ```
 
 ### Parameters
@@ -116,9 +117,9 @@ A connection to communicate via MQTT using the [Homie convention](https://homiei
 MQTT Communication is handled using the [phao-mqtt](https://pypi.org/project/paho-mqtt/) library.
 The Homie conventions is implemented via [homie-spec](https://pypi.org/project/homie-spec/).
 
-```
-$ sudo pip3 install paho-mqtt
-$ sudo pip3 install homie-spec
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh mqtt
 ```
 
 ### Parameters

@@ -1,0 +1,11 @@
+[apt]
+# required by DhtSensor
+libgpiod2
+[groups]
+gpio
+[pip]
+# required by DhtSensor, RpiGpioSensor, RpiGpioActuator, GpioColorLED
+RPI.GPIO
+# required by DhtSensor
+adafruit-blinka
+adafruit-circuitpython-dht

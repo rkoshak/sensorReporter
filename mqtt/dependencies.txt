@@ -1,0 +1,5 @@
+[pip]
+# required by mqtt, homie. Version 2.0.0 has breaking changes
+paho-mqtt>=1.6.1,<2.0.0
+# required by homie
+homie-spec

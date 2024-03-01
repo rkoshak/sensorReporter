@@ -10,10 +10,11 @@ A simple Polling Sensor that periodically pulls the ARP table using a terminal c
 
 ### Dependencies
 
-The `arp` command must be installed.
+The `arp` command must be installed via the package `net-tools`.
 
-```
-sudo apt install net-tools
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh network
 ```
 
 The user sensor_reporter is running under must have permission to run the arp command.
@@ -70,9 +71,9 @@ Must be run as root in order to go into sniffing mode.
 
 Uses [Scapy](https://pypi.org/project/scapy/) to do network sniffing. Scrapy depends on libpcap.
 
-```
-sudo pip3 install scapy
-sudo apt install libpcap0.8
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh network
 ```
 
 ### Parameters

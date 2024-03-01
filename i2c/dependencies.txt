@@ -1,0 +1,7 @@
+[groups]
+i2c
+[pip]
+# required by EightRelayHAT
+lib8relay
+# required by TriacDimmer
+smbus2

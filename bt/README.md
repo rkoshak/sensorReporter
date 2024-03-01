@@ -38,10 +38,11 @@ When no packet is received for a device of interest, the OFF value is published.
 ### Dependencies
 
 This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets.
+It depends also on the packages `libglib2.0-dev` and `bluetooth`.
 
-```
-sudo apt-get install libglib2.0-dev bluetooth
-sudo pip3 install bluepy
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh bt
 ```
 
 Requires sensor_reporter to be run as root.
@@ -135,9 +136,11 @@ Run the script and put the device into pairing mode and the MAC address and devi
 ### Dependencies
 
 The sensor uses [PyBluez](https://github.com/pybluez/pybluez) to scan for BT devices.
+It depends also on the packages `bluetooth` and `bluez`
 
-```
-sudo apt-get install bluetooth bluez python3-bluez
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh bt
 ```
 
 sensor_reporter must be run as root.
@@ -195,8 +198,9 @@ A Background Sensor that listens for and parses BTLE packets from Govee H5075 te
 
 This sensor is uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
 
-```
-sudo pip3 install bleson
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh bt
 ```
 
 sensor_reporter must be run as root.
