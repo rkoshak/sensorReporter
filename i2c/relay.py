@@ -22,7 +22,7 @@ import datetime
 import yaml
 import lib8relay
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, configure_device_channel, ChanType
+from core.utils import is_toggle_cmd, configure_device_channel, ChanType, Debounce
 
 def onoff_to_str(output):
     """Converts 1 to "ON" and 1 to "OFF"
@@ -82,9 +82,8 @@ class EightRelayHAT(Actuator):
 
         self.sim_button = dev_cfg.get("SimulateButton", False)
 
-        # default debaunce time 0.15 seconds
-        self.toggle_debounce = float(dev_cfg.get("ToggleDebounce", 0.15))
-        self.last_toggle = datetime.datetime.fromordinal(1)
+        # default debounce time 0.15 seconds
+        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
 
         # remember the current output state
         if self.sim_button:
@@ -92,13 +91,13 @@ class EightRelayHAT(Actuator):
         else:
             self.current_state = self.init_state
 
-        self.log.info("Configued EightRelayHAT %s: Stack %d, Relay %d (%s) with SimulateButton %s",
+        self.log.info("Configured EightRelayHAT %s: Stack %d, Relay %d (%s) with SimulateButton %s",
                       self.name, self.stack, self.relay,
                       onoff_to_str(self.init_state), self.sim_button)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
-        # publish inital state back to remote connections
+        # publish initial state back to remote connections
         self.publish_actuator_state()
 
         configure_device_channel(self.comm, is_output=False,
@@ -112,9 +111,9 @@ class EightRelayHAT(Actuator):
         """Called when the actuator receives a message. If SimulateButton is not enabled
         sets the relay ON of OFF corresponding to the message.
         """
-        # ignore command echo which occure with multiple connections:
+        # ignore command echo which occur with multiple connections:
         # do nothing when the command (msg) equals the current state,
-        # ignor this on SimulateButton mode
+        # ignore this on SimulateButton mode
         if not self.sim_button:
             if msg in ("ON", "OFF"):
                 if self.current_state == strtobool(msg):
@@ -123,17 +122,13 @@ class EightRelayHAT(Actuator):
                                   self.name, msg)
                     return
             elif is_toggle_cmd(msg):
-                # remember time for toggle debounce
-                time_now = datetime.datetime.now()
-                seconds_since_toggle = (time_now - self.last_toggle).total_seconds()
-                if seconds_since_toggle < self.toggle_debounce:
-                    # filter close toggle commands to make sure no double switching occures
+                if self.debounce.is_within_debounce_time():
+                    # filter close toggle commands to make sure no double switching occurs
                     self.log.info("%s received toggle command %s"
                                   " within debounce time. Ignoring command!",
                                   self.name, msg)
                     return
 
-                self.last_toggle = time_now
                 msg = "TOGGLE"
 
         self.log.info("%s received command %s, SimulateButton = %s, Stack = %d, Relay = %d",
@@ -146,7 +141,7 @@ class EightRelayHAT(Actuator):
                           onoff_to_str(self.init_state),
                           onoff_to_str(not self.init_state))
             lib8relay.set(self.stack, self.mapped_relay, int(not self.init_state))
-            # "sleep" will block a local connecten and therefore
+            # "sleep" will block a local connection and therefore
             # distort the time detection of button press event's
             sleep(.5)
             self.log.info("%s toggles Stack %d Relay %d,  %s to %s",
