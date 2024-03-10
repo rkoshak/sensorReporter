@@ -194,7 +194,7 @@ SensorLightPushButton:
 
 ## `i2c.pwm.PwmHatColorLED`
 
-Commands 3 to 4 channels on the [Adafruit PWM HAT](https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi) to control a RGB or RGBW LED.
+Commands 1, 3 or 4 channels on the [Adafruit PWM HAT](https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi) to control a white, RGB or RGBW LED.
 A received command will be sent back on all configured connections to the configured return topic, to keep them up to date.
 
 ### Dependencies
@@ -223,7 +223,7 @@ sudo ./install_dependencies.sh i2c
 |-----------------|----------|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`         | X        | `i2c.pwm.PwmHatColorLED`     |                                                                                                                                                                                                                                                        |
 | `Connections`   | X        | dictionary of connectors     | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.                                                                      |
-| `Channels`      | X        | dictionary of channels       | Channel to use as PWM output. Use sub parameter `Red`, `Green`, `Blue`, `White`, using the channel number printed on the HAT (0 to 15). It is not necessary to define pin's for all colors.                                                            |
+| `Channels`      | X        | dictionary of channels       | Channel to use as PWM output. Use sub-parameter `Red`, `Green`, `Blue`, `White`, with the channel number printed on the HAT (0 to 15). It is not necessary to define pins for all colors.                                                             |
 | `Stack`         |          | whole number 0-61            | Stack level of the HAT. Corresponds to the soldered jumpers on the HAT. Board 0 = Stack 0 for details see [here](https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/stacking-hats#addressing-the-hats-1061336) (default 0). |
 | `Level`         |          | DEBUG, INFO, WARNING, ERROR  | When provided, sets the logging level for the sensor.                                                                                                                                                                                                  |
 | `InitialState`  |          | dictionary of values 0-100   | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)                                                                                     |
@@ -244,6 +244,7 @@ The PwmHatColorLED has only one output and input.
 The input expects 3 comma separated values as command. 
 The values will set the LED color in HSV color space `h,s,v`, e.g. 240,100,100.
 If the white channel is configured and the second value (saturation) = 0 then only the white LED will shine.
+If only the white channel is configured one value (0-100) is sufficient as input.
 The output will replay the LED color state in the same format.
 
 The PwmHatColorLED also accepts ON, OFF, DIM, STOP, TOGGLE or a datetime string as a command.
@@ -257,6 +258,7 @@ The STOP command will also interrupt the `DimDelay`, so no manual dimming will o
 Can be connected directly to a RpiGpioSensor ShortButtonPress / LongButtonPress output.
 To use a RpiGpioSensor together with the PwmHatColorLED use the configuration example for the [TriacDimmer](#i2ctriactriacdimmer) above.
 When using with the openHAB connection configure a color item.
+If only the white channel is configured use a dimmer item in openHAB.
 
 ### Hardware address
 
@@ -265,7 +267,9 @@ This address can be configured with soldered jumpers see [here](https://learn.ad
 The i2c address equals Stack + 64, e. g. Stack 0 => 0 + 64.
 No other i2c devices with the same address can be installed at the same time.
 
-### Configuration Example
+### Configuration Example 1
+Control RGBW LED with 4 channels
+
 ```yaml
 Logging:
     Syslog: yes
@@ -285,8 +289,32 @@ ActuatorRgbLED:
         Green: 2
         White: 3
     InitialState:
-        White: 100
+        Red: 100
     Connections:
         openHAB:
             Item: eg_w_color_led
+```
+
+### Configuration Example 2
+Control white LED with 1 channel
+
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
+
+Connection_openHAB:
+    Class: openhab_rest.rest_conn.OpenhabREST
+    Name: openHAB
+    URL: http://localhost:8080
+    RefreshItem: Test_Refresh
+    
+ActuatorWhiteLED:
+    Class: i2c.pwm.PwmHatColorLED
+    Channels:
+        White: 3
+    Connections:
+        openHAB:
+            Item: eg_w_white_pwm
+    InvertOut: true
 ```

@@ -15,7 +15,9 @@
 """Contains Adafruit PWM HAT.
 
 Classes:
-    -  PwmHATColorLED: sets PWM for defined channels.
+    -  PwmHATColorLED : sets PWM for defined channels.
+    -  ColorHSV       : converts RGB color to HSV color space
+    -  _SmoothDimmer  : handles smooth value change and dimming events
 """
 from types import SimpleNamespace
 from threading import Thread
@@ -171,10 +173,10 @@ class ColorHSV():
             # Build HSV color array for case white color is set
             # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
             hsv_array = [2,0,rgbw_dict[C_WHITE]]
-        # store result
-        self._hsv[C_HUE] = hsv_array[0]
-        self._hsv[C_SAT] = hsv_array[1]
-        self._hsv[C_VAL] = hsv_array[2]
+        # store result as integer to get rid of floating point numbers
+        self._hsv[C_HUE] = int(hsv_array[0])
+        self._hsv[C_SAT] = int(hsv_array[1])
+        self._hsv[C_VAL] = int(hsv_array[2])
 
     @property
     def hsv_dict(self):
@@ -401,7 +403,7 @@ class _SmoothDimmer():
 
 
 class PwmHatColorLED(Actuator):
-    """ Allows to use 3 or 4 PWM channel to be dimmed on Adafruit 16-Channel PWM/Servo HAT.
+    """ Allows to use 1, 3 or 4 PWM channel to be dimmed on Adafruit 16-Channel PWM/Servo HAT.
         Also supports toggling.
         Documentation for the device is available at:
         https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/overview
@@ -480,6 +482,7 @@ class PwmHatColorLED(Actuator):
         self.pwm = {}
         for (key, a_ch) in self.channel.items():
             if a_ch == -1:
+                # skip not set channels
                 continue
             # Get channel object
             # Note: adafruit_pca9685 won't throw an error if one channel is taken multiple times
@@ -505,11 +508,17 @@ class PwmHatColorLED(Actuator):
         # Publish initial state to cmd_src
         self.publish_actuator_state()
 
-        # Register as HSV color datatyp so the received messages are same for
-        # homie and openHAB-REST-API
-        configure_device_channel(self.comm, is_output=False,
-                                 name="set color LED", datatype=ChanType.COLOR,
-                                 restrictions="hsv")
+        if len(self.pwm) == 1:
+            # if only one channel is defined register as integer input (dimmer)
+            configure_device_channel(self.comm, is_output=False,
+                                 name="set duty cycle", datatype=ChanType.INTEGER,
+                                 unit="%", restrictions="0:100")
+        else:
+            # Register as HSV color datatyp so the received messages are same for
+            # homie and openHAB-REST-API
+            configure_device_channel(self.comm, is_output=False,
+                                     name="set color LED", datatype=ChanType.COLOR,
+                                     restrictions="hsv")
         # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
@@ -518,6 +527,7 @@ class PwmHatColorLED(Actuator):
         """ Called when the actuator receives a message.
             Changes LED PWM duty cycle according to the message.
             Expects comma separated values formated as HSV color: 'h,s,v'
+            OR one value of: ON, OFF, 0 to 100
         """
         new_color = deepcopy(self.state.current)
         #if msg.find(',') > 0 and msg.find('NaN') == -1:
@@ -525,6 +535,10 @@ class PwmHatColorLED(Actuator):
             # msg contains ',' so it should contain a 'h,s,v' string
             # in rare cases openHAB sends HSV value NaN, don't process these messages
             new_color.color_hsv_str = msg
+        elif msg.isdigit():
+            # msg contains digits convert it from string to int
+            # store it as HSV value (brightness)
+            new_color.set_hsv(C_VAL, int(msg))
         elif msg == "ON":
             # handle openHab item sending ON
             # set HSV value (brightness) to 100
@@ -582,6 +596,11 @@ class PwmHatColorLED(Actuator):
 
     def publish_actuator_state(self):
         """ Publishes the current state of the actuator."""
+        if len(self.pwm) == 1:
+            # if only one channel is defined publish only brightness state
+            # to be compatible with openHab dimmer item
+            self._publish(str(self.state.current.get_hsv(C_VAL)), self.comm)
+            return
         self._publish(self.state.current.color_hsv_str, self.comm)
 
 
@@ -590,4 +609,3 @@ class PwmHatColorLED(Actuator):
         self.log.debug("Cleaning up PWM HAT, invoked via Actuator %s", self.name)
         self.pwm_hat.deinit()
         self.pwm_hat.reset()
-            
