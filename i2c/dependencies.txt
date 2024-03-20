@@ -7,3 +7,6 @@ lib8relay
 smbus2
 # required by adafruit 16ch PWM
 adafruit-circuitpython-pca9685
+[raspi-config]
+# required by EightRelayHAT, TriacDimmer, adafruit 16ch PWM
+do_i2c

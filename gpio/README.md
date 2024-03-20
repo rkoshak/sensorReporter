@@ -77,11 +77,14 @@ A polling sensor that reads temperature from a DS18S20 or DS18B20 1-Wire bus sen
 
 ### Dependencies
 
-To enable the 1-Wire interface on your Raspberry Pi, add the following to the bottom of `/boot/config.txt`:
+This sensor communicates via the `1-Wire interface` on your Raspberry Pi.
+To work properly it also need the kernel modules w1-gpio and w1-therm.
+
+To enable the 1-Wire interface run (boot partition must be writable):
 
 ```bash
-# Enable 1-Wire interface on default GPIO4
-dtoverlay=w1-gpio
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh gpio
 ```
 
 To load the `w1-gpio` and `w1-therm` kernel modules, add the following to `/etc/modules`:

@@ -70,9 +70,10 @@ UNINSTALL_STR='--uninstall'
 # Function install_dep() will install/remove apt, pip dependencies and add/remove groups to the SR_USER
 # Parameters:
 #	KIND		the kind of the dependency, currently supported:
-#				[apt]		install/remove specified dep-packages via 'apt'
-#				[pip]		install/uninstall specified python-packages via 'pip' in the virtual Python envionment
-#				[groups]	add/remove given specified to/from $SR_USER
+#				[apt]			install/remove specified dep-packages via 'apt'
+#				[pip]			install/uninstall specified python-packages via 'pip' in the virtual Python envionment
+#				[groups]		add/remove given specified to/from $SR_USER
+#				[raspi-config]  enables/disables specified raspi-config switches, see: https://www.raspberrypi.com/documentation/computers/configuration.html#raspi-config-cli
 #	DEP			the name of the package/group
 function install_dep()
 {
@@ -112,6 +113,17 @@ function install_dep()
 			echo "=== installing $DEP ==="
 			# don't run as root
 			su -c "bin/python -m pip install \"$DEP\"" "$USER"
+		fi
+	elif [ "$KIND" = '[raspi-config]' ]; then
+		if [ "$LIST_UNINSTALL_DEP" ]; then
+			echo raspi-config switch: "$DEP"
+		elif [ "$UNINSTALL" ]; then
+			echo "=== disabling raspi-config switch $DEP ==="
+			raspi-config nonint "$DEP" 1
+		else
+			echo "=== enabling raspi-config switch $DEP ==="
+			# yes setting the switch to 0 will enable the feature
+			raspi-config nonint "$DEP" 0
 		fi
 	fi
 }
@@ -177,7 +189,7 @@ if [ "$1" = "$UNINSTALL_STR" ]; then
 	LIST_UNINSTALL_DEP=1
 	# save specified folder list
 	PATH_LIST=$2
-	echo "Script runs in uninstall mod!"
+	echo "Script runs in uninstall mode!"
 	echo "The following packages will be removed regardless of their dependencies on other software:"
 else
 	# save specified folder list

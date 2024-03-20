@@ -9,3 +9,6 @@ RPI.GPIO
 # required by DhtSensor
 adafruit-blinka
 adafruit-circuitpython-dht
+[raspi-config]
+# required by Ds18x20Sensor
+do_onewire
