@@ -167,10 +167,13 @@ def create_device(dev_cfg, section, connections):
             # catch connection name typos at startup
             if "Connections" in ex.args:
                 logger.error("Section 'Connections' missing for device {}".format(section))
-            else:
-                logger.error("Error creating device {}!"
-                             " Probably the name of the connection {} is misspelled."
-                             .format(section, ex))
+                return None
+            # If connections section is present the Key error is caused
+            # by a misspelled connection name
+            logger.error("Error creating device {}!"
+                         " Probably the name of the connection {} is misspelled."
+                         .format(section, ex))
+            return None
         if 'Name' not in dev_cfg:
             #remember section name for logger messages within a device
             dev_cfg['Name'] = section.replace('Actuator', '').replace('Sensor','')
@@ -187,7 +190,19 @@ def create_poll_manager(config_file):
     the PollMgr to handle them all.
     """
     with open(config_file, 'r', encoding='utf_8') as file:
-        config = yaml.safe_load(file)
+        try:
+            config = yaml.safe_load(file)
+        except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+            # yaml.scanner.ScannerError: YAML reports: "mapping values are not allowed here"
+            # This is caused by wrong indentation of the first value
+            # after a Sensor, Actuator, Connection definition
+
+            # yaml.parser.ParserError: YAML reports: "while parsing a block mapping"
+            # This is paused by wrong indentation in the middle lower part of a
+            # device definition (Sensor, Actuator, Connection)
+            logger.error("YAML-Config indentation error: Make sure that the indentation is"
+                         " the same for each level of configuration values!")
+            sys.exit(1)
 
     init_logger(config["Logging"])
 
