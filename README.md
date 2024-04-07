@@ -181,7 +181,8 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
-- The configuration file is now in YAML syntax insted of a ini file - October 2022
+- RpiGpioSensor pins can only be configured using Broadcom pin numbering (GPIO numbers) - April 2024
+- The configuration file is now in YAML syntax instead of a ini file - October 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
 - All sensors inherit from the `core.sensor.Sensor` class and the constructor now only takes two arguments
@@ -195,6 +196,8 @@ This current version is a nearly complete rewrite of the previous version with a
 - The REST communicator has been made specific to openHAB, but added the ability to work in both directions. sensor_reporter can now receive messages by commanding openHAB Items in addition to updating Items.
 
 ## Other changes
+
+- RpiGpioSensor now uses lgpio library (fixes edge detection not working on kernel 6.6)
 - Logs out to standard out in addition to Syslog or log files.
 - Reogranized singal handleing to make it simpler.
 - Moved the polling to a separate class.
