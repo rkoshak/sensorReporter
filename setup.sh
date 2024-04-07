@@ -223,7 +223,7 @@ else
 	# allow access to system packages
 	# don't run as root
 	echo "=== creating Python virtual environment ==="
-	su -c "python -m venv --system-site-packages ." "$DEFAULT_USER"
+	su -c "python3 -m venv --system-site-packages ." "$DEFAULT_USER"
 	
 	# install plug-in dependencies
 	if [ "$PATH_LIST" ]; then
