@@ -136,7 +136,7 @@ Additionally, the sensor can detect toggle events and report the time of the eve
 
 ### Dependencies
 
-Depends on `RPi.GPIO` Python library.
+Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
@@ -144,28 +144,41 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh gpio
 ```
 
+#### For Debian 11 (bullseye) - Raspberry Pi OS (Legacy)
+
+Older OS (with `ldd --version` < glibc 2.33) need to manually install the `lgpio` Python library.
+If the 'install_dependencies.sh' script was called with the 'gpio' parameter, manual removal of the incompatible lgpio version is required:
+
+```bash
+cd /srv/sensorReporter
+bin/python -m pip uninstall lgpio
+```
+
+Then follow the installation instructions (Prerequisites and Download&Install) at: [https://abyz.me.uk/lg/download.html](https://abyz.me.uk/lg/download.html)
+
 ### Basic parameters
 
 | Parameter        | Required | Restrictions                        | Purpose                                                                                                                                                                                                                                   |
 |------------------|----------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`          | X        | `gpio.rpi_gpio.RpiGpioSensor`       |                                                                                                                                                                                                                                           |
 | `Connections`    | X        | dictionary of connectors            | Defines where to publish the sensor status for each connection. This sensor has 3 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.                                                |
-| `Pin`            | X        | IO Pin                              | Pin to use as sensor input, using the pin numbering defined in `PinNumbering` (see below).                                                                                                                                                |
+| `GpioChip`       | X        | Positive integer                    | Sets the GPIO-Chip to use. Use for Raspberry Pi 1 to 4 `GpioChip: 0` and for Raspberry Pi 5 `GpioChip: 4`. To list GPIOs and Chips write in console: `cat /sys/kernel/debug/gpio`                                                         |
+| `Pin`            | X        | GPIO pin                            | Pin to use as sensor input, using the Broadcom pin numbering (GPIO Number).                                                                                                                                                               |
 | `Level`          |          | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                                                                                                        |
 | `Poll`           |          | Positive decimal number             | The interval in seconds to check for a change of the pin state. If the new state is present for a shorter time then the specified time noting is reported. Can be used as debounce. When not defined `EventDetection` must be configured. |
-| `EventDetection` |          | RISING, FALLING, or BOTH            | When defined, Poll is ignored. Indicates which GPIO event to listen for in the background.                                                                                                                                                |
-| `PUD`            |          | The Pull UP/DOWN for the pin        | Defaults to "DOWN"                                                                                                                                                                                                                        |
+| `EventDetection` |          | BOTH                                | When defined, Poll is ignored. Indicates which GPIO event to listen for in the background.                                                                                                                                                |
+| `PUD`            |          | UP / DOWN                           | Sets the input pin to use either the pull-up or pull-down resistor. Defaults to "DOWN"                                                                                                                                                    |
 
 ### Advanced parameters
 
 For a valid configuration the basic parameters marked as required are necessary, all advanced parameters are optional.
 
-| Parameter               | Required | Restrictions                  | Purpose                                                                                                                                                                                                                                                                                              |
-|-------------------------|----------|-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Values`                |          | list of strings or dictionary | Values to replace the default state message of the `Switch` output (default is OPEN, CLOSED). For details see below.                                                                                                                                                                                 |
-| `Short_Press-Threshold` |          | decimal number                | Defines the lower bound of short button press event in seconds, if the duration of the button press was shorter no update will be send. Usful to ignor false detection of button press due to electrical interferences. (default is 0)                                                               |
-| `Long_Press-Threshold`  |          | decimal number                | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be treated as short press. |
-| `Btn_Pressed_State`     |          | LOW or HIGH                   | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State: LOW`)                                              |
+| Parameter               | Required | Restrictions                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                 |
+|-------------------------|----------|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Values`                |          | list of strings or dictionary | Values to replace the default state message of the `Switch` output (default is OPEN, CLOSED). For details see below.                                                                                                                                                                                                                                                                    |
+| `Short_Press-Threshold` |          | decimal number                | Defines the lower bound of short button press event in seconds and the debounce when using event detection. Debounce will wait for a signal to be stable for half the time specified here. If the duration of the button press was shorter than this value no update will be send. Useful to ignore false detection of button press due to electrical interferences. (default is 0.002) |
+| `Long_Press-Threshold`  |          | decimal number                | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be treated as short press.                                                                                    |
+| `Btn_Pressed_State`     |          | LOW or HIGH                   | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State: LOW`)                                                                                                                                 |
 
 #### Values parameter
 
@@ -194,16 +207,6 @@ Values:
 ```
 
 If a configured connection is not present in the Values parameter it will use the sensor default state messages (OPEN, CLOSED).
-
-### Global parameters
-
-Can only be set for all GPIO devices (RpiGpioSensor and RpiGpioActuator).
-Global parameters are set in the `DEFAULT` section.
-See example at the bottom of the page.
-
-| Parameter      | Required | Restrictions | Purpose                                                                                                                                                                           |
-|----------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PinNumbering` |          | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM) |
 
 ### Outputs
 
@@ -238,6 +241,7 @@ SensorBackDoor:
                 Item: back_door_short
             LongButtonPress:
                 Item: back_door_long
+    GpioChip: 0
     Pin: 17
     PUD: UP
     EventDetection: BOTH
@@ -250,6 +254,7 @@ SensorFrontDoor:
             Switch:
                 Items: front_door
     Poll: 1
+    GpioChip: 0
     Pin: 18
     PUD: UP
     Values:

@@ -19,8 +19,11 @@ Classes:
 """
 from time import sleep
 from distutils.util import strtobool
+from logging import Logger
+from typing import Any, Optional
 import datetime
 import yaml
+import lgpio            # https://abyz.me.uk/lg/py_lgpio.html
 from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
@@ -28,7 +31,7 @@ from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
                         get_msg_from_values, DEFAULT_SECTION, \
                         configure_device_channel, ChanType, Debounce
 
-# constants
+# connection dict constants
 OUT_SWITCH = "Switch"
 OUT_SHORT_PRESS = "ShortButtonPress"
 OUT_LONG_PRESS = "LongButtonPress"
@@ -50,6 +53,14 @@ def set_gpio_mode(dev_cfg, log):
         return "Err: not set"
     return "BCM" if gpio_mode == GPIO.BCM else "BOARD"
 
+def check_lgpio_ver(log:Logger) -> None:
+    """ check lgpio version
+        raise warning if version is below 0.2.2.0
+    """
+    if lgpio.LGPIO_PY_VERSION < 0x00020200:
+        log.warn("Found module %s, for versions below 0.2.2.0 debounce might not work!",
+                 lgpio.get_module_version())
+
 def highlow_to_str(output):
     """    Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
 
@@ -65,12 +76,14 @@ def highlow_to_str(output):
 class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
-    def __init__(self, publishers, dev_cfg):
+    def __init__(self,
+                 publishers:dict[str, Any],
+                 dev_cfg:dict[str, Any]) -> None:
         """ Initializes the connection to the GPIO pin and if "EventDetection"
-            if defined and valid, will subscibe fo events. If missing, than it
+            if defined and valid, will subscribe for events. If missing, than it
             requires the "Poll" parameter be defined and > 0. By default it will
             publish CLOSED/OPEN for 0/1 which can be overridden by the "Values" which
-            should be a comma separated list of two paameters, the first one is
+            should be a comma separated list of two parameters, the first one is
             CLOSED and second one is OPEN.
 
             Parameters:
@@ -80,31 +93,34 @@ class RpiGpioSensor(Sensor):
                 - "PUD"           : Pull up or down setting, if "UP" uses PULL_UP, all other
                                     values result in PULL_DOWN.
                 - "EventDetection": when set instead of depending on sensor_reporter
-                                    to poll it will reliy on the event detection built into the GPIO
-                                    library. Valid values are "RISING", "FALLING" and "BOTH". 
+                                    to poll it will relay on the event detection built into the GPIO
+                                    library. Valid values are "RISING", "FALLING" and "BOTH".
                                     When not defined "Poll" must be set to a positive value.
         """
         super().__init__(publishers, dev_cfg)
 
-        self.gpio_mode = set_gpio_mode(dev_cfg, self.log)
+        check_lgpio_ver(self.log)
 
         self.pin = int(dev_cfg["Pin"])
+        gpio_chip = int(dev_cfg["GpioChip"])
 
         # Allow users to override the 0/1 pin values.
-        self.values = parse_values(self, self.publishers, ["OPEN", "CLOSED"])
+        self.values:dict[str, list[str]] = parse_values(self, self.publishers, ["OPEN", "CLOSED"])
 
-        self.pud = GPIO.PUD_UP if dev_cfg.get("PUD") == "UP" else GPIO.PUD_DOWN
+        self.pud:int = lgpio.SET_PULL_UP if dev_cfg.get("PUD") == "UP" else lgpio.SET_PULL_DOWN
         try:
-            GPIO.setup(self.pin, GPIO.IN, pull_up_down=self.pud)
-        except ValueError as err:
-            self.log.error("%s could not setup GPIO Pin %d (%s). "
-                           "Make sure the pin number is correct. Error Message: %s",
-                           self.name, self.pin, self.gpio_mode, err)
+            self.chip_handle:int = lgpio.gpiochip_open(gpio_chip)
+        except lgpio.error as err:
+            self.log.error("%s could not setup GPIO chip %d. "
+                           "Make sure the chip number is correct. Error Message: %s",
+                           self.name, gpio_chip,err)
 
         # Set up event detection.
         try:
             event_detection = dev_cfg["EventDetection"]
-            event_map = {"RISING": GPIO.RISING, "FALLING": GPIO.FALLING, "BOTH": GPIO.BOTH}
+            event_map = {"RISING": lgpio.RISING_EDGE,
+                         "FALLING": lgpio.FALLING_EDGE,
+                         "BOTH": lgpio.BOTH_EDGES}
             if event_detection not in event_map:
                 self.log.error("Invalid event detection specified: %s, one of RISING,"
                                " FALLING, BOTH or NONE are the only allowed values. "
@@ -112,20 +128,30 @@ class RpiGpioSensor(Sensor):
                                event_detection)
                 event_detection = "NONE"
         except KeyError:
-            self.log.info("No event detection specified, falling back to polling")
+            self.log.info("No event detection specified, falling back to polling "
+                          "with interval %s", self.poll)
             event_detection = "NONE"
 
-        if event_detection != "NONE":
-            GPIO.add_event_detect(self.pin, event_map[event_detection],
-                                  callback=lambda channel: self.check_state())
+        try:
+            if event_detection == "NONE":
+                lgpio.gpio_claim_input(self.chip_handle, self.pin, self.pud)
+            else:
+                # setup event detection
+                lgpio.gpio_claim_alert(self.chip_handle, self.pin,
+                                       event_map[event_detection], self.pud)
+                lgpio.callback(self.chip_handle, self.pin,
+                               event_map[event_detection], self.gpio_event_cbf)
+        except (lgpio.error, TypeError) as err:
+            self.log.error("%s could not setup GPIO chip %d, pin %d. "
+                           "Make sure the pin number is correct. Error Message: %s",
+                           self.name, gpio_chip, self.pin,err)
 
-        self.state = GPIO.input(self.pin)
+        self.state:int = lgpio.gpio_read(self.chip_handle, self.pin)
 
         if self.poll < 0 and event_detection == "NONE":
             raise ValueError("Event detection is NONE but polling is OFF")
         if self.poll > 0 and event_detection != "NONE":
-            raise ValueError("Event detection is {} but polling is {}"
-                             .format(event_detection, self.poll))
+            raise ValueError(f'Event detection is {event_detection} but polling is {self.poll}')
 
         self.btn = ButtonPressCfg(dev_cfg, self)
 
@@ -133,8 +159,8 @@ class RpiGpioSensor(Sensor):
         verify_connections_layout(self.comm, self.log, self.name,
                                   [OUT_SWITCH, OUT_SHORT_PRESS, OUT_LONG_PRESS])
 
-        self.log.info("Configued RpiGpioSensor %s: pin %d (%s) with PUD %s",
-                      self.name, self.pin, self.gpio_mode,
+        self.log.info("Configured RpiGpioSensor %s: chip %d, pin %d with PUD %s",
+                      self.name, gpio_chip, self.pin,
                       "UP" if self.pud == GPIO.PUD_UP else "DOWN")
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
@@ -152,69 +178,108 @@ class RpiGpioSensor(Sensor):
                                  name="timestamp of last long press")
         self._register(self.comm)
 
-    def check_state(self):
-        """ Checks the current state of the pin and if it's different from the
-            last state publishes it. With event detection this method gets called
-            when the GPIO pin changed states. When polling this method gets called
+    def check_state(self) -> None:
+        """ Checks the current state of the pin and forwards it
+            to gpio_event_cbf(). When polling this method gets called
             on each poll.
         """
-        value = GPIO.input(self.pin)
-        if value != self.state:
-            self.log.info("%s Pin %s (%s) changed from %s to %s (= %s)",
-                          self.name, self.pin, self.gpio_mode, self.state,
-                          value, self.values[DEFAULT_SECTION][not value])
-            self.state = value
+        value:int = lgpio.gpio_read(self.chip_handle, self.pin)
+        self.gpio_event_cbf(None, self.pin, value, None)
+
+    def gpio_event_cbf(self,
+                       _chip:Optional[int],
+                       gpio:int,
+                       level:int,
+                       _timestamp:Optional[int]) -> None:
+        """ Receives the current gpio pin state (level)
+            and if it's different from the
+            last state publishes it.
+            With event detection this method gets called
+            when the GPIO pin changed states (via lgpio callback).
+
+            Parameters:
+            _chip        : The GPIO-Chip of the Pin that changed (unused)
+            gpio         : The GPIO-Pin that has changed
+            level        : The new state of the GPIO-Pin one of:
+                            0 - LOW
+                            1 - HIGH
+                            2 - watchdog timeout
+            _timestamp    : Time stamp of the change event (unused)
+        """
+        # NOTE: Events triggered by Event_dectection only RISING / FALLING won't
+        #       get processed since the level doesn't change.
+        #       08.04.2024 - Tested implementation for only RISING / FALLING edge
+        #       but this will produce a lot of double events from one button press,
+        #       even with debounce.
+        # Make sure the gpio level has changed and no lgpio watchdog timeout has occurred
+        if level not in (self.state, lgpio.TIMEOUT):
+            self.log.info("%s Pin %s changed from %s to %s (= %s)",
+                          self.name, gpio, self.state,
+                          level, self.values[DEFAULT_SECTION][not level])
+            self.state = level
             self.publish_state()
             self.btn.check_button_press(self)
 
-    def publish_state(self):
-        """Publishes the current state of the pin."""
-        msg = get_msg_from_values(self.values, self.state == GPIO.HIGH)
+    def publish_state(self) -> None:
+        """ Publishes the current state of the pin."""
+        msg = get_msg_from_values(self.values, self.state == lgpio.HIGH)
         self._send(msg, self.comm, OUT_SWITCH)
 
-    def publish_button_state(self, is_short_press):
-        """send update to destination depending on button press duration"""
+    def publish_button_state(self,
+                             is_short_press:bool) -> None:
+        """ Send update to destination depending on button press duration"""
         curr_time_iso = datetime.datetime.now().isoformat()
         if is_short_press:
             self._send(curr_time_iso, self.comm, OUT_SHORT_PRESS)
         else:
             self._send(curr_time_iso, self.comm, OUT_LONG_PRESS)
 
-    def cleanup(self):
-        """Disconnects from the GPIO subsystem."""
-        self.log.debug("%s cleaning up GPIO inputs, invoked via Pin %d (%s)",
-                       self.name, self.pin, self.gpio_mode)
-        GPIO.remove_event_detect(self.pin)
-        # make sure cleanup runs only once
-        if GPIO.getmode() is not None:
-            GPIO.cleanup()
+    def cleanup(self) -> None:
+        """ Disconnects from the GPIO subsystem."""
+        self.log.debug("%s cleaning up GPIO inputs, invoked via Pin %d",
+                       self.name, self.pin)
+        lgpio.gpio_free(self.chip_handle, self.pin)
+        lgpio.gpiochip_close(self.chip_handle)
 
 class ButtonPressCfg():
     """ Stores all button related parameters """
-    def __init__(self, dev_cfg, caller):
-        """ Read optional button press  related parametes from the config
+    def __init__(self,
+                 dev_cfg:dict[str, Any],
+                 caller:RpiGpioSensor) -> None:
+        """ Read optional button press  related parameters from the config
 
             Parameters:
             - dev_cfg : the dictionary that stores the config values for a sensor
-            - caller     : the objetc of the calling sensor
+            - caller     : the object of the calling sensor
         """
-        self.high_time = None
-        # expect threshold in seconds
-        self.short_press_time = float(dev_cfg.get("Short_Press-Threshold", 0))
+        self.high_time:Optional[datetime.datetime] = None
+        # Expect threshold in seconds
+        # Set default for Short_Press-Threshold to 2ms,
+        # lgpio edge detection reacts very sensitive to bouncy buttons
+        self.short_press_time = float(dev_cfg.get("Short_Press-Threshold", 0.002))
         self.long_press_time = float(dev_cfg.get("Long_Press-Threshold",0))
-
         try:
-            self.state_when_pressed = GPIO.LOW if dev_cfg["Btn_Pressed_State"]=="LOW" else GPIO.HIGH
+            # set lgpio debounce to half Short_Press-Threshold and convert seconds to microseconds
+            lgpio.gpio_set_debounce_micros(caller.chip_handle, caller.pin,
+                                           int(self.short_press_time / 2 * 1000000))
+        except (lgpio.error, TypeError) as err:
+            caller.log.error("%s could not setup GPIO debounce for pin %d. "
+                           "Make sure the pin number is correct. Error Message: %s",
+                           caller.name, caller.pin, err)
+        try:
+            self.state_when_pressed = lgpio.LOW if dev_cfg["Btn_Pressed_State"]=="LOW" \
+                                        else lgpio.HIGH
         except KeyError:
-            # if value not in the config, determind it from PUD
-            self.state_when_pressed = GPIO.LOW if caller.pud == GPIO.PUD_UP else GPIO.HIGH
+            # if value not in the config, determined it from PUD
+            self.state_when_pressed = lgpio.LOW if caller.pud == GPIO.PUD_UP else lgpio.HIGH
 
-        caller.log.info('%s configued button press events, with short press threshold %s, '
+        caller.log.info('%s configured button press events, with short press threshold %s, '
                         'long press threshold %s and pressed state %s',
                         caller.name, self.short_press_time, self.long_press_time,
                         highlow_to_str(self.state_when_pressed))
 
-    def check_button_press(self, caller):
+    def check_button_press(self,
+                           caller:RpiGpioSensor) -> None:
         """ Checks the duration the contact was closed and
             rises the event configured with that duration
 
@@ -233,14 +298,14 @@ class ButtonPressCfg():
             time_delta_seconds = (datetime.datetime.now() - self.high_time).total_seconds()
             if time_delta_seconds > self.short_press_time:
                 if self.long_press_time != 0 and time_delta_seconds > self.long_press_time:
-                    caller.log.info("%s long button press occured on Pin %s (%s)"
+                    caller.log.info("%s long button press occurred on Pin %s"
                                   " was pressed for %s seconds",
-                                  caller.name, caller.pin, caller.gpio_mode, time_delta_seconds)
+                                  caller.name, caller.pin, time_delta_seconds)
                     caller.publish_button_state(is_short_press = False)
                 else:
-                    caller.log.info("%s short button press occured on Pin %s (%s)"
+                    caller.log.info("%s short button press occurred on Pin %s"
                                   " was pressed for %s seconds",
-                                  caller.name, caller.pin, caller.gpio_mode, time_delta_seconds)
+                                  caller.name, caller.pin, time_delta_seconds)
                     caller.publish_button_state(is_short_press = True)
 
 class RpiGpioActuator(Actuator):
