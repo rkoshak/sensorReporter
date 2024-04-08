@@ -53,15 +53,13 @@ def set_gpio_mode(dev_cfg, log):
         return "Err: not set"
     return "BCM" if gpio_mode == GPIO.BCM else "BOARD"
 
-lgpio_checked:bool = False
 def check_lgpio_ver(log:Logger) -> None:
     """ check lgpio version
         raise warning if version is below 0.2.2.0
     """
-    if not lgpio_checked:
-        if lgpio.LGPIO_PY_VERSION < 0x00020200:
-            log.warn("Found module %s, for versions below 0.2.2.0 debounce might not work!",
-                     lgpio.get_module_version())
+    if lgpio.LGPIO_PY_VERSION < 0x00020200:
+        log.warn("Found module %s, for versions below 0.2.2.0 debounce might not work!",
+                 lgpio.get_module_version())
 
 def highlow_to_str(output):
     """    Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
@@ -111,7 +109,6 @@ class RpiGpioSensor(Sensor):
 
         self.pud:int = lgpio.SET_PULL_UP if dev_cfg.get("PUD") == "UP" else lgpio.SET_PULL_DOWN
         try:
-            #GPIO.setup(self.pin, GPIO.IN, pull_up_down=self.pud)
             self.chip_handle:int = lgpio.gpiochip_open(gpio_chip)
         except lgpio.error as err:
             self.log.error("%s could not setup GPIO chip %d. "
@@ -207,11 +204,14 @@ class RpiGpioSensor(Sensor):
                             0 - LOW
                             1 - HIGH
                             2 - watchdog timeout
-            _timestamp   : Time stamp of the change event (unused)
+            _timestamp    : Time stamp of the change event (unused)
         """
-        # NOTE: Events triggered by Event_dectection RISING / FALLING get stuck here
-        #       since the level doesn't change
-        # make sure the gpio level has changed, an no lgpio watchdog timeout has occurred
+        # NOTE: Events triggered by Event_dectection only RISING / FALLING won't
+        #       get processed since the level doesn't change.
+        #       08.04.2024 - Tested implementation for only RISING / FALLING edge
+        #       but this will produce a lot of double events from one button press,
+        #       even with debounce.
+        # Make sure the gpio level has changed and no lgpio watchdog timeout has occurred
         if level not in (self.state, lgpio.TIMEOUT):
             self.log.info("%s Pin %s changed from %s to %s (= %s)",
                           self.name, gpio, self.state,
