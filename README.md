@@ -197,7 +197,8 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Other changes
 
-- RpiGpioSensor, RpiGpioActuator and GpioColorLED now uses lgpio library (fixes edge detection not working on kernel 6.6)
+- RpiGpioActuator and GpioColorLED now uses lgpio library
+- RpiGpioSensor now uses lgpio library (fixes edge detection not working on kernel 6.6)
 - Logs out to standard out in addition to Syslog or log files.
 - Reogranized singal handleing to make it simpler.
 - Moved the polling to a separate class.

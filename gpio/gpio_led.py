@@ -17,20 +17,13 @@ Classes:
     - RpiGpioColourLED: Sets PWM for defined GPIOS
 """
 from typing import Any
-import colorsys
+from types import SimpleNamespace
+from copy import deepcopy
 import yaml
 import lgpio            # https://abyz.me.uk/lg/py_lgpio.html
 from core.actuator import Actuator
 from core import utils
 from core import connection
-
-#constants
-C_RED = "Red"
-C_GREEN = "Green"
-C_BLUE = "Blue"
-C_WHITE = "White"
-C_RGBW_ARRAY = [C_RED, C_GREEN, C_BLUE, C_WHITE]
-
 
 class GpioColorLED(Actuator):
     """Uses Rpi_GPIO software PWM to control color LED's
@@ -74,48 +67,25 @@ class GpioColorLED(Actuator):
         # get pin config
         dev_cfg_pin:dict[str, int] = dev_cfg["Pin"]
         self.pin = {}
-        self.pin[C_RED] = dev_cfg_pin.get(C_RED, 0)
-        self.pin[C_GREEN] = dev_cfg_pin.get(C_GREEN, 0)
-        self.pin[C_BLUE] = dev_cfg_pin.get(C_BLUE, 0)
-        self.pin[C_WHITE] = dev_cfg_pin.get(C_WHITE, 0)
-        for color in C_RGBW_ARRAY:
-            if self.pin[color] == 0:
-                # remove pin from dict since it is not specified
-                self.pin.pop(color)
+        for color in utils.ColorHSV.C_RGBW_ARRAY:
+            pin_no:int = dev_cfg_pin.get(color, 0)
+            if pin_no != 0:
+                # pin = 0, means it is not set. Ignore those!
+                self.pin[color] = pin_no
 
-        # get inital values (optional Parameter)
+        # get initial values (optional Parameter)
         dev_cfg_init_state:dict[str, int] = dev_cfg.get("InitialState", {})
         if not isinstance(dev_cfg_init_state, dict):
             # debug: GPIO-Actuator Property "InitialState" might be in the DEFAULT section
             #        If this is the case and no local "InitialState" is configured
             #        this property might have the datatype bool, but we need a dict to proceed
             dev_cfg_init_state = {}
-        brightness_rgbw:dict[str, int] = {}
-        brightness_rgbw[C_RED] = dev_cfg_init_state.get(C_RED, 0)
-        brightness_rgbw[C_GREEN] = dev_cfg_init_state.get(C_GREEN, 0)
-        brightness_rgbw[C_BLUE] = dev_cfg_init_state.get(C_BLUE, 0)
-        brightness_rgbw[C_WHITE]= dev_cfg_init_state.get(C_WHITE, 0)
-
-
-        # build hsv color str
-        if brightness_rgbw[C_WHITE] == 0:
-            # if not white is set use RGB values
-            # normalize rgb values and calculate hsv color
-            hsv_tuple = colorsys.rgb_to_hsv(brightness_rgbw[C_RED]/100,
-                                             brightness_rgbw[C_GREEN]/100,
-                                             brightness_rgbw[C_BLUE]/100)
-            # take hsv_tuple scale it and build hsv_color_str
-            self.hsv_color_str = ( f'{int(hsv_tuple[0]*360)},'
-                                   f'{int(hsv_tuple[1]*100)},'
-                                   f'{int(hsv_tuple[2]*100)}' )
-        else:
-            # build hsv color str for case white color is set
-            #note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
-            self.hsv_color_str = f"1,0,{int(brightness_rgbw[C_WHITE])}"
-            #in white mode rgb colors a not supported
-            brightness_rgbw[C_RED] = 0
-            brightness_rgbw[C_GREEN] = 0
-            brightness_rgbw[C_BLUE] = 0
+        self.state = SimpleNamespace(current=None, last=None)
+        white_channel_in_use = utils.ColorHSV.C_WHITE in self.pin
+        self.state.current = utils.ColorHSV(dev_cfg_init_state, white_channel_in_use)
+        # init last state with configured color and full brightness for toggle command
+        self.state.last = deepcopy(self.state.current)
+        self.state.last.set_hsv(utils.ColorHSV.C_VAL, 100)
 
         # if output should be inverted, add -100 to all brightness_rgbw values
         self.invert = -100 if dev_cfg.get("InvertOut", True) else 0
@@ -130,16 +100,17 @@ class GpioColorLED(Actuator):
                 # set PWM duty cycle to initial value for each color, respect invert option
                 # set no pulse_cycles = repeat infinite
                 lgpio.tx_pwm(self.chip_handle, a_pin, self.pwm_freq,
-                             abs(self.invert + brightness_rgbw[key]))
+                             abs(self.invert + dev_cfg_init_state.get(key, 0)))
             except ValueError as err:
                 self.log.error("%s could not setup GPIO Pin %d. "
                                "Make sure the pin number is correct. Error Message: %s",
                                self.name, self.pin, err)
+        self.debounce = utils.Debounce(dev_cfg, default_debounce_time = 0.15)
 
         self.log.info("Configured GpioColorLED %s: pins %s",
                       self.name, self.pin)
         self.log.debug("%s LED's set to: %s and has following configured connections: \n%s",
-                       self.name, brightness_rgbw, yaml.dump(self.comm))
+                       self.name, self.state.current.rgbw_dict, yaml.dump(self.comm))
 
         # publish initial state to cmd_src
         self.publish_actuator_state()
@@ -155,52 +126,78 @@ class GpioColorLED(Actuator):
 
     def on_message(self,
                    msg:str) -> None:
-        """Called when the actuator receives a message.
-        Changes LED PWM duty cycle according to the message.
-        Expects comma separated values formated as HSV color: 'h,s,v'
+        """ Called when the actuator receives a message.
+            Changes LED PWM duty cycle according to the message.
+            Expects comma separated values formated as HSV color: 'h,s,v'
+            OR one value of: ON, OFF, TOGGLE, 0 to 100
         """
-        self.hsv_color_str = msg
-        brightness_rgbw:dict[str, int] = {}
-        hsv:list[int] = []
-        #we expect a string with 3 values: h,s,v
-        #split and convert them to integer
-        for part in msg.split(","):
-            hsv.append(int(part))
+        new_color = deepcopy(self.state.current)
+        #if msg.find(',') > 0 and msg.find('NaN') == -1:
+        if ',' in msg and not 'NaN' in msg:
+            # msg contains ',' so it should contain a 'h,s,v' string
+            # in rare cases openHAB sends HSV value NaN, don't process these messages
+            new_color.color_hsv_str = msg
+        elif msg.isdigit():
+            # msg contains digits convert it from string to int
+            # store it as HSV value (brightness)
+            new_color.set_hsv(utils.ColorHSV.C_VAL, int(msg))
+        elif msg == "ON":
+            # handle openHab item sending ON
+            # set HSV value (brightness) to 100
+            new_color.set_hsv(utils.ColorHSV.C_VAL, 100)
+        elif msg == "OFF":
+            # handle openHab item sending OFF
+            # set HSV value (brightness) to 0
+            new_color.set_hsv(utils.ColorHSV.C_VAL, 0)
+        elif utils.is_toggle_cmd(msg):
+            if self.debounce.is_within_debounce_time():
+                # Filter close Toggle commands to ensure no double switching
+                self.log.info("%s GpioColorLED received toggle command %s"
+                              " within debounce time. Ignoring command!",
+                             self.name, msg)
+                return
+            # invert current state on toggle command
+            if self.state.current.get_hsv(utils.ColorHSV.C_VAL) > 0:
+                # remember last value for  brightness for later
+                self.state.last = deepcopy(self.state.current)
+                new_color.set_hsv(utils.ColorHSV.C_VAL, 0)
+            else:
+                new_color = self.state.last
 
-        #check if saturation (HSV[1]) equals 0 then set RGB = 0 w = value (HSV[2])
-        if hsv[1] == 0 and C_WHITE in self.pin:
-            #set RGB to off if configured
-            for color in (C_RED, C_GREEN, C_BLUE):
-                if color in self.pin:
-                    brightness_rgbw[color] = 0
-                    lgpio.tx_pwm(self.chip_handle, self.pin[color], self.pwm_freq,
-                                 abs(self.invert))
-            brightness_rgbw[C_WHITE] = hsv[2]
-            lgpio.tx_pwm(self.chip_handle, self.pin[C_WHITE], self.pwm_freq,
-                         abs(self.invert + brightness_rgbw[C_WHITE]))
         else:
-            #convert HSV color to RGB color tuple
-            rgb = colorsys.hsv_to_rgb(hsv[0]/360, hsv[1]/100, hsv[2]/100)
-            #set white channel to 0
-            rgbw = rgb + (0,)
-            #iterate over self.pin.keys() to make sure there are always 4 items like in rgbw
-            for (color, val) in zip(C_RGBW_ARRAY, rgbw):
-                if color in self.pin:
-                    #remember received brightness
-                    brightness_rgbw[color] = round(val * 100)
-                    #change PWM duty cycle to new brightness, respect invert option
-                    lgpio.tx_pwm(self.chip_handle, self.pin[color], self.pwm_freq,
-                                 abs(self.invert + brightness_rgbw[color]))
+            # if command is not recognized ignore it
+            self.log.warning("%s GpioColorLED received unrecognized command %s",
+                             self.name, msg)
+            return
 
-        self.log.info("%s received %s, setting LED to %s",
-                      self.name, msg, brightness_rgbw)
+        # do nothing when the command (new_color) equals the current state
+        if self.state.current == new_color:
+            self.log.info("%s GpioColorLED received %s"
+                          " which is equal to current state. Ignoring command!",
+                          self.name, new_color.rgbw_dict)
+            return
+
+        self.log.info("%s received %s, setting LEDs to %s",
+                      self.name, msg, new_color.rgbw_dict)
+
+        # set color for each channel
+        for (color, set_point) in new_color.rgbw_dict.items():
+            if color in self.pin:
+                lgpio.tx_pwm(self.chip_handle, self.pin[color], self.pwm_freq,
+                                 abs(self.invert + set_point))
 
         #publish own state back to remote connections
+        self.state.current = new_color
         self.publish_actuator_state()
 
     def publish_actuator_state(self) -> None:
         """Publishes the current state of the actuator."""
-        self._publish(self.hsv_color_str, self.comm)
+        if len(self.pin) == 1:
+            # if only one pin is defined publish only brightness state
+            # to be compatible with openHab dimmer item
+            self._publish(str(self.state.current.get_hsv(utils.ColorHSV.C_VAL)), self.comm)
+            return
+        self._publish(self.state.current.color_hsv_str, self.comm)
 
     def cleanup(self) -> None:
         """Disconnects from the GPIO subsystem."""

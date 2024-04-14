@@ -8,6 +8,7 @@ Functions:
 """
 import logging
 import datetime
+import colorsys
 from enum import Enum, auto
 from typing import Any, Union, Optional
 # workaround circular import sensor <=> utils, import only file but not the method/object
@@ -378,3 +379,189 @@ class Debounce():
         if seconds_since_toggle < self.debounce_time:
             return True
         return False
+
+class ColorHSV():
+    ''' Stores HSV color values. Hue can range from 0 (= off) to 360 (= full brightness),
+        Saturation and Value can range from 0 (= off) to 100 (= full brightness).
+        Allows read access to individual values and a dictionary of all RGBW values.
+        Exposed property to set and get color in HSV format
+        e. g. green with full brightness =  '120,100,100'
+    '''
+
+    # Constants
+    C_RED = "Red"
+    C_GREEN = "Green"
+    C_BLUE = "Blue"
+    C_WHITE = "White"
+    C_RGBW_ARRAY = [C_RED, C_GREEN, C_BLUE, C_WHITE]
+    C_HUE = 'Hue'
+    C_SAT = 'Saturation'
+    C_VAL = 'Value'
+
+    def __init__(self,
+                 RGBW_dict:dict[str, int],
+                 use_white_channel:bool) -> None:
+        ''' Initializes colors to a given value (range 0 to 100)
+            Parameters:
+                * RGBW_dict             Dictionary of color : value pairs that define
+                                        the initial value for the colors.
+                                        RGBW_dict = {
+                                            C_RED   : red_value,
+                                            C_GREEN : green_value,
+                                            C_BLUE  : blue_value,
+                                            C_WHITE : white_value
+                                            }
+                                        Range: 0 (= off) to 100 (= full brightness)
+                * use_white_channel     Boolean, if true the 'color_hsv_str' property assumes
+                                        a white LED is present.
+                                        So HSV color 0,0,100 (no saturation) will be
+                                        converted to RGBW {red: 0, green: 0, blue:0, white:100}
+                                        If false: HSV color 0,0,100 will result in RGBW
+                                        {red: 100, green: 100, blue:100, white:0}
+        '''
+        self._hsv = {
+            self.C_HUE : 0,
+            self.C_SAT : 0,
+            self.C_VAL : 0
+            }
+        self.use_white_ch = use_white_channel
+
+        if RGBW_dict.get(self.C_WHITE, 0) != 0:
+            RGBW_dict[self.C_RED] = 0
+            RGBW_dict[self.C_GREEN]= 0
+            RGBW_dict[self.C_BLUE] = 0
+
+        self.rgbw_dict = RGBW_dict
+
+    def __eq__(self,
+               other_obj:object) -> bool:
+        ''' own implementation of compare equality to simplify code using this class
+        '''
+        if not isinstance(other_obj, ColorHSV):
+            # only compare to ColorHSV class
+            return NotImplemented
+        return self._hsv == other_obj.hsv_dict
+
+    @property
+    def rgbw_dict(self) -> dict[str, int]:
+        ''' Get or set color as RGBW dictionary
+            RGBW_dict = {
+                C_RED   : red_value,
+                C_GREEN : green_value,
+                C_BLUE  : blue_value,
+                C_WHITE : white_value
+                        }
+            If colors are not present in the dictionary when writing
+            to this property the value is assumed to be 0
+        '''
+        # create empty RGBW dict
+        rgbw_dict = {}
+        for key in self.C_RGBW_ARRAY:
+            rgbw_dict[key] = 0
+
+        # Check if saturation (hsv_array[1]) equals 0 then set RGB = 0 w = value (hsv_array)
+        if self._hsv[self.C_SAT] == 0 and self.use_white_ch:
+            # set white channel to saturation
+            rgbw_dict[self.C_WHITE] = self._hsv[self.C_VAL]
+        else:
+            # Convert HSV color to RGB color tuple
+            color_rgb = colorsys.hsv_to_rgb(self._hsv[self.C_HUE]/360,
+                                            self._hsv[self.C_SAT]/100,
+                                            self._hsv[self.C_VAL]/100)
+            # Set white channel to 0
+            color_rgbw = color_rgb + (0,)
+            # store converted values
+            for (key, val) in zip(self.C_RGBW_ARRAY, color_rgbw):
+                rgbw_dict[key] = round(val * 100)
+
+        return rgbw_dict
+
+    @rgbw_dict.setter
+    def rgbw_dict(self,
+                  rgbw_dict:dict[str, int]) -> None:
+        # Build HSV color CSV array
+        if rgbw_dict.get(self.C_WHITE, 0) == 0:
+            # If white is not set use RGB values
+            # Normalize RGB values and calculate HSV color
+            hsv_tuple = colorsys.rgb_to_hsv(rgbw_dict.get(self.C_RED, 0)/100,
+                                            rgbw_dict.get(self.C_GREEN, 0)/100,
+                                            rgbw_dict.get(self.C_BLUE, 0)/100)
+            # scale hsv_tuple and build array
+            hsv_array = [hsv_tuple[0] * 360,
+                         hsv_tuple[1] * 100,
+                         hsv_tuple[2] * 100]
+            if hsv_array[1] == 0:
+                # Note: HSV 0,0,x seems to be out of range for openHAB item
+                # and HSV 1,0,0 doesn't work for homie connection using 2,0,x instead
+                hsv_array[0] = 2
+        else:
+            # Build HSV color array for case white color is set
+            # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
+            hsv_array = [2,0,rgbw_dict[self.C_WHITE]]
+        # store result as integer to get rid of floating point numbers
+        self._hsv[self.C_HUE] = int(hsv_array[0])
+        self._hsv[self.C_SAT] = int(hsv_array[1])
+        self._hsv[self.C_VAL] = int(hsv_array[2])
+
+    @property
+    def hsv_dict(self) -> dict[str, int]:
+        ''' Get the internal HSV dictionary
+        '''
+        return self._hsv
+
+    @property
+    def color_hsv_str(self) -> str:
+        ''' Get or set the color in HSV format
+            as comma separated value string without spaces: hue,saturation,value
+            E. g. pure red in full brightness = '0,100,100'
+        '''
+        # build hsv_color_str
+        hsv_color_str = ( f'{int(self._hsv[self.C_HUE])},'
+                          f'{int(self._hsv[self.C_SAT])},'
+                          f'{int(self._hsv[self.C_VAL])}' )
+
+        return hsv_color_str
+
+    @color_hsv_str.setter
+    def color_hsv_str(self,
+                      hsv_str:str) -> None:
+        hsv_array = []
+        # We expect a string with 3 values: hue,saturation,value
+        # Split and convert them to integer
+        for val in hsv_str.split(","):
+            hsv_array.append(int(val))
+
+        self._hsv[self.C_HUE] = hsv_array[0]
+        self._hsv[self.C_SAT] = hsv_array[1]
+        self._hsv[self.C_VAL] = hsv_array[2]
+
+    def get_hsv(self,
+                param:str) -> int:
+        ''' Returns the selected 'parameter' as an integer (range 0 to 100/360).
+            Raises an error if the specified parameter is not in the internal HSV color dictionary.
+            Parameter:
+                * param    String, one of "Hue", "Saturation", "Value"
+        '''
+        if param in self._hsv:
+            return self._hsv[param]
+        raise ValueError(f"Function 'get_hsv()' parameter 'param' has unknown value: {param}")
+
+    def set_hsv(self,
+                param:str,
+                value:int) -> None:
+        ''' Sets the selected 'param' as in integer (range 0 to 100/360).
+            Raises an error if the specified param is not in the internal HSV color dictionary.
+            Parameter:
+                * param    String, one of "Hue", "Saturation", "Value"
+        '''
+        if param in self._hsv:
+            if param == self.C_HUE and (value < 0 or value > 360):
+                raise ValueError(f"Function 'set_hsv()' parameter 'value' \
+                                out of range should be 0 to 360 is: {value}")
+            if param != self.C_HUE and (value < 0 or value > 100):
+                raise ValueError(f"Function 'set_hsv()' parameter 'value' \
+                                out of range should be 0 to 100 is: {value}")
+            self._hsv[param] = value
+        else:
+            raise ValueError(f"Function 'set_hsv()' parameter 'param' has unknown value: {param}")
+

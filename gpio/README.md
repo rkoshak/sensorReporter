@@ -389,7 +389,7 @@ Circuit diagram
 
 ## `gpio.gpio_led.GpioColorLED`
 
-Commands 3 to 4 GPIO pins to control a RGB or RGBW LED via software PWM.
+Commands 1, 3 or 4 GPIO pins to control a white, RGB or RGBW LED via software PWM.
 A received command will be sent back on all configured connections to the configured return topic, to keep them up to date.
 
 ### Dependencies
@@ -426,14 +426,22 @@ Then follow the installation instructions (Prerequisites and Download&Install) a
 | `InitialState`  |          | Dictionary of values 0-100   | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)							 |
 | `InvertOut`     |          | Boolean                      | Use `True` for common anode LED (default setting). Otherwise use `False`																													     |
 | `PWM-Frequency` |			 | Number						| Sets the PWM frequency in Hz (default 100 Hz)																																					 |
+| `ToggleDebounce`|          | Decimal number               | The interval in seconds during which repeated toggle commands are ignored. (default 0.15 seconds)                                                                                              |
 
 ### Outputs / Inputs
 The GpioColorLED has only one output and input.
 The input expects 3 comma separated values as command. 
-The values will set the LED color in HSV color space, e.g. `h,s,v`.
+The values will set the LED color in HSV color space `h,s,v`, e.g. 240,100,100.
 If the white pin is configured and the second value (saturation) = 0 then only the white LED will shine.
+If only the white channel is configured one value (0-100) is sufficient as input.
 The output will replay the LED color state in the same format.
+
+The GpioColorLED also accepts ON, OFF, TOGGLE or a datetime string as a command.
+While ON, OFF will set the brightness to 100% or 0% respectively, TOGGLE and a datetime string will toggle the brightness to the last state.
+
+Can be connected directly to a RpiGpioSensor ShortButtonPress / LongButtonPress output.
 When using with the openHAB connection configure a color item.
+If only the white channel is configured use a dimmer item in openHAB.
 
 ### Example Config
 ```yaml
