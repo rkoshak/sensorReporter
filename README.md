@@ -181,7 +181,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
-- RpiGpioSensor pins can only be configured using Broadcom pin numbering (GPIO numbers) - April 2024
+- RpiGpioSensor, RpiGpioActuator and GpioColorLED pins can only be configured using Broadcom pin numbering (GPIO numbers) - April 2024
 - The configuration file is now in YAML syntax instead of a ini file - October 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting
 - No longer runnable on Python 2, tested with Python 3.7.
@@ -197,7 +197,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Other changes
 
-- RpiGpioSensor now uses lgpio library (fixes edge detection not working on kernel 6.6)
+- RpiGpioSensor, RpiGpioActuator and GpioColorLED now uses lgpio library (fixes edge detection not working on kernel 6.6)
 - Logs out to standard out in addition to Syslog or log files.
 - Reogranized singal handleing to make it simpler.
 - Moved the polling to a separate class.

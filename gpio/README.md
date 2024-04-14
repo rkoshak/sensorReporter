@@ -25,7 +25,7 @@ sudo ./install_dependencies.sh gpio
 | Parameter     | Required | Restrictions                  | Purpose                                                                                                                                                                                    |
 |---------------|----------|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`       | X        | `gpio.dht_sensor.DhtSensor`   |                                                                                                                                                                                            |
-| `Connections` | X        | dictionary of connectors      | Defines where to publish the sensor status for each connection. This sensor has 2 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
+| `Connections` | X        | Dictionary of connectors      | Defines where to publish the sensor status for each connection. This sensor has 2 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
 | `Level`       |          | DEBUG, INFO, WARNING, ERROR   | Override the global log level and use another one for this sensor.                                                                                                                         |
 | `Poll`        | X        | Positive number               | Refresh interval for the sensor in seconds.                                                                                                                                                |
 | `Sensor`      | X        | `DHT11`, `DHT22`, or `AM2302` | The type of the sensor.                                                                                                                                                                    |
@@ -102,7 +102,7 @@ Reboot the Raspberry Pi.
 | Parameter     | Required           | Restrictions                        | Purpose                                                                                                                                                     |
 |---------------|--------------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`       | X                  | `gpio.ds18x20_sensor.Ds18x20Sensor` |                                                                                                                                                             |
-| `Connections` | X                  | dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                             |
+| `Connections` | X                  | Dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                             |
 | `Level`       |                    | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                          |
 | `Poll`        | X                  | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                 |
 | `Mac`         | X                  |                                     | Full 1-Wire device address. To list all 1-Wire devices, run `ls /sys/bus/w1/devices`. To read a specific one, run `cat /sys/bus/w1/devices/<Mac>/w1_slave`. |
@@ -161,7 +161,7 @@ Then follow the installation instructions (Prerequisites and Download&Install) a
 | Parameter        | Required | Restrictions                        | Purpose                                                                                                                                                                                                                                   |
 |------------------|----------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`          | X        | `gpio.rpi_gpio.RpiGpioSensor`       |                                                                                                                                                                                                                                           |
-| `Connections`    | X        | dictionary of connectors            | Defines where to publish the sensor status for each connection. This sensor has 3 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.                                                |
+| `Connections`    | X        | Dictionary of connectors            | Defines where to publish the sensor status for each connection. This sensor has 3 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.                                                |
 | `GpioChip`       | X        | Positive integer                    | Sets the GPIO-Chip to use. Use for Raspberry Pi 1 to 4 `GpioChip: 0` and for Raspberry Pi 5 `GpioChip: 4`. To list GPIOs and Chips write in console: `cat /sys/kernel/debug/gpio`                                                         |
 | `Pin`            | X        | GPIO pin                            | Pin to use as sensor input, using the Broadcom pin numbering (GPIO Number).                                                                                                                                                               |
 | `Level`          |          | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                                                                                                        |
@@ -175,9 +175,9 @@ For a valid configuration the basic parameters marked as required are necessary,
 
 | Parameter               | Required | Restrictions                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                 |
 |-------------------------|----------|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Values`                |          | list of strings or dictionary | Values to replace the default state message of the `Switch` output (default is OPEN, CLOSED). For details see below.                                                                                                                                                                                                                                                                    |
-| `Short_Press-Threshold` |          | decimal number                | Defines the lower bound of short button press event in seconds and the debounce when using event detection. Debounce will wait for a signal to be stable for half the time specified here. If the duration of the button press was shorter than this value no update will be send. Useful to ignore false detection of button press due to electrical interferences. (default is 0.002) |
-| `Long_Press-Threshold`  |          | decimal number                | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be treated as short press.                                                                                    |
+| `Values`                |          | List of strings or dictionary | Values to replace the default state message of the `Switch` output (default is OPEN, CLOSED). For details see below.                                                                                                                                                                                                                                                                    |
+| `Short_Press-Threshold` |          | Decimal number                | Defines the lower bound of short button press event in seconds and the debounce when using event detection. Debounce will wait for a signal to be stable for half the time specified here. If the duration of the button press was shorter than this value no update will be send. Useful to ignore false detection of button press due to electrical interferences. (default is 0.002) |
+| `Long_Press-Threshold`  |          | Decimal number                | Defines the lower bound of long button press event in seconds, if the duration of the button press was shorter a short button event will be triggered. Can be determinded via the sensor-reporter log when set on info level. If not defined all button press events will be treated as short press.                                                                                    |
 | `Btn_Pressed_State`     |          | LOW or HIGH                   | Sets the expected input level for short and long button press events. Set it to `LOW` if the input pin is connected to ground while the button is pressed (default is determined via PUD config value: `PUD = UP` will assume `Btn_Pressed_State: LOW`)                                                                                                                                 |
 
 #### Values parameter
@@ -271,7 +271,7 @@ A received command will be sent back on all configured connections to the config
 
 ### Dependencies
 
-Depends on `RPi.GPIO` Python library.
+Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
@@ -279,26 +279,31 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh gpio
 ```
 
+#### For Debian 11 (bullseye) - Raspberry Pi OS (Legacy)
+
+Older OS (with `ldd --version` < glibc 2.33) need to manually install the `lgpio` Python library.
+If the 'install_dependencies.sh' script was called with the 'gpio' parameter, manual removal of the incompatible lgpio version is required:
+
+```bash
+cd /srv/sensorReporter
+bin/python -m pip uninstall lgpio
+```
+
+Then follow the installation instructions (Prerequisites and Download&Install) at: [https://abyz.me.uk/lg/download.html](https://abyz.me.uk/lg/download.html)
+
 ### Parameters
 
 | Parameter        | Required | Restrictions                    | Purpose                                                                                                                                                                           |
 |------------------|----------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`          | X        | `gpio.rpi_gpio.RpiGpioActuator` |                                                                                                                                                                                   |
-| `Connections`    | X        | dictionary of connectors        | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
-| `Pin`            | X        | IO Pin                          | Pin to use as actuator output, using the pin numbering defined in `PinNumbering` (see below).                                                                                     |
+| `Connections`    | X        | Dictionary of connectors        | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
+| `GpioChip`       | X        | Positive integer                | Sets the GPIO-Chip to use. Use for Raspberry Pi 1 to 4 `GpioChip: 0` and for Raspberry Pi 5 `GpioChip: 4`. To list GPIOs and Chips write in console: `cat /sys/kernel/debug/gpio` |
+| `Pin`            | X        | GPIO pin                        | Pin to use as actuator output, using the Broadcom pin numbering (GPIO Number).                                                                                                    |
 | `Level`          |          | DEBUG, INFO, WARNING, ERROR     | Override the global log level and use another one for this sensor.                                                                                                                |
-| `ToggleDebounce` |          | decimal number                  | The interval in seconds during which repeated toggle commands are ignored (default 0.15 seconds)                                                                                  |
-| `InitialState`   |          | ON or OFF                       | Optional, when set to ON the pin's state is initialized to HIGH. Ignores InvertOut (default OFF)                                                                                  |
+| `ToggleDebounce` |          | Decimal number                  | The interval in seconds during which repeated toggle commands are ignored (default 0.15 seconds)                                                                                  |
+| `InitialState`   |          | HIGH / LOW, (ON / OFF)          | Optional, initializes the pin to the given state. Ignores InvertOut. (ON = HIGH, default LOW)                                                                                     |
 | `SimulateButton` |          | Boolean                         | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.          |
 | `InvertOut`      |          | Boolean                         | Inverts the output when set to `True`. When inverted sending `ON` to the actuator will set the output to LOW, `OFF` will set the output to HIGH.                                  |
-
-### Global parameters
-
-Can only be set for all GPIO devices (RpiGpioSensor and RpiGpioActuator). Global parameters are set in the `DEFAULT` section.
-
-| Parameter      | Required | Restrictions | Purpose                                                                                                                                                                           |
-|----------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PinNumbering` |          | BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM) |
 
 ### Outputs / Inputs
 
@@ -330,6 +335,7 @@ ActuatorGarageDoor:
     Connections:
         openHAB:
             Item: GarageDoorCmd
+    GpioChip: 0
     Pin: 35
     InitialState: ON
     SimulateButton: True
@@ -360,6 +366,7 @@ SensorLightSwitch:
         local:
             ShortButtonPress:
                 StateDest: toggle_garage_light
+    GpioChip: 0
     Pin: 17
     PUD: UP
     EventDetection: BOTH
@@ -372,6 +379,7 @@ ActuatorGarageLight:
             CommandSrc: toggle_garage_light
         openHAB:
             Item: garage_light
+    GpioChip: 0
     Pin: 19
 ```
 
@@ -386,7 +394,7 @@ A received command will be sent back on all configured connections to the config
 
 ### Dependencies
 
-Depends on `RPi.GPIO` Python library.
+Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
 
 ```bash
@@ -394,23 +402,30 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh gpio
 ```
 
+#### For Debian 11 (bullseye) - Raspberry Pi OS (Legacy)
+
+Older OS (with `ldd --version` < glibc 2.33) need to manually install the `lgpio` Python library.
+If the 'install_dependencies.sh' script was called with the 'gpio' parameter, manual removal of the incompatible lgpio version is required:
+
+```bash
+cd /srv/sensorReporter
+bin/python -m pip uninstall lgpio
+```
+
+Then follow the installation instructions (Prerequisites and Download&Install) at: [https://abyz.me.uk/lg/download.html](https://abyz.me.uk/lg/download.html)
+
 ### Parameters
 
 | Parameter       | Required | Restrictions                 | Purpose																																														 |
 |-----------------|----------|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Class`         | X        | `gpio.gpio_led.GpioColorLED` |																																																 |
-| `Connections`   | X        | dictionary of connectors     | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.				 |
-| `Pin`           | X        | dictionary of pin's          | Pin to use as PWM output. Use sub parameter `Red`, `Green`, `Blue`, `White`, using the pin numbering defined in `PinNumbering` (see below). It is not necessary to define pin's for all colors. |
+| `Connections`   | X        | Dictionary of connectors     | Defines where to subscribe for messages and where to publish the status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.				 |
+| `GpioChip`      | X        | Positive integer             | Sets the GPIO-Chip to use. Use for Raspberry Pi 1 to 4 `GpioChip: 0` and for Raspberry Pi 5 `GpioChip: 4`. To list GPIOs and Chips write in console: `cat /sys/kernel/debug/gpio`              |
+| `Pin`           | X        | Dictionary of GPIO pin's     | Pin to use as PWM output. Use sub parameter `Red`, `Green`, `Blue`, `White`, using the Broadcom pin numbering (GPIO Number). It is not necessary to define pin's for all colors. 				 |
 | `Level`         |          | DEBUG, INFO, WARNING, ERROR  | When provided, sets the logging level for the sensor.																																			 |
-| `InitialState`  |          | dictionary of values 0-100   | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)							 |
+| `InitialState`  |          | Dictionary of values 0-100   | Optional, will set the PWM duty cycle for the color (0 = off, 100 = on, full brightness). Use the sub parameter `Red`, `Green`, `Blue`, `White` (default RGBW = 0)							 |
 | `InvertOut`     |          | Boolean                      | Use `True` for common anode LED (default setting). Otherwise use `False`																													     |
-| `PWM-Frequency` |			 | number						| Sets the PWM frequency in Hz (default 100 Hz)																																					 |
-
-### Global parameters
-Can only be set for all GPIO devices (RpiGpioSensor, RpiGpioActuator and GpioColorLED). Global parameters are set in the `DEFAULT` section
-| Parameter 	 | Required | Restrictions | Purpose																																										   |
-|----------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PinNumbering` | 			| BCM or BOARD | Select which numbering to use for the IO Pin's. Use BCM when GPIO numbering is desired. BOARD refers to the pin numbers on the P1 header of the Raspberry Pi board. (default BCM) |
+| `PWM-Frequency` |			 | Number						| Sets the PWM frequency in Hz (default 100 Hz)																																					 |
 
 ### Outputs / Inputs
 The GpioColorLED has only one output and input.
@@ -434,6 +449,7 @@ Connection_openHAB:
     
 ActuatorRgbLED:
     Class: gpio.gpio_led.GpioColorLED
+    GpioChip: 0
     Pin:
         Red: 5
         Blue: 13

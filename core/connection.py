@@ -18,7 +18,8 @@ Classes: Connections
 """
 from abc import ABC, abstractmethod
 import logging
-from core.utils import set_log_level
+# workaround circular import connection <=> utils, import only file but not the method/object
+from core import utils
 
 class Connection(ABC):
     """Parent class that all connections must implement. It provides a default
@@ -38,7 +39,7 @@ class Connection(ABC):
         self.msg_processor = msg_processor
         self.conn_cfg = conn_cfg
         self.registered = {}
-        set_log_level(conn_cfg, self.log)
+        utils.set_log_level(conn_cfg, self.log)
 
     @abstractmethod
     def publish(self, message, comm_conn, output_name=None):

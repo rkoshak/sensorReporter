@@ -4,9 +4,9 @@ libgpiod2
 [groups]
 gpio
 [pip]
-# required by DhtSensor, RpiGpioActuator, GpioColorLED
+# required by DhtSensor
 RPI.GPIO
-# required by RpiGpioSensor
+# required by RpiGpioSensor, RpiGpioActuator, GpioColorLED
 lgpio
 # required by DhtSensor
 adafruit-blinka

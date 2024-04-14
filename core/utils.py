@@ -9,6 +9,9 @@ Functions:
 import logging
 import datetime
 from enum import Enum, auto
+from typing import Any, Union, Optional
+# workaround circular import sensor <=> utils, import only file but not the method/object
+from core import sensor
 
 DEFAULT_SECTION = "DEFAULT"
 #Constans for auto discover connections:
@@ -35,7 +38,8 @@ class ChanType(Enum):
     ENUM = auto()
     COLOR = auto()
 
-def set_log_level(params, logger):
+def set_log_level(params:dict[str, Any],
+                  logger:logging.Logger) -> None:
     """Expects a params with a Level property. If there is no property the
     default level of INFO is used. Supports all the standard Python logging
     levels. Sets the level of the passed in logger based on the params Level
@@ -59,14 +63,16 @@ def issafe(arg):
     """Returns False if arg contains ';' or '|'."""
     return arg.find(';') == -1 and arg.find('|') == -1
 
-def parse_values(caller, connections, defaults):
+def parse_values(caller:sensor.Sensor,
+                 connections:dict[str, Any],
+                 defaults:list[str]) -> dict[str, list[str]]:
     """Parses the Values parameter which should be either
     a two string values formated as a list or
     a dictionary with connection sections containing
     a string list of two items
     Used to override ON/OFF type messages.
 
-    Exprects:
+    Expects:
     - caller: the object of the calling device,
               following vars from the caller are used:
                 - dev_cfg: dictionary with the device specific config
@@ -77,7 +83,7 @@ def parse_values(caller, connections, defaults):
 
     Returns: a dict containing the configured value pairs for each connection
     """
-    values = caller.dev_cfg.get('Values', defaults)
+    values:Union[list[str],dict[str,list[str]]] = caller.dev_cfg.get('Values', defaults)
     # warn if format is not supported
     if not isinstance(values, (list, dict)):
         values = defaults
@@ -85,38 +91,37 @@ def parse_values(caller, connections, defaults):
                            " Expected dictionary of connection names containing a list."
                            " Using default values instead: %s", caller.name, defaults)
 
+    value_dict:dict[str, list[str]] = {}
     if isinstance(values, dict):
         value_dict = values
-    else:
-        value_dict = {}
 
-    #add default section if not present
+    # add default section if not present
     if DEFAULT_SECTION not in value_dict:
         value_dict[DEFAULT_SECTION] = defaults if isinstance(values, dict) else values
 
-    #at this point value_dict contains at least the DEFAULT section
+    # at this point value_dict contains at least the DEFAULT section
     for (conn, values) in value_dict.items():
-        #make sure connection names exist
+        # make sure connection names exist
         if conn not in connections and conn != DEFAULT_SECTION:
             caller.log.warning("%s Values parameter contains unknown connection!"
                          " Probably the name of the connection %s"
                          " is misspelled.",
                          caller.name, conn)
         if isinstance(values, list):
-            #make sure only two items are present
+            # make sure only two items are present
             if len(values) == 2:
-                #check type of list item, warn if boolean
+                # check type of list item, warn if boolean
                 for item in values:
-                    if isinstance(item, bool):
+                    if not isinstance(item, str):
                         value_dict[DEFAULT_SECTION] = defaults
-                        caller.log.warning("%s found boolean in Values."
+                        caller.log.warning("%s found: %s %s in Values."
                                            " Expected list of strings, use ' ' in config"
                                            " to mark strings."
                                            " Using default values instead: %s",
-                                           caller.name, defaults)
+                                           caller.name, item, type(item), defaults)
                         break
             else:
-                #warn if list is not 2 items long
+                # warn if list is not 2 items long
                 value_dict[DEFAULT_SECTION] = defaults
                 caller.log.warning("%s Values are not in the expected form."
                            " Expected dictionary of connection names containing a list"
@@ -124,10 +129,11 @@ def parse_values(caller, connections, defaults):
                            " Using default values instead: %s",
                            caller.name, defaults)
                 break
-    #at this point value_dict contains only valid connections and lists of strings
+    # at this point value_dict contains only valid connections and lists of strings
     return value_dict
 
-def get_msg_from_values(values, state_on):
+def get_msg_from_values(values:dict[str, list[str]],
+                        state_on:bool) -> dict[str, str]:
     """For sensors which implement custom values to send on state change,
     this function will generate the msg dict to push to self._send()
     so every connection will get the corresponding values
@@ -183,7 +189,7 @@ def get_dict_of_sequential_param__output(dev_cfg, name, output_name):
 
     return dict(zip(one, two))
 
-def is_toggle_cmd(msg):
+def is_toggle_cmd(msg:str) -> bool:
     """Returns true it the input (msg) is equal
     to the string "TOGGLE" or is a ISO 8601 formatted date time
     """
@@ -209,11 +215,14 @@ def spread_default_parameters(config, dev_cfg):
         if key not in dev_cfg:
             dev_cfg[key] = value
 
-def verify_connections_layout(comm, log, name, outputs=None):
+def verify_connections_layout(comm:dict[str, Any],
+                              log:logging.Logger,
+                              name:str,
+                              outputs:Optional[list[str]] = None) -> None:
     """
-    Use this method at the end of the sensor initialisation
+    Use this method at the end of the sensor initialization
     before calling configure_device_channel().
-    Checks the YAML configuration to make sure the subdictionaries
+    Checks the YAML configuration to make sure the sub-dictionaries
     in the connections section are valid outputs
 
     comm:    the communications dictionary with all connections
@@ -241,10 +250,13 @@ def verify_connections_layout(comm, log, name, outputs=None):
                         log.warning("%s has unexpected outputs '%s' in Connections."
                                     ' No outputs are allowed', name, key)
 
-def configure_device_channel(comm:dict, *, is_output:bool,
-                                output_name:str = None, datatype:ChanType = ChanType.STRING,
-                                unit:str = None, name:str = None,
-                                restrictions:str = None):
+def configure_device_channel(comm:dict[str, Any], *,
+                            is_output:bool,
+                            output_name:Optional[str] = None,
+                            datatype:ChanType = ChanType.STRING,
+                            unit:Optional[str] = None,
+                            name:Optional[str] = None,
+                            restrictions:Optional[str] = None) -> None:
     """
     Use this method at the end of the sensor/actuator initialisation,
     it sets default values inside the connections section
@@ -334,7 +346,8 @@ class Debounce():
         and checks if the debounce time is already over
     """
 
-    def __init__(self, dev_cfg, default_debounce_time):
+    def __init__(self, dev_cfg:dict[str, Any],
+                 default_debounce_time:float) -> None:
         """Init and read device configuration
 
             Parameters:
@@ -351,7 +364,7 @@ class Debounce():
         self.debounce_time = float(dev_cfg.get("ToggleDebounce", default_debounce_time))
         self.last_time = datetime.datetime.fromordinal(1)
 
-    def is_within_debounce_time(self):
+    def is_within_debounce_time(self) -> bool:
         """Checks the time difference between two  sequential events
            and checks if the debounce time is already over
 
