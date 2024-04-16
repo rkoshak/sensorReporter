@@ -23,7 +23,7 @@ from core import utils
 from core import connection
 
 class Actuator(ABC):
-    """ Class from which all actuator capabilities must inherit. Is assumes there
+    """ Class from which all actuator capabilities must inherit. It assumes there
         is a "Topic" param and automatically registers to subscribe to that topic
         with all of the passed in connections. A default implementation is provided
         for all but the on_message method which must be overridden.

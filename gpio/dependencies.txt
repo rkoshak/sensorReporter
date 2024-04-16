@@ -2,14 +2,12 @@
 # required by DhtSensor
 libgpiod2
 [groups]
+# required by RpiGpioSensor, RpiGpioActuator, GpioColorLED
 gpio
 [pip]
-# required by DhtSensor
-RPI.GPIO
 # required by RpiGpioSensor, RpiGpioActuator, GpioColorLED
 lgpio
 # required by DhtSensor
-adafruit-blinka
 adafruit-circuitpython-dht
 [raspi-config]
 # required by Ds18x20Sensor
