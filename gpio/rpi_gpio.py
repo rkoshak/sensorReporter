@@ -20,38 +20,19 @@ Classes:
 from time import sleep
 from distutils.util import strtobool
 from logging import Logger
-from typing import Any, Optional
+from typing import Any, Optional, Union
 import datetime
 import yaml
 import lgpio            # https://abyz.me.uk/lg/py_lgpio.html
-from RPi import GPIO
 from core.sensor import Sensor
 from core.actuator import Actuator
-from core.utils import parse_values, is_toggle_cmd, verify_connections_layout, \
-                        get_msg_from_values, DEFAULT_SECTION, \
-                        configure_device_channel, ChanType, Debounce
+from core import utils
+from core import connection
 
 # connection dict constants
 OUT_SWITCH = "Switch"
 OUT_SHORT_PRESS = "ShortButtonPress"
 OUT_LONG_PRESS = "LongButtonPress"
-
-def set_gpio_mode(dev_cfg, log):
-    """ Set GPIO mode (BCM or BOARD) for all Sensors and Actuators
-        put a Warning if it was changed or set multible times
-        Parameters:
-            - params : the lamda function that stores the config values for a sensor
-            - log    : the self.log instance of the calling sensor
-    """
-    gpio_mode = GPIO.BOARD if dev_cfg.get("PinNumbering") == "BOARD" else GPIO.BCM
-
-    try:
-        GPIO.setmode(gpio_mode)
-    except ValueError:
-        log.error("GPIO PinNumbering was set differently before"
-                    " make sure is is only set in the [DEFAULT] section.")
-        return "Err: not set"
-    return "BCM" if gpio_mode == GPIO.BCM else "BOARD"
 
 def check_lgpio_ver(log:Logger) -> None:
     """ check lgpio version
@@ -61,8 +42,8 @@ def check_lgpio_ver(log:Logger) -> None:
         log.warn("Found module %s, for versions below 0.2.2.0 debounce might not work!",
                  lgpio.get_module_version())
 
-def highlow_to_str(output):
-    """    Converts (GPIO.)HIGH (=1) and LOW (=0) to the corresponding string
+def highlow_to_str(output:int) -> str:
+    """    Converts (lgpio.)HIGH (=1) and LOW (=0) to the corresponding string
 
            Parameter: - "output": the GPIO constant (HIGH or LOW)
 
@@ -77,7 +58,7 @@ class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
     def __init__(self,
-                 publishers:dict[str, Any],
+                 publishers:dict[str, connection.Connection],
                  dev_cfg:dict[str, Any]) -> None:
         """ Initializes the connection to the GPIO pin and if "EventDetection"
             if defined and valid, will subscribe for events. If missing, than it
@@ -87,7 +68,8 @@ class RpiGpioSensor(Sensor):
             CLOSED and second one is OPEN.
 
             Parameters:
-                - "Pin"           : the IO pin in BCM/BOARD numbering
+                - "GpioChip"      : The number of the GPIO chip to use
+                - "Pin"           : the GPIO pin in BCM numbering
                 - "Values"        : Alternative values to publish for 0 and 1, defaults to
                                     OPEN and CLOSED for 0 and 1 respectively.
                 - "PUD"           : Pull up or down setting, if "UP" uses PULL_UP, all other
@@ -105,7 +87,7 @@ class RpiGpioSensor(Sensor):
         gpio_chip = int(dev_cfg["GpioChip"])
 
         # Allow users to override the 0/1 pin values.
-        self.values:dict[str, list[str]] = parse_values(self, self.publishers, ["OPEN", "CLOSED"])
+        self.values = utils.parse_values(self, self.publishers, ["OPEN", "CLOSED"])
 
         self.pud:int = lgpio.SET_PULL_UP if dev_cfg.get("PUD") == "UP" else lgpio.SET_PULL_DOWN
         try:
@@ -117,10 +99,10 @@ class RpiGpioSensor(Sensor):
 
         # Set up event detection.
         try:
-            event_detection = dev_cfg["EventDetection"]
-            event_map = {"RISING": lgpio.RISING_EDGE,
-                         "FALLING": lgpio.FALLING_EDGE,
-                         "BOTH": lgpio.BOTH_EDGES}
+            event_detection:str = dev_cfg["EventDetection"]
+            event_map:dict[str, int] = {"RISING": lgpio.RISING_EDGE,
+                                        "FALLING": lgpio.FALLING_EDGE,
+                                        "BOTH": lgpio.BOTH_EDGES}
             if event_detection not in event_map:
                 self.log.error("Invalid event detection specified: %s, one of RISING,"
                                " FALLING, BOTH or NONE are the only allowed values. "
@@ -156,12 +138,12 @@ class RpiGpioSensor(Sensor):
         self.btn = ButtonPressCfg(dev_cfg, self)
 
         # verify that defined output channels in Connections section are valid!
-        verify_connections_layout(self.comm, self.log, self.name,
-                                  [OUT_SWITCH, OUT_SHORT_PRESS, OUT_LONG_PRESS])
+        utils.verify_connections_layout(self.comm, self.log, self.name,
+                                        [OUT_SWITCH, OUT_SHORT_PRESS, OUT_LONG_PRESS])
 
         self.log.info("Configured RpiGpioSensor %s: chip %d, pin %d with PUD %s",
                       self.name, gpio_chip, self.pin,
-                      "UP" if self.pud == GPIO.PUD_UP else "DOWN")
+                      "UP" if self.pud == lgpio.SET_PULL_UP else "DOWN")
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
         self.log.debug("%s configured values: \n%s",
@@ -170,12 +152,12 @@ class RpiGpioSensor(Sensor):
         self.publish_state()
 
         # configure_output for homie etc. after debug output, so self.comm is clean
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_SWITCH,
-                                 name="switch state")
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_SHORT_PRESS,
-                                 name="timestamp of last short press")
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_LONG_PRESS,
-                                 name="timestamp of last long press")
+        utils.configure_device_channel(self.comm, is_output=True, output_name=OUT_SWITCH,
+                                       name="switch state")
+        utils.configure_device_channel(self.comm, is_output=True, output_name=OUT_SHORT_PRESS,
+                                       name="timestamp of last short press")
+        utils.configure_device_channel(self.comm, is_output=True, output_name=OUT_LONG_PRESS,
+                                       name="timestamp of last long press")
         self._register(self.comm)
 
     def check_state(self) -> None:
@@ -215,14 +197,14 @@ class RpiGpioSensor(Sensor):
         if level not in (self.state, lgpio.TIMEOUT):
             self.log.info("%s Pin %s changed from %s to %s (= %s)",
                           self.name, gpio, self.state,
-                          level, self.values[DEFAULT_SECTION][not level])
+                          level, self.values[utils.DEFAULT_SECTION][not level])
             self.state = level
             self.publish_state()
             self.btn.check_button_press(self)
 
     def publish_state(self) -> None:
         """ Publishes the current state of the pin."""
-        msg = get_msg_from_values(self.values, self.state == lgpio.HIGH)
+        msg = utils.get_msg_from_values(self.values, self.state == lgpio.HIGH)
         self._send(msg, self.comm, OUT_SWITCH)
 
     def publish_button_state(self,
@@ -271,7 +253,7 @@ class ButtonPressCfg():
                                         else lgpio.HIGH
         except KeyError:
             # if value not in the config, determined it from PUD
-            self.state_when_pressed = lgpio.LOW if caller.pud == GPIO.PUD_UP else lgpio.HIGH
+            self.state_when_pressed = lgpio.LOW if caller.pud == lgpio.SET_PULL_UP else lgpio.HIGH
 
         caller.log.info('%s configured button press events, with short press threshold %s, '
                         'long press threshold %s and pressed state %s',
@@ -313,16 +295,19 @@ class RpiGpioActuator(Actuator):
         Also supports toggling.
     """
 
-    def __init__(self, connections, dev_cfg):
+    def __init__(self,
+                 connections:dict[str, connection.Connection],
+                 dev_cfg:dict[str, Any]) -> None:
         """ Initializes the GPIO subsystem and sets the pin to the InitialState.
-            If InitialState is not povided in paams it defaults to GPIO.HIGH. If
-            "SimulateButton" is defined on any message will result in the pin being set to
-            HIGH for half a second and then back to LOW.
+            If InitialState is not provided in params it defaults to lgpio.HIGH.
+            If "SimulateButton" is defined on any message will result in the pin
+            being set to HIGH for half a second and then back to LOW.
 
             Parameters:
+                - "GpioChip"      : The number of the GPIO chip to use
                 - "Pin"           : The GPIO pin in BCM numbering
                 - "InitialState"  : The pin state to set when coming online,
-                                    defaults to "OFF".
+                                    defaults to "LOW".
                 - "SimulateButton": Optional parameter that when set to "True" causes any
                                     message received to result in setting the pin to HIGH, sleep for
                                     half a second, then back to LOW.
@@ -332,63 +317,65 @@ class RpiGpioActuator(Actuator):
         """
         super().__init__(connections, dev_cfg)
 
-        self.gpio_mode = set_gpio_mode(dev_cfg, self.log)
-
         self.pin = int(dev_cfg["Pin"])
-        self.invert = dev_cfg.get("InvertOut", False)
+        gpio_chip = int(dev_cfg["GpioChip"])
+        self.invert:bool = dev_cfg.get("InvertOut", False)
+
+        initial_state:Union[bool, str] = dev_cfg.get("InitialState", False)
+        # ymal.load will convert ON / OFF to True / False
+        # Introduced HIGH / LOW since ON / OFF is very confusing when setting the pin state
+        state_map = {True  : lgpio.HIGH, False : lgpio.LOW,
+                     'HIGH': lgpio.HIGH, 'LOW' : lgpio.LOW}
+        self.init_state:int = state_map.get(initial_state, lgpio.LOW)
 
         try:
-            self.init_state = GPIO.HIGH if dev_cfg["InitialState"] else GPIO.LOW
-        except KeyError:
-            self.init_state = GPIO.LOW
-
-        try:
-            GPIO.setup(self.pin, GPIO.OUT)
-            GPIO.output(self.pin, self.init_state)
+            self.chip_handle:int = lgpio.gpiochip_open(gpio_chip)
+            lgpio.gpio_claim_output(self.chip_handle, self.pin, self.init_state)
         except ValueError as err:
-            self.log.error("%s could not setup GPIO Pin %d (%s). "
+            self.log.error("%s could not setup GPIO Pin %d . "
                            "Make sure the pin number is correct. Error Message: %s",
-                           self.name, self.pin, self.gpio_mode, err)
+                           self.name, self.pin, err)
 
         try:
-            self.sim_button = dev_cfg["SimulateButton"]
+            self.sim_button:bool = dev_cfg["SimulateButton"]
         except KeyError:
             self.sim_button = dev_cfg.get("Toggle", False)
 
         # Init debounce with 0.15s default
-        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
+        self.debounce = utils.Debounce(dev_cfg, default_debounce_time = 0.15)
 
         # remember the current output state
         if self.sim_button:
-            self.current_state = None
+            self.current_state:Optional[int] = None
         else:
             if self.invert:
                 self.current_state = not self.init_state
             else:
                 self.current_state = self.init_state
 
-        self.log.info("Configued RpiGpioActuator %s: pin %d (%s) on with SimulateButton %s",
-                      self.name, self.pin, self.gpio_mode, self.sim_button)
+        self.log.info("Configued RpiGpioActuator %s: pin %d on with SimulateButton %s",
+                      self.name, self.pin, self.sim_button)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
-        # publish inital state back to remote connections
+        # publish initial state back to remote connections
         self.publish_actuator_state()
 
-        configure_device_channel(self.comm, is_output=False,
-                                 name="set digital output", datatype=ChanType.ENUM,
-                                 restrictions="ON,OFF,TOGGLE")
+        utils.configure_device_channel(self.comm, is_output=False,
+                                       name="set digital output", datatype=utils.ChanType.ENUM,
+                                       restrictions="ON,OFF,TOGGLE")
         # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
-    def on_message(self, msg):
+    def on_message(self,
+                   msg:str) -> None:
         """ Called when the actuator receives a message. If SimulateButton is not enabled
             sets the pin to HIGH if the message is ON and LOW if the message is OFF.
         """
-        # ignore command echo which occure with multiple connections:
+        # ignore command echo which occurs with multiple connections:
         # do nothing when the command (msg) equals the current state,
-        # ignor this on SimulateButton mode
+        # ignore this on SimulateButton mode
         if not self.sim_button:
             if msg in ("ON", "OFF"):
                 if self.current_state == strtobool(msg):
@@ -396,41 +383,41 @@ class RpiGpioActuator(Actuator):
                                   " which is equal to current output state. Ignoring command!",
                                   self.name, msg)
                     return
-            elif is_toggle_cmd(msg):
+            elif utils.is_toggle_cmd(msg):
                 if self.debounce.is_within_debounce_time():
-                    # filter close toggle commands to make sure no double switching occures
+                    # filter close toggle commands to make sure no double switching occurs
                     self.log.info("%s received toggle command %s"
                                   " within debounce time. Ignoring command!",
                                   self.name, msg)
                     return
                 msg = "TOGGLE"
 
-        self.log.info("%s received command %s, SimulateButton = %s, Invert = %s, Pin = %d (%s)",
-                      self.name, msg, self.sim_button, self.invert, self.pin, self.gpio_mode)
+        self.log.info("%s received command %s, SimulateButton = %s, Invert = %s, Pin = %d",
+                      self.name, msg, self.sim_button, self.invert, self.pin)
 
         # SimulateButton on then off.
         if self.sim_button:
-            self.log.info("%s toggles pin %s (%s) %s to %s",
-                          self.name, self.pin, self.gpio_mode,
+            self.log.info("%s toggles pin %s, %s to %s",
+                          self.name, self.pin,
                           highlow_to_str(self.init_state),
                           highlow_to_str(not self.init_state))
-            GPIO.output(self.pin, int(not self.init_state))
-            # "sleep" will block a local connecten and therefore
+            lgpio.gpio_write(self.chip_handle, self.pin, int(not self.init_state))
+            # "sleep" will block a local connection and therefore
             # distort the time detection of button press event's
             sleep(.5)
-            self.log.info("%s toggles pin %s (%s) %s to %s",
-                          self.name, self.pin, self.gpio_mode,
+            self.log.info("%s toggles pin %s, %s to %s",
+                          self.name, self.pin,
                           highlow_to_str(not self.init_state),
                           highlow_to_str(self.init_state))
-            GPIO.output(self.pin, self.init_state)
+            lgpio.gpio_write(self.chip_handle, self.pin, self.init_state)
 
         # Turn ON/OFF based on the message.
         else:
             out = None
             if msg == "ON":
-                out = GPIO.HIGH
+                out = lgpio.HIGH
             elif msg == "OFF":
-                out = GPIO.LOW
+                out = lgpio.LOW
             elif msg == "TOGGLE":
                 out = int(not self.current_state)
 
@@ -441,23 +428,22 @@ class RpiGpioActuator(Actuator):
                 if self.invert:
                     out = int(not out)
 
-                self.log.info("%s set pin %d (%s) to %s",
-                              self.name, self.pin, self.gpio_mode,
+                self.log.info("%s set pin %d to %s",
+                              self.name, self.pin,
                               highlow_to_str(out))
-                GPIO.output(self.pin, out)
+                lgpio.gpio_write(self.chip_handle, self.pin, out)
 
                 # publish own state back to remote connections
                 self.publish_actuator_state()
 
-    def publish_actuator_state(self):
+    def publish_actuator_state(self) -> None:
         """Publishes the current state of the actuator."""
-        msg = "ON" if self.current_state else "OFF"
+        msg:str = "ON" if self.current_state else "OFF"
         self._publish(msg, self.comm)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Disconnects from the GPIO subsystem."""
-        self.log.debug("Cleaning up GPIO outputs, invoked via Pin %d (%s)",
-                       self.pin, self.gpio_mode)
-        # make sure cleanup runs only once
-        if GPIO.getmode() is not None:
-            GPIO.cleanup()
+        self.log.debug("%s cleaning up GPIO outputs, invoked via Pin %d",
+                       self.name, self.pin)
+        lgpio.gpio_free(self.chip_handle, self.pin)
+        lgpio.gpiochip_close(self.chip_handle)
