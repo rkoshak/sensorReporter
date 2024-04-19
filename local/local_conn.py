@@ -127,3 +127,16 @@ class LocalConnection(Connection):
             return
         else:
             self.log.debug("There is no handler registered for %s", destination)
+
+    def register(self, comm_conn, handler):
+        """Set up the passed in handler to be called for any message on the
+        destination.
+
+        Arguments:
+            - comm_conn: the dictionary containing the connection related parameters
+            - handler:   (reference to function) handles the incoming commands,
+                         if None the registration of a sensor is assumed
+        """
+        if handler:
+            self.log.info("Registering destination %s", comm_conn['CommandSrc'])
+            self.registered[comm_conn['CommandSrc']] = handler

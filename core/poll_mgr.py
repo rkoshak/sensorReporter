@@ -94,7 +94,7 @@ class PollManager:
 
         self.log.info("Disconnecting from connections")
         for conn in self.connections.values():
-            conn.disconnect()
+            conn.prepare_disconnect()
 
     def report(self):
         """Calls publish_state on all the sensors and actuators."""

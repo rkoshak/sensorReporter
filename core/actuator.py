@@ -62,6 +62,11 @@ class Actuator(ABC):
 
         self._register(self.comm, self.on_message)
 
+        # Verify that utils.CONF_ON_DISCONNECT & utils.CONF_ON_RECONNECT
+        # in 'Connections:' contain valid values!
+        # Actuators have no output channel => None
+        utils.verify_connections_layout(self.comm, self.log, self.name, None)
+
     def _register(self,
                   comm:dict[str, Any],
                   handler:Optional[Callable[[str], None]]) -> None:
@@ -70,7 +75,7 @@ class Actuator(ABC):
         """
 
         for (conn, comm_conn) in comm.items():
-            self.connections[conn].register(comm_conn, handler)
+            self.connections[conn].prepare_register(comm_conn, handler)
 
     @abstractmethod
     def on_message(self,
@@ -101,9 +106,9 @@ class Actuator(ABC):
                        containing the connection related parameters
         """
         for conn in comm.keys():
-            #currently for actuators the connectors don't support the parameter output_name
-            #so we set it to None
-            self.connections[conn].publish(message, comm[conn], None)
+            # currently for actuators the connectors don't support the parameter output_name
+            # so we set it to None
+            self.connections[conn].prepare_publish(message, comm[conn], None)
 
     def publish_actuator_state(self) -> None:
         """ Called to publish the current state of the actuator to the publishers.

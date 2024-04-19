@@ -13,11 +13,17 @@ from enum import Enum, auto
 from typing import Any, Union, Optional
 # workaround circular import sensor <=> utils, import only file but not the method/object
 from core import sensor
+from core import connection
 
 DEFAULT_SECTION = "DEFAULT"
-#Constans for auto discover connections:
+# Constants for auto discover connections:
 OUT = "$out"
 IN = "$in"
+
+# connection sub directory constants
+CONF_ON_DISCONNECT = 'ConnectionOnDisconnect'
+CONF_ON_RECONNECT = 'ConnectionOnReconnect'
+CONF_SCHEDULER = 'Scheduler'
 
 class ChanConst():
     """Constants used by configure_device_channel and homie_conn
@@ -235,21 +241,41 @@ def verify_connections_layout(comm:dict[str, Any],
              Expects the output_names used by a sensor as list e. g.:
              outputs = [output_name1, output_name2]
     """
+    # In case outputs has the wrong data type
+    if not isinstance(outputs, list):
+        outputs = None
+    # exclude sub-dictionaries used to configure the connection
+    conn_conf = [CONF_ON_DISCONNECT, CONF_ON_RECONNECT, CONF_SCHEDULER]
+
     for conn in comm.values():
-        #loop thru all connections
-        if isinstance(conn, dict):
-            for (key, value) in conn.items():
-                #loop thru sub items of the connections
-                #if sub item is a dict we found a output channel
-                if isinstance(value, dict):
-                    if isinstance(outputs, list):
-                        if not key in outputs:
-                            log.warning("%s has unknown outputs '%s' in Connections."
-                                        ' Valid outputs are: %s', name, key, outputs)
-                    else:
-                        #handle case where outputs is not specified
-                        log.warning("%s has unexpected outputs '%s' in Connections."
-                                    ' No outputs are allowed', name, key)
+        if not isinstance(conn, dict):
+            continue
+        # loop thru all connections
+        for (key, value) in conn.items():
+            # loop thru sub items of the connections
+            # if sub item is a dict we found a output channel
+            # exclude sub-directories used to configure the connection
+            if not isinstance(value, dict):
+                continue
+            if key in conn_conf:
+                # Check data-type of VAL_TARGET_STATE = 'TargetState' expected 'str'
+                target_val = value.get(connection.VAL_TARGET_STATE, '')
+                if not isinstance(target_val, str):
+                    log.warning("%s found non string value for '%s'."
+                                " Expected string, use ' ' in config",
+                                name, connection.VAL_TARGET_STATE)
+                # continue if key in conn_conf, no matter if warning was printed
+                continue
+            if outputs is None:
+                # handle case where outputs is not specified
+                log.warning("%s has unexpected outputs '%s' in Connections."
+                            ' No outputs are allowed', name, key)
+                continue
+            # check if sub-dictionary is specified as outputs
+            if not key in outputs:
+                log.warning("%s has unknown outputs '%s' in Connections."
+                            ' Valid outputs are: %s', name, key, outputs)
+
 
 def configure_device_channel(comm:dict[str, Any], *,
                             is_output:bool,
@@ -259,7 +285,7 @@ def configure_device_channel(comm:dict[str, Any], *,
                             name:Optional[str] = None,
                             restrictions:Optional[str] = None) -> None:
     """
-    Use this method at the end of the sensor/actuator initialisation,
+    Use this method at the end of the sensor/actuator initialization,
     it sets default values inside the connections section
     so that a connector which supports auto-discover, e. g. homie_conn,
     can register the device correctly.

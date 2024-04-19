@@ -69,7 +69,7 @@ class Sensor(ABC):
         which supports auto discover
         """
         for (conn, comm_conn) in comm.items():
-            self.publishers[conn].register(comm_conn, None)
+            self.publishers[conn].prepare_register(comm_conn, None)
 
     def check_state(self) -> None:
         """Called to check the latest state of sensor and publish it. If not
@@ -112,7 +112,7 @@ class Sensor(ABC):
             if isinstance(message, dict):
                 msg = message.get(conn, message[utils.DEFAULT_SECTION])
 
-            self.publishers[conn].publish(msg, comm[conn], output_name)
+            self.publishers[conn].prepare_publish(msg, comm[conn], output_name)
 
     def cleanup(self) -> None:
         """Called when shutting down the sensor, give it a chance to clean up

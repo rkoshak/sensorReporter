@@ -107,7 +107,9 @@ class MqttConnection(Connection):
         self.register(self.refresh_comm, msg_processor)
 
         self.client.loop_start()
-        self._publish_mqtt(ONLINE, self.lwt, True)
+
+        # ONLINE state for lwtt and the base class will be set
+        # after fully connected in on_connect()
 
     def _connect(self):
         while not self.connected:
@@ -123,6 +125,7 @@ class MqttConnection(Connection):
                 self.connected = False
 
         self.log.info("Connection to MQTT is successful")
+        super().conn_is_connecting()
 
     def publish(self, message, comm_conn, output_name=None):
         """Publishes message to destination, logging if there is an error.
@@ -207,8 +210,10 @@ class MqttConnection(Connection):
             self.client.message_callback_add(full_topic, on_message)
 
     def on_connect(self, client, userdata, flags, retcode):
-        """Called when the client connects to the broker, resubscribe to the
-        sensorReporter topic.
+        """ Called when the client connects to the broker, resubscribe to the
+            sensorReporter topic.
+            Gets automatically called from self.client after connection
+            got fully established (on first connect and on reconnect)
         """
         refresh = "{}/{}".format(self.root_topic, REFRESH)
         self.log.info(
@@ -225,6 +230,8 @@ class MqttConnection(Connection):
 
         # Publish the ONLINE message to the LWT
         self._publish_mqtt(ONLINE, self.lwt, True)
+        # send messages which got collected while connection was offline
+        super().conn_went_online()
 
         # Resubscribe on connection
         for reg in self.registered:
@@ -246,6 +253,7 @@ class MqttConnection(Connection):
         )
 
         self.connected = False
+        super().conn_went_offline()
         if retcode != 0:
             self.log.error(
                 "Unexpected disconnect code %s: %s reconnecting",

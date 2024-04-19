@@ -43,13 +43,13 @@ There are two hard coded topics the Connection will use:
 
 ### Actuator / sensor relevant parameters
 
-To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
+To use an actuator or a sensor (a device) with a connection, it has to define this in the device `Connections:` parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
 The MQTT connection uses following parameters:
 
 | Parameter    | Required          | Restrictions | Purpose                                                                                                           |
 |--------------|-------------------|--------------|-------------------------------------------------------------------------------------------------------------------|
-| `CommandSrc` | yes for actuators |              | specifies the topic to subscribe for actuator events                                                              |
-| `StateDest`  |                   |              | return topic to publish the current device state / sensor readings. If not present the state won't get published. |
+| `CommandSrc` | yes for actuators |              | Specifies the topic to subscribe for actuator events                                                              |
+| `StateDest`  |                   |              | Return topic to publish the current device state / sensor readings. If not present the state won't get published. |
 | `Retain`     |                   | boolean      | If True, MQTT will publish messages with the retain flag. Default is False.                                       |
 
 #### Dictionary of connectors layout
@@ -70,13 +70,56 @@ Connections:
 ```
 The available outputs are described at the sensor / actuator readme.
 
-Some sensor / actuators have only a single output / input so the sensor_output section is not neccesary:
+Some sensor / actuators have only a single output / input so the sensor_output section is not necessary:
 
 ```yaml
 Connections:
     <connection_name>:
         CommandSrc: <some topic>
         StateDest: <some other topic>
+```
+
+#### Trigger disconnect / reconnect actions
+This connection supports triggering actions on disconnect / reconnect for actuators and storing sensor readings while the connection is offline and sending them all at once on reconnect for sensors.
+These options are configured for each device and are defined within the device's `Connections:` parameter. 
+
+##### Actuator related parameters:
+Can be defined within the `ConnectionOnDisconnect:` and `ConnectionOnReconnect:` parameter.
+
+| Parameter         | Required            | Restrictions               | Purpose                                                                                                                                           |
+|-------------------|---------------------|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ChangeState`     |                     | boolean                    | Trigger actuator state change on disconnect/reconnect (default = no)                                                                              |
+| `TargetState`     | if ChangeState: yes | string in single 'quotes'  | The command to send to the actuator when the trigger occurs. Make sure the data type matches the actuator and use single 'quotes'                 |
+| `ResumeLastState` |                     | boolean, only on reconnect | If yes, the actuator will return to the last known state state on reconnection. Only works on actuators with return topic feature (default = no)  |
+
+```yaml
+Connections:
+    <connection_name>:
+        # actuator topic config omitted
+    	ConnectionOnDisconnect:
+    		ChangeState: < yes / no >
+    		TargetState: 'ON' 			# some value the actuator supports, could be also '0,0,100' for a  PWM dimmer
+    	ConnectionOnReconnect:
+    		ChangeState: < yes / no >
+    		TargetState: 'OFF'
+    		ResumeLastState: < yes / no >
+```
+
+##### Sensor related Parameters
+Can be defined within the `ConnectionOnDisconnect:` parameter.
+
+| Parameter          | Required | Restrictions | Purpose                                                                                                               |
+|--------------------|----------|--------------|---------------------------------------------------------------------------------------------------------------        |
+| `SendReadings`     |          | boolean      | If yes, sensors readings will be collected while connection is offline and send when reconnected (default = no)       |
+| `NumberOfReadings` |          | Integer      | Number of readings to be collected. Will be sent in the same order after reconnection, oldest first (default = 1 )    |
+
+```yaml
+Connections:
+    <connection_name>:
+    	# sensor topic config omitted
+    	ConnectionOnDisconnect:
+    		SendReadings: < yes / no >
+    		NumberOfReadings: < whole number >
 ```
 
 ### Example Config
@@ -162,6 +205,49 @@ To configure a Homie connection in a sensor / actuator use following layout:
 Connections:
     <connection_name>:
         Name: <device_name>
+```
+
+#### Trigger disconnect / reconnect actions
+This connection supports triggering actions on disconnect / reconnect for actuators and storing sensor readings while the connection is offline and sending them all at once on reconnect for sensors.
+These options are configured for each device and are defined within the device's `Connections:` parameter. 
+
+##### Actuator related parameters:
+Can be defined within the `ConnectionOnDisconnect:` and `ConnectionOnReconnect:` parameter.
+
+| Parameter         | Required            | Restrictions               | Purpose                                                                                                                                           |
+|-------------------|---------------------|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ChangeState`     |                     | boolean                    | Trigger actuator state change on disconnect/reconnect (default = no)                                                                              |
+| `TargetState`     | if ChangeState: yes | string in single 'quotes'  | The command to send to the actuator when the trigger occurs. Make sure the data type matches the actuator and use single 'quotes'                 |
+| `ResumeLastState` |                     | boolean, only on reconnect | If yes, the actuator will return to the last known state state on reconnection. Only works on actuators with return topic feature (default = no)  |
+
+```yaml
+Connections:
+    <connection_name>:
+        # actuator topic config omitted
+    	ConnectionOnDisconnect:
+    		ChangeState: < yes / no >
+    		TargetState: 'ON' 			# some value the actuator supports, could be also '0,0,100' for a  PWM dimmer
+    	ConnectionOnReconnect:
+    		ChangeState: < yes / no >
+    		TargetState: 'OFF'
+    		ResumeLastState: < yes / no >
+```
+
+##### Sensor related Parameters
+Can be defined within the `ConnectionOnDisconnect:` parameter.
+
+| Parameter          | Required | Restrictions | Purpose                                                                                                               |
+|--------------------|----------|--------------|---------------------------------------------------------------------------------------------------------------        |
+| `SendReadings`     |          | boolean      | If yes, sensors readings will be collected while connection is offline and send when reconnected (default = no)       |
+| `NumberOfReadings` |          | Integer      | Number of readings to be collected. Will be sent in the same order after reconnection, oldest first (default = 1 )    |
+
+```yaml
+Connections:
+    <connection_name>:
+    	# sensor topic config omitted
+    	ConnectionOnDisconnect:
+    		SendReadings: < yes / no >
+    		NumberOfReadings: < whole number >
 ```
 
 ### Example Config
