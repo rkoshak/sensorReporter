@@ -116,10 +116,10 @@ Can be defined within the `ConnectionOnDisconnect:` parameter.
 ```yaml
 Connections:
     <connection_name>:
-    	# sensor topic config omitted
-    	ConnectionOnDisconnect:
-    		SendReadings: < yes / no >
-    		NumberOfReadings: < whole number >
+        # sensor topic config omitted
+        ConnectionOnDisconnect:
+            SendReadings: < yes / no >
+            NumberOfReadings: < whole number >
 ```
 
 ### Example Config
@@ -224,13 +224,14 @@ Can be defined within the `ConnectionOnDisconnect:` and `ConnectionOnReconnect:`
 Connections:
     <connection_name>:
         # actuator topic config omitted
-    	ConnectionOnDisconnect:
-    		ChangeState: < yes / no >
-    		TargetState: 'ON' 			# some value the actuator supports, could be also '0,0,100' for a  PWM dimmer
-    	ConnectionOnReconnect:
-    		ChangeState: < yes / no >
-    		TargetState: 'OFF'
-    		ResumeLastState: < yes / no >
+        ConnectionOnDisconnect:
+            ChangeState: < yes / no >
+            # some value the actuator supports, could be also '0,0,100' for a  PWM dimmer
+            TargetState: 'ON'
+        ConnectionOnReconnect:
+            ChangeState: < yes / no >
+            TargetState: 'OFF'
+            ResumeLastState: < yes / no >
 ```
 
 ##### Sensor related Parameters
@@ -244,10 +245,10 @@ Can be defined within the `ConnectionOnDisconnect:` parameter.
 ```yaml
 Connections:
     <connection_name>:
-    	# sensor topic config omitted
-    	ConnectionOnDisconnect:
-    		SendReadings: < yes / no >
-    		NumberOfReadings: < whole number >
+        # sensor topic config omitted
+        ConnectionOnDisconnect:
+            SendReadings: < yes / no >
+            NumberOfReadings: < whole number >
 ```
 
 ### Example Config

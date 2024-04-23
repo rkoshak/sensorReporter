@@ -18,7 +18,7 @@ Classes: Connections
 """
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, Any
 import logging
 # workaround circular import connection <=> utils, import only file but not the method/object
 from core import utils
@@ -49,7 +49,9 @@ class Connection(ABC):
         implementation for all methods except publish which must be overridden.
     """
 
-    def __init__(self, msg_processor, conn_cfg):
+    def __init__(self,
+                 msg_processor:Callable[[str], None],
+                 conn_cfg:dict[str, Any]) -> None:
         """ Stores the passed in arguments as data members.
 
         Arguments:
@@ -61,14 +63,17 @@ class Connection(ABC):
         self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
         self.conn_cfg = conn_cfg
-        self.registered = {}
+        self.registered:dict[str, Callable[[str], None]] = {}
         self.state = ConnState.INIT
-        self.value_send_buff = {}
-        self.online_offline_act = {}
+        self.value_send_buff:dict[int, Any] = {}
+        self.online_offline_act:dict[int, Any] = {}
         utils.set_log_level(conn_cfg, self.log)
 
     @abstractmethod
-    def publish(self, message, comm_conn, output_name=None):
+    def publish(self,
+                message:str,
+                comm_conn:dict[str, Any],
+                output_name:Optional[str] = None) -> None:
         """ Abstract method that must be overridden. When called, send the passed
             in message to the passed in comm(unication)_conn(ection) related dictionary.
             An output_name can be specified optional to set a output channel to publish to.
@@ -87,9 +92,9 @@ class Connection(ABC):
         """
 
     def prepare_publish(self,
-                        message:Union[str, dict],
-                        comm_conn:dict,
-                        output_name:Optional[str]=None) -> None:
+                        message:str,
+                        comm_conn:dict[str, Any],
+                        output_name:Optional[str] = None) -> None:
         """ Internal method to store messages in case the connection is offline.
             If a sensor doesn't has 'ConnectionOnReconnect' configured, send messages
             get dropped while the connection is offline.
@@ -155,7 +160,7 @@ class Connection(ABC):
 
         self.publish(message, comm_conn, output_name)
 
-    def publish_device_properties(self):
+    def publish_device_properties(self) -> None:
         """ Method is intended for connections with auto discover of sensors
             and actuators. Such a connection can place the necessary code for auto
             discover inside this method. It is called after all connections, sensors
@@ -164,7 +169,7 @@ class Connection(ABC):
         Since not all connections support auto discover the default implementation is empty.
         """
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """ Disconnect from the connection and release any resources.
             Override this method to implement a connection related disconnect procedure.
         """
@@ -177,7 +182,9 @@ class Connection(ABC):
         self.disconnect()
 
     @abstractmethod
-    def register(self, comm_conn, handler):
+    def register(self,
+                 comm_conn:dict[str, Any],
+                 handler:Optional[Callable[[str], None]]) -> None:
         """ Set up the passed in handler to be called for any message on the
             destination.
 
@@ -198,8 +205,8 @@ class Connection(ABC):
         #    self.registered[comm_conn['CommandSrc']] = handler
 
     def prepare_register(self,
-                         comm_conn:dict,
-                         handler:Callable[[str], None]) -> None:
+                         comm_conn:dict[str, Any],
+                         handler:Optional[Callable[[str], None]]) -> None:
         """ Internal method to register connection related actuator actions
             which get triggered when the connection calls conn_went_offline() or
             conn_went_online()
@@ -245,7 +252,7 @@ class Connection(ABC):
 
         self.register(comm_conn, handler)
 
-    def conn_went_offline(self):
+    def conn_went_offline(self) -> None:
         """ The inheriting class may call this function to trigger related actions
             when the connection goes offline.
 
@@ -283,7 +290,7 @@ class Connection(ABC):
 
         self.state = ConnState.OFFLINE
 
-    def conn_is_connecting(self):
+    def conn_is_connecting(self) -> None:
         """ The inheriting class may call this function to tell the base class,
             that the connection is available again. So massages send during
             connecting won't get stored in the self.value_send_buff
@@ -293,7 +300,7 @@ class Connection(ABC):
             return
         self.state = ConnState.CONNECTING
 
-    def conn_went_online(self):
+    def conn_went_online(self) -> None:
         """ The inheriting class may call this function to tell the base class,
             that the connection is online again.
 

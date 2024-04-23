@@ -102,9 +102,9 @@ bin/python sensor_reporter.py sensor_reporter.yml
 (optional) enable & start the service:
 
 4. set service to auto start:  `sudo systemctl enable sensor_reporter.service`
-5. start sensor_reporter:  `sudo sytemctl start sensor_reporter.service`
+5. start sensor_reporter:  `sudo systemctl start sensor_reporter.service`
 
-To reload a modified sensor_reporter.yml use the command:  `sudo sytemctl reload sensor_reporter.service`  
+To reload a modified sensor_reporter.yml use the command:  `sudo systemctl reload sensor_reporter.service`  
 After large changes to the configuration, e. g. sensors/actuators has been removed/added, a restart of the service is recommended.
 
 # Configuration
