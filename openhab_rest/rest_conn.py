@@ -12,54 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Communicator that publishes and subscribes to openHAB's REST API.
-Classes:
-    - openhab_rest: publishes state updates to openHAB Items.
+""" Communicator that publishes and subscribes to openHAB's REST API.
+    Classes:
+        - openhab_rest: publishes state updates to openHAB Items.
 """
 from threading import Thread, Timer
+from typing import Callable, Optional, Union, Any
 import json
 import traceback
 import requests
 import sseclient
-from core.connection import Connection
-
-def connect_oh_rest(caller):
-    """ Subscribe to SSE events and start processing the events
-        if API-Token is provided and supported then include it in the request"""
-    try:
-        if caller.openhab_version >= 3.0 and bool(caller.api_token):
-            header = {'Authorization': 'Bearer ' + caller.api_token }
-            stream = requests.get("{}/rest/events".format(caller.openhab_url),
-                                  headers=header, stream=True)
-
-        else:
-            stream = requests.get("{}/rest/events".format(caller.openhab_url),
-                                  stream=True)
-        caller.client = sseclient.SSEClient(stream)
-
-    except requests.exceptions.Timeout:
-        caller.log.error("Timed out connecting to %s", caller.openhab_url)
-    except requests.exceptions.ConnectionError as ex:
-        caller.log.error("Failed to connect to %s, response: %s", caller.openhab_url, ex)
-    except requests.exceptions.HTTPError as ex:
-        caller.log.error("Received and unsuccessful response code %s", ex)
-
-    caller.reciever = OpenhabReciever(caller)
+from core.connection import Connection, ConnState
 
 class OpenhabREST(Connection):
-    """Publishes a state to a given openHAB Item. Expects there to be a URL
-    parameter set to the base URL of the openHAB instance. Subscribes to the OH
-    SSE feed for commands on the registered Items.
+    """ Publishes a state to a given openHAB Item. Expects there to be a URL
+        parameter set to the base URL of the openHAB instance. Subscribes to the OH
+        SSE feed for commands on the registered Items.
     """
 
-    def __init__(self, msg_processor, conn_cfg):
-        """Starts the SSE subscription and registers for commands on
-        RefreshItem. Expects the following params:
-        - "URL": base URL of the openHAB instance NOTE: does not support TLS.
-        - "RefreshItem": Name of the openHAB Item that, when it receives a
-        command will cause sensor_reporter to publish the most recent states of
-        all the sensors.
-        - msg_processor: message handler for command to the RefreshItem
+    def __init__(self,
+                 msg_processor:Callable[[str], None],
+                 conn_cfg:dict[str, Any]) -> None:
+        """ Starts the SSE subscription and registers for commands on
+            RefreshItem. Expects the following params:
+            - "URL": base URL of the openHAB instance NOTE: does not support TLS.
+            - "RefreshItem": Name of the openHAB Item that, when it receives a
+                             command will cause sensor_reporter to publish
+                             the most recent states of all the sensors.
+            - msg_processor: message handler for command to the RefreshItem
         """
         super().__init__(msg_processor, conn_cfg)
         self.log.info("Initializing openHAB REST Connection...")
@@ -68,7 +48,7 @@ class OpenhabREST(Connection):
         self.refresh_item = conn_cfg["RefreshItem"]
         self.registered[self.refresh_item] = msg_processor
 
-        # optional OpenHAB Verison and optional API-Token for connections with authentication
+        # Optional OpenHAB Version and optional API-Token for connections with authentication
         try:
             self.openhab_version = float(conn_cfg["openHAB-Version"])
         except KeyError:
@@ -81,26 +61,92 @@ class OpenhabREST(Connection):
                 self.log.info("No API-Token specified,"
                 " connecting to openHAB without authentication")
 
-        self.client = None
-        self.reciever = None
-        connect_oh_rest(self)
+        # Read certificate settings
+        self.verify_cert:Union[bool, str] = True
+        if conn_cfg.get("TLSinsecure", False):
+            self.verify_cert = False
+        else:
+            cert = conn_cfg.get("CAcert", '')
+            if cert:
+                self.verify_cert = cert
+        self.log.info("Attempting to connect to openHAB REST at %s,"
+                      " TLS certificate %s",
+                      self.openhab_url, self.verify_cert)
 
-    def publish(self, message, comm_conn, output_name=None):
-        """Publishes the passed in message to the passed in destination as an update.
+        self.reciever:Optional[OpenhabReciever] = None
+
+        # Initiate openHAB connection by running check_connection for the first time
+        self.close_connection = False   # Stops 'check_connection' on demand
+        self.conn_check:Timer
+        self.check_connection()
+
+    def check_connection(self) -> None:
+        """ Runs every 30 seconds to check if the openHAB REST-API
+            is available. If yes and not connected initiate connection.
+            If connected but the API is not reachable switch to offline mode.
+        """
+        header = None
+        conn_error = False
+        conn_success = False
+        if self.openhab_version >= 3.0 and bool(self.api_token):
+            header = {'Authorization': 'Bearer ' + self.api_token }
+
+        try:
+            response = requests.get(f'{self.openhab_url}/rest',
+                                  headers=header, stream=False, verify=self.verify_cert)
+            self.log.debug("Connection checker: got response code: %s for URL %s/rest",
+                           response.status_code, self.openhab_url)
+            response.raise_for_status()
+            conn_success = True
+        except requests.exceptions.Timeout:
+            self.log.error("Connection checker: %s timed out", self.openhab_url)
+            conn_error = True
+        except requests.exceptions.ConnectionError as ex:
+            # Occurs when openHAB server is down
+            self.log.error("Connection checker: failed connecting to %s, response: %s",
+                           self.openhab_url, ex)
+            conn_error = True
+        except requests.exceptions.HTTPError as ex:
+            self.log.error("Received an unsuccessful response code %s", ex)
+            conn_error = True
+
+        if conn_success:
+            if self.state in [ConnState.INIT, ConnState.OFFLINE]:
+                self.log.info("Connected to openHAB %s", self.openhab_url)
+                self.reciever = OpenhabReciever(self, header)
+                super().conn_went_online()
+        elif conn_error:
+            if self.state == ConnState.ONLINE:
+                self.log.info("Disconnected from openHAB %s", self.openhab_url)
+                if self.reciever:
+                    # Stop old instance
+                    self.reciever.stop()
+                super().conn_went_offline()
+
+        if not self.close_connection:
+            self.conn_check = Timer(30, self.check_connection)
+            self.conn_check.start()
+
+    def publish(self,
+                message:str,
+                comm_conn:dict[str, Any],
+                output_name:Optional[str] = None) -> None:
+        """ Publishes the passed in message to the passed in destination as an update.
 
         Arguments:
         - message:     the message to process / publish, expected type <string>
         - comm_conn:   dictionary containing only the parameters for the called connection,
                        e. g. information where to publish
         - output_name: optional, the output channel to publish the message to,
-                       defines the subdirectory in comm_conn to look for the return topic.
+                       defines the sub-directory in comm_conn to look for the return topic.
                        When defined the output_name must be present
                        in the sensor YAML configuration:
                        Connections:
                            <connection_name>:
                                 <output_name>:
         """
-        self.reciever.start_watchdog()
+        if self.reciever:
+            self.reciever.start_watchdog()
 
         #if output_name is in the communication dict parse it's contents
         local_comm = comm_conn[output_name] if output_name in comm_conn else comm_conn
@@ -113,43 +159,50 @@ class OpenhabREST(Connection):
         try:
             self.log.debug("Publishing message %s to %s", message, destination)
             # openHAB 2.x doesn't need the Content-Type header
-            if self.openhab_version < 3.0:
-                response = requests.put("{}/rest/items/{}/state"
-                                    .format(self.openhab_url, destination),
-                                    data=message, timeout=10)
-            else:
+            header = None
+            if self.openhab_version >= 3.0:
                 # define header for OH3 communication and authentication
                 header = {'Content-Type': 'text/plain'}
                 if bool(self.api_token):
                     header['Authorization'] = "Bearer " + self.api_token
-
-                response = requests.put("{}/rest/items/{}/state"
-                                    .format(self.openhab_url, destination),
-                                    headers=header, data=message, timeout=10)
-
-            response.raise_for_status()
-            self.reciever.activate_watchdog()
+            response = requests.put(f'{self.openhab_url}/rest/items/{destination}/state',
+                                    headers=header, data=message,
+                                    timeout=10, verify=self.verify_cert)
+            if response.status_code == 401:
+                # 401 = unauthorized, API-Key required
+                self.log.error("Can't publish message,"
+                               " received error unauthorized! Consider to set a 'API-Token'!")
+            else:
+                response.raise_for_status()
+                if self.reciever:
+                    self.reciever.activate_watchdog()
         except ConnectionError:
             self.log.error("Failed to connect to %s\n%s", self.openhab_url,
                            traceback.format_exc())
+            super().conn_went_offline()
         except requests.exceptions.Timeout:
             self.log.error("Timed out connecting to %s", self.openhab_url)
         except requests.exceptions.ConnectionError as ex:
-            #handes exception "[Errno 111] Connection refused"
+            # Handles exception "[Errno 111] Connection refused"
             # which is not caught by above "ConnectionError"
             self.log.error("Failed to connect to %s, response: %s", self.openhab_url, ex)
+            super().conn_went_offline()
         except requests.exceptions.HTTPError as ex:
-            self.log.error("Received and unsuccessful response code %s", ex)
+            self.log.error("Received an unsuccessful response code %s", ex)
 
-    def disconnect(self):
-        """Stops the event processing loop."""
+    def disconnect(self) -> None:
+        """ Stops the event processing loop."""
         self.log.info("Disconnecting from openHAB SSE")
-        self.reciever.stop()
+        self.close_connection = True
+        if self.reciever:
+            self.reciever.stop()
+        self.conn_check.cancel()
 
-    def register(self, comm_conn, handler):
-        """Set up the passed in handler to be called for any message on the
-        destination. Alternate implementation using 'Item' as Topic
-         
+    def register(self,
+                 comm_conn:dict[str, Any],
+                 handler:Optional[Callable[[str], None]]) -> None:
+        """ Set up the passed in handler to be called for any message on the
+            destination. Alternate implementation using 'Item' as Topic
         """
         #handler can be None if a sensor registers it's outputs
         if handler:
@@ -157,26 +210,61 @@ class OpenhabREST(Connection):
             self.registered[comm_conn['Item']] = handler
 
 class OpenhabReciever():
-    """Initiates a separate Task for recieving OH SSE.
+    """ Subscribes to SSE events from openHAB and
+        initiates a separate Task for receiving the events.
     """
 
-    def __init__(self, caller):
+    def __init__(self,
+                 caller:OpenhabREST,
+                 header:Optional[dict[str, str]]) -> None:
+        """  Parameter:
+            - caller    : The class object from the calling OpenhabREST
+            - header    : HTTP header which is send to openHAB when
+                          subscribing to events
+        """
         self.stop_thread = False
-        # copy reciever object to local class
-        self.client = caller.client
+        self.client = self.subscribe_to_events(caller, header)
         self.caller = caller
-        self.watchdog = None
+        self.watchdog:Optional[Timer] = None
         self.watchdog_activ = False
-        # in case of a connection error dont start the get_messages thread
+        # In case of a connection error don't start the get_messages thread
         if self.client:
             self.thread = Thread(target=self._get_messages, args=(caller,))
             self.thread.start()
 
-    def _get_messages(self, caller):
-        """Blocks until stop is set to True. Loops through all the events on the
-        SSE subscription and if it's a command to a registered Item, call's that
-        Item's handler.
+    @staticmethod
+    def subscribe_to_events(caller:OpenhabREST,
+                            header:Optional[dict[str, str]]) -> Optional[sseclient.SSEClient]:
+        """ Subscribe to SSE events and start processing the events
+            if API-Token is provided and supported then include it in the request
+            Parameter:
+                - header    : HTTP header to send to openHAB
         """
+        client:Optional[sseclient.SSEClient] = None
+        try:
+            stream = requests.get(f'{caller.openhab_url}/rest/events',
+                                  headers=header, stream=True, verify=caller.verify_cert)
+            # The type checker doesn't understand requests.response is compatible with
+            # Generator[bytes, None, None] required by SSEClient
+            client = sseclient.SSEClient(stream)   # type: ignore
+
+        except requests.exceptions.Timeout:
+            caller.log.error("Timed out connecting to %s", caller.openhab_url)
+        except requests.exceptions.ConnectionError as ex:
+            caller.log.error("Failed to connect to %s, response: %s", caller.openhab_url, ex)
+        except requests.exceptions.HTTPError as ex:
+            caller.log.error("Received and unsuccessful response code %s", ex)
+
+        return client
+
+    def _get_messages(self,
+                      caller:OpenhabREST) -> None:
+        """ Blocks until stop is set to True. Loops through all the events on the
+            SSE subscription and if it's a command to a registered Item, call's that
+            Item's handler.
+        """
+        if self.client is None:
+            return
         for event in self.client.events():
             # reset reconnect watchdog
             if self.watchdog:
@@ -184,7 +272,7 @@ class OpenhabReciever():
 
             if self.stop_thread:
                 self.client.close()
-                caller.log.debug("Old OpenHab connection closed")
+                caller.log.debug("Old openHab connection closed")
                 return
 
             # See if this is an event we care about. Commands on registered Items.
@@ -202,18 +290,27 @@ class OpenhabReciever():
                     msg = payload["value"]
                     caller.log.info("Received command from %s: %s", item, msg)
                     caller.registered[item](msg)
+        caller.log.debug("Connection interrupted: old openHab connection closed")
+        self.client.close()
 
-    def _wd_timeout(self):
-        """watchdog handler: will reconnect to openhab when invoced"""
+    def _wd_timeout(self) -> None:
+        """ Watchdog: check if subscription to openHAB SSE events
+            is still active, if not resubscribe. Whenever OpenhabREST
+            sends a message to openHAB we expect a response.
+            If the response is not received within 2s we consider the
+            connection expired.
+        """
         if self.watchdog_activ:
             self.caller.log.info("connection EXPIRED, reconnecting")
             self.stop()
-            connect_oh_rest(self.caller)
+            # The events stream is broken, set state to INIT so check_Connection
+            # will reinitialize stream
+            self.caller.state = ConnState.INIT
 
-    def start_watchdog(self):
-        """start watchdog before msg gets sent to openhabREST
-        if the watchdog gets activated and after 2s no msg from openHAB was
-        received the connection gets reseted
+    def start_watchdog(self) -> None:
+        """ Start watchdog before msg gets sent to openhabREST
+            if the watchdog gets activated and after 2s no msg from openHAB was
+            received the connection gets reseted
         """
         if self.watchdog:
             self.watchdog.cancel()
@@ -221,14 +318,14 @@ class OpenhabReciever():
         self.watchdog = Timer(2, self._wd_timeout)
         self.watchdog.start()
 
-    def activate_watchdog(self):
-        """enable watchdog after msg was succesful send (no exeption due to connection error)
-        avoids a reconnect atempt when the connection was unsuccessful
+    def activate_watchdog(self) -> None:
+        """ Enable watchdog after msg was successful send (no exception due to connection error)
+            avoids a reconnect attempt when the connection was unsuccessful
         """
         self.watchdog_activ = True
 
-    def stop(self):
-        """Sets a flag to stop the _get_messages thread and to close the openHAB connection.
-        Since the thread itself blocks until a message is recieved we won't wait for it
+    def stop(self) -> None:
+        """ Sets a flag to stop the _get_messages thread and to close the openHAB connection.
+            Since the thread itself blocks until a message is received we won't wait for it
         """
         self.stop_thread = True

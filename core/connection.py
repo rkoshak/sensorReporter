@@ -18,7 +18,7 @@ Classes: Connections
 """
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Union, Callable, Optional, Any
+from typing import Callable, Optional, Any
 import logging
 # workaround circular import connection <=> utils, import only file but not the method/object
 from core import utils

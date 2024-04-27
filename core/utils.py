@@ -23,7 +23,7 @@ IN = "$in"
 # connection sub directory constants
 CONF_ON_DISCONNECT = 'ConnectionOnDisconnect'
 CONF_ON_RECONNECT = 'ConnectionOnReconnect'
-CONF_SCHEDULER = 'Scheduler'
+CONF_SCHEDULER = 'ConnectionEnabledSchedule'
 
 class ChanConst():
     """Constants used by configure_device_channel and homie_conn
