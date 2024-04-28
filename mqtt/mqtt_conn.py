@@ -19,7 +19,7 @@ Classes: MqttConnection
 import socket
 import traceback
 from time import sleep
-from typing import Callable, Optional, Any, Tuple
+from typing import Callable, Optional, Any, Tuple, Dict
 import paho.mqtt.client as mqtt
 from core.connection import Connection
 
@@ -32,7 +32,7 @@ class MqttConnection(Connection):
 
     def __init__(self,
                  msg_processor:Callable[[str], None],
-                 conn_cfg:dict[str, Any]) -> None:
+                 conn_cfg:Dict[str, Any]) -> None:
         """ Establishes the MQTT connection and starts the MQTT thread.
             Expects the following parameters in params:
             - "Host": hostname or IP address of the MQTT broker
@@ -132,7 +132,7 @@ class MqttConnection(Connection):
 
     def publish(self,
                 message:str,
-                comm_conn:dict[str, Any],
+                comm_conn:Dict[str, Any],
                 output_name:Optional[str] = None) -> None:
         """ Publishes message to destination, logging if there is an error.
 
@@ -193,7 +193,7 @@ class MqttConnection(Connection):
         self.client.disconnect()
 
     def register(self,
-                 comm_conn:dict[str, Any],
+                 comm_conn:Dict[str, Any],
                  handler:Optional[Callable[[str], None]]) -> None:
         """ Registers a handler to be called on messages received on topic
             appended to the root_topic. Handler is expected to take one argument,
@@ -228,7 +228,7 @@ class MqttConnection(Connection):
     def on_connect(self,
                    client:mqtt.Client,
                    userdata:Any,
-                   flags:dict[str, int],
+                   flags:Dict[str, int],
                    retcode:int) -> None:
         """ Called when the client connects to the broker, resubscribe to the
             sensorReporter topic.

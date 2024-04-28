@@ -18,7 +18,7 @@ Classes: Connections
 """
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Any, Dict
 import logging
 # workaround circular import connection <=> utils, import only file but not the method/object
 from core import utils
@@ -51,7 +51,7 @@ class Connection(ABC):
 
     def __init__(self,
                  msg_processor:Callable[[str], None],
-                 conn_cfg:dict[str, Any]) -> None:
+                 conn_cfg:Dict[str, Any]) -> None:
         """ Stores the passed in arguments as data members.
 
         Arguments:
@@ -63,16 +63,16 @@ class Connection(ABC):
         self.log = logging.getLogger(type(self).__name__)
         self.msg_processor = msg_processor
         self.conn_cfg = conn_cfg
-        self.registered:dict[str, Callable[[str], None]] = {}
+        self.registered:Dict[str, Callable[[str], None]] = {}
         self.state = ConnState.INIT
-        self.value_send_buff:dict[int, Any] = {}
-        self.online_offline_act:dict[int, Any] = {}
+        self.value_send_buff:Dict[int, Any] = {}
+        self.online_offline_act:Dict[int, Any] = {}
         utils.set_log_level(conn_cfg, self.log)
 
     @abstractmethod
     def publish(self,
                 message:str,
-                comm_conn:dict[str, Any],
+                comm_conn:Dict[str, Any],
                 output_name:Optional[str] = None) -> None:
         """ Abstract method that must be overridden. When called, send the passed
             in message to the passed in comm(unication)_conn(ection) related dictionary.
@@ -93,7 +93,7 @@ class Connection(ABC):
 
     def prepare_publish(self,
                         message:str,
-                        comm_conn:dict[str, Any],
+                        comm_conn:Dict[str, Any],
                         output_name:Optional[str] = None) -> None:
         """ Internal method to store messages in case the connection is offline.
             If a sensor doesn't has 'ConnectionOnReconnect' configured, send messages
@@ -183,7 +183,7 @@ class Connection(ABC):
 
     @abstractmethod
     def register(self,
-                 comm_conn:dict[str, Any],
+                 comm_conn:Dict[str, Any],
                  handler:Optional[Callable[[str], None]]) -> None:
         """ Set up the passed in handler to be called for any message on the
             destination.
@@ -205,7 +205,7 @@ class Connection(ABC):
         #    self.registered[comm_conn['CommandSrc']] = handler
 
     def prepare_register(self,
-                         comm_conn:dict[str, Any],
+                         comm_conn:Dict[str, Any],
                          handler:Optional[Callable[[str], None]]) -> None:
         """ Internal method to register connection related actuator actions
             which get triggered when the connection calls conn_went_offline() or

@@ -16,7 +16,7 @@
 Classes:
     - RpiGpioColourLED: Sets PWM for defined GPIOS
 """
-from typing import Any
+from typing import Any, Dict
 from types import SimpleNamespace
 from copy import deepcopy
 import yaml
@@ -31,8 +31,8 @@ class GpioColorLED(Actuator):
     """
 
     def __init__(self,
-                 connections:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 connections:Dict[str, connection.Connection],
+                 dev_cfg:Dict[str, Any]) -> None:
         """Initializes the GPIO subsystem and sets the pin to
         software PWM. Initialized the PWM duty cycle
         to the configured value.
@@ -65,7 +65,7 @@ class GpioColorLED(Actuator):
                            "Make sure the chip number is correct. Error Message: %s",
                            self.name, gpio_chip,err)
         # get pin config
-        dev_cfg_pin:dict[str, int] = dev_cfg["Pin"]
+        dev_cfg_pin:Dict[str, int] = dev_cfg["Pin"]
         self.pin = {}
         for color in utils.ColorHSV.C_RGBW_ARRAY:
             pin_no:int = dev_cfg_pin.get(color, 0)
@@ -74,7 +74,7 @@ class GpioColorLED(Actuator):
                 self.pin[color] = pin_no
 
         # get initial values (optional Parameter)
-        dev_cfg_init_state:dict[str, int] = dev_cfg.get("InitialState", {})
+        dev_cfg_init_state:Dict[str, int] = dev_cfg.get("InitialState", {})
         if not isinstance(dev_cfg_init_state, dict):
             # debug: GPIO-Actuator Property "InitialState" might be in the DEFAULT section
             #        If this is the case and no local "InitialState" is configured

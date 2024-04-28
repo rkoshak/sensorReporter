@@ -17,7 +17,7 @@
 
 Classes: HomieConnection
 """
-from typing import Callable, Optional, Any, cast
+from typing import Callable, Optional, Any, Dict, List, cast
 from homie_spec import Node, Property, Device
 from homie_spec.properties import Datatype
 import paho.mqtt.client as mqtt
@@ -46,7 +46,7 @@ class HomieConnection(MqttConnection):
 
     def __init__(self,
                  msg_processor:Callable[[str], None],
-                 conn_cfg:dict[str, Any]) -> None:
+                 conn_cfg:Dict[str, Any]) -> None:
         """ Establishes the MQTT connection and starts the MQTT thread.
             will announce the registered devices to the homie standard
         """
@@ -69,7 +69,7 @@ class HomieConnection(MqttConnection):
         super().__init__(msg_processor, conn_cfg)
 
         #get all topic of this device known by the mqtt server
-        self.topics_to_delete:list[str] = []
+        self.topics_to_delete:List[str] = []
         device_topic = f"{self.root_topic}/#"
         self.client.subscribe(device_topic, qos=0)
         self.client.message_callback_add(device_topic, self.collect_existing_topics)
@@ -91,7 +91,7 @@ class HomieConnection(MqttConnection):
 
     def publish(self,
                 message:str,
-                comm_conn:dict[str, Any],
+                comm_conn:Dict[str, Any],
                 output_name:Optional[str] = None) -> None:
         """ Publishes message to destination, logging if there is an error.
 
@@ -125,7 +125,7 @@ class HomieConnection(MqttConnection):
             self._publish_mqtt(message, destination.lower(), retain)
 
     def register(self,
-                 comm_conn:dict[str, Any],
+                 comm_conn:Dict[str, Any],
                  handler:Optional[Callable[[str], None]]) -> None:
         """ Registers actuators and sensors with the connection.
             Actuators have to provide a handler to be called on messages received.
@@ -156,7 +156,7 @@ class HomieConnection(MqttConnection):
         super().register(comm_conn, handler)
 
         #search for device properties:
-        props:dict[str, Property] = {}
+        props:Dict[str, Property] = {}
         if IN in comm_conn:
             props[IN_CMD] = self.get_property(comm_conn[IN], IN_CMD, n_name)
         if OUT in comm_conn:
@@ -172,7 +172,7 @@ class HomieConnection(MqttConnection):
                                         properties= props)
 
     @staticmethod
-    def get_property(comm_props:dict[str, Any],
+    def get_property(comm_props:Dict[str, Any],
                      channel:str,
                      node_name:str) -> Property:
         """ Create homie property from parameters

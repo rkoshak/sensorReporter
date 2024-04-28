@@ -17,7 +17,7 @@
 Classes: Actuator
 """
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Dict
 import logging
 from core import utils
 from core import connection
@@ -30,8 +30,8 @@ class Actuator(ABC):
     """
 
     def __init__(self,
-                 connections:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 connections:Dict[str, connection.Connection],
+                 dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the Actuator by storing the passed in arguments as data
             members and registers to subscribe to params("Topic").
 
@@ -54,7 +54,7 @@ class Actuator(ABC):
         self.log = logging.getLogger(type(self).__name__)
         self.dev_cfg = dev_cfg
         self.connections = connections
-        self.comm:dict[str, Any] = dev_cfg['Connections']
+        self.comm:Dict[str, Any] = dev_cfg['Connections']
         # Actuator Name is specified in sensor_reporter.py > creat_device()
         # dev_cfg.get('Name') should be already a string, to make it clear for mypy use str()
         self.name = str(dev_cfg.get('Name'))
@@ -68,7 +68,7 @@ class Actuator(ABC):
         utils.verify_connections_layout(self.comm, self.log, self.name, None)
 
     def _register(self,
-                  comm:dict[str, Any],
+                  comm:Dict[str, Any],
                   handler:Optional[Callable[[str], None]]) -> None:
         """ Protected method that registers to the communicator to subscribe to
             destination and process incoming messages with handler.
@@ -95,7 +95,7 @@ class Actuator(ABC):
 
     def _publish(self,
                  message:str,
-                 comm:dict[str, Any]) -> None:
+                 comm:Dict[str, Any]) -> None:
         """ Protected method that will publish the passed in message to the
             passed in comm(unicators).
 

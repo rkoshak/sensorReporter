@@ -10,7 +10,7 @@ import logging
 import datetime
 import colorsys
 from enum import Enum, auto
-from typing import Any, Union, Optional
+from typing import Any, Union, Optional, Dict, List
 # workaround circular import sensor <=> utils, import only file but not the method/object
 from core import sensor
 from core import connection
@@ -45,7 +45,7 @@ class ChanType(Enum):
     ENUM = auto()
     COLOR = auto()
 
-def set_log_level(params:dict[str, Any],
+def set_log_level(params:Dict[str, Any],
                   logger:logging.Logger) -> None:
     """Expects a params with a Level property. If there is no property the
     default level of INFO is used. Supports all the standard Python logging
@@ -71,8 +71,8 @@ def issafe(arg):
     return arg.find(';') == -1 and arg.find('|') == -1
 
 def parse_values(caller:sensor.Sensor,
-                 connections:dict[str, Any],
-                 defaults:list[str]) -> dict[str, list[str]]:
+                 connections:Dict[str, Any],
+                 defaults:List[str]) -> Dict[str, List[str]]:
     """Parses the Values parameter which should be either
     a two string values formated as a list or
     a dictionary with connection sections containing
@@ -90,7 +90,7 @@ def parse_values(caller:sensor.Sensor,
 
     Returns: a dict containing the configured value pairs for each connection
     """
-    values:Union[list[str],dict[str,list[str]]] = caller.dev_cfg.get('Values', defaults)
+    values:Union[List[str],Dict[str,List[str]]] = caller.dev_cfg.get('Values', defaults)
     # warn if format is not supported
     if not isinstance(values, (list, dict)):
         values = defaults
@@ -98,7 +98,7 @@ def parse_values(caller:sensor.Sensor,
                            " Expected dictionary of connection names containing a list."
                            " Using default values instead: %s", caller.name, defaults)
 
-    value_dict:dict[str, list[str]] = {}
+    value_dict:Dict[str, List[str]] = {}
     if isinstance(values, dict):
         value_dict = values
 
@@ -139,8 +139,8 @@ def parse_values(caller:sensor.Sensor,
     # at this point value_dict contains only valid connections and lists of strings
     return value_dict
 
-def get_msg_from_values(values:dict[str, list[str]],
-                        state_on:bool) -> dict[str, str]:
+def get_msg_from_values(values:Dict[str, List[str]],
+                        state_on:bool) -> Dict[str, str]:
     """For sensors which implement custom values to send on state change,
     this function will generate the msg dict to push to self._send()
     so every connection will get the corresponding values
@@ -222,10 +222,10 @@ def spread_default_parameters(config, dev_cfg):
         if key not in dev_cfg:
             dev_cfg[key] = value
 
-def verify_connections_layout(comm:dict[str, Any],
+def verify_connections_layout(comm:Dict[str, Any],
                               log:logging.Logger,
                               name:str,
-                              outputs:Optional[list[str]] = None) -> None:
+                              outputs:Optional[List[str]] = None) -> None:
     """
     Use this method at the end of the sensor initialization
     before calling configure_device_channel().
@@ -277,7 +277,7 @@ def verify_connections_layout(comm:dict[str, Any],
                             ' Valid outputs are: %s', name, key, outputs)
 
 
-def configure_device_channel(comm:dict[str, Any], *,
+def configure_device_channel(comm:Dict[str, Any], *,
                             is_output:bool,
                             output_name:Optional[str] = None,
                             datatype:ChanType = ChanType.STRING,
@@ -373,7 +373,7 @@ class Debounce():
         and checks if the debounce time is already over
     """
 
-    def __init__(self, dev_cfg:dict[str, Any],
+    def __init__(self, dev_cfg:Dict[str, Any],
                  default_debounce_time:float) -> None:
         """Init and read device configuration
 
@@ -425,7 +425,7 @@ class ColorHSV():
     C_VAL = 'Value'
 
     def __init__(self,
-                 RGBW_dict:dict[str, int],
+                 RGBW_dict:Dict[str, int],
                  use_white_channel:bool) -> None:
         ''' Initializes colors to a given value (range 0 to 100)
             Parameters:
@@ -469,7 +469,7 @@ class ColorHSV():
         return self._hsv == other_obj.hsv_dict
 
     @property
-    def rgbw_dict(self) -> dict[str, int]:
+    def rgbw_dict(self) -> Dict[str, int]:
         ''' Get or set color as RGBW dictionary
             RGBW_dict = {
                 C_RED   : red_value,
@@ -504,7 +504,7 @@ class ColorHSV():
 
     @rgbw_dict.setter
     def rgbw_dict(self,
-                  rgbw_dict:dict[str, int]) -> None:
+                  rgbw_dict:Dict[str, int]) -> None:
         # Build HSV color CSV array
         if rgbw_dict.get(self.C_WHITE, 0) == 0:
             # If white is not set use RGB values
@@ -530,7 +530,7 @@ class ColorHSV():
         self._hsv[self.C_VAL] = int(hsv_array[2])
 
     @property
-    def hsv_dict(self) -> dict[str, int]:
+    def hsv_dict(self) -> Dict[str, int]:
         ''' Get the internal HSV dictionary
         '''
         return self._hsv

@@ -17,7 +17,7 @@
         - openhab_rest: publishes state updates to openHAB Items.
 """
 from threading import Thread, Timer
-from typing import Callable, Optional, Union, Any
+from typing import Callable, Optional, Union, Any, Dict
 import json
 import traceback
 import requests
@@ -32,7 +32,7 @@ class OpenhabREST(Connection):
 
     def __init__(self,
                  msg_processor:Callable[[str], None],
-                 conn_cfg:dict[str, Any]) -> None:
+                 conn_cfg:Dict[str, Any]) -> None:
         """ Starts the SSE subscription and registers for commands on
             RefreshItem. Expects the following params:
             - "URL": base URL of the openHAB instance NOTE: does not support TLS.
@@ -129,7 +129,7 @@ class OpenhabREST(Connection):
 
     def publish(self,
                 message:str,
-                comm_conn:dict[str, Any],
+                comm_conn:Dict[str, Any],
                 output_name:Optional[str] = None) -> None:
         """ Publishes the passed in message to the passed in destination as an update.
 
@@ -199,7 +199,7 @@ class OpenhabREST(Connection):
         self.conn_check.cancel()
 
     def register(self,
-                 comm_conn:dict[str, Any],
+                 comm_conn:Dict[str, Any],
                  handler:Optional[Callable[[str], None]]) -> None:
         """ Set up the passed in handler to be called for any message on the
             destination. Alternate implementation using 'Item' as Topic
@@ -216,7 +216,7 @@ class OpenhabReciever():
 
     def __init__(self,
                  caller:OpenhabREST,
-                 header:Optional[dict[str, str]]) -> None:
+                 header:Optional[Dict[str, str]]) -> None:
         """  Parameter:
             - caller    : The class object from the calling OpenhabREST
             - header    : HTTP header which is send to openHAB when
@@ -234,7 +234,7 @@ class OpenhabReciever():
 
     @staticmethod
     def subscribe_to_events(caller:OpenhabREST,
-                            header:Optional[dict[str, str]]) -> Optional[sseclient.SSEClient]:
+                            header:Optional[Dict[str, str]]) -> Optional[sseclient.SSEClient]:
         """ Subscribe to SSE events and start processing the events
             if API-Token is provided and supported then include it in the request
             Parameter:

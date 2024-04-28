@@ -19,7 +19,7 @@ Classes: Sensor
 
 from abc import ABC
 import logging
-from typing import Any, Union, Optional
+from typing import Any, Union, Optional, Dict
 # workaround circular import sensor <=> utils, import only file but not the method/object
 from core import utils
 from core import connection
@@ -31,8 +31,8 @@ class Sensor(ABC):
     """
 
     def __init__(self,
-                 publishers:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 publishers:Dict[str, connection.Connection],
+                 dev_cfg:Dict[str, Any]) -> None:
         """
         Sets all the passed in arguments as data members. If params("Poll")
         exists self.poll will be set to that. If not it is initialized to -1.
@@ -53,7 +53,7 @@ class Sensor(ABC):
         """
         self.log = logging.getLogger(type(self).__name__)
         self.publishers = publishers
-        self.comm:dict[str, Any] = dev_cfg['Connections']
+        self.comm:Dict[str, Any] = dev_cfg['Connections']
         self.dev_cfg = dev_cfg
         #Sensor Name is specified in sensor_reporter.py > creat_device()
         self.name = str(dev_cfg.get('Name'))
@@ -64,7 +64,7 @@ class Sensor(ABC):
 
 
     def _register(self,
-                  comm:dict[str, Any]) -> None:
+                  comm:Dict[str, Any]) -> None:
         """Protected method to register the sensor outputs to a connection
         which supports auto discover
         """
@@ -83,8 +83,8 @@ class Sensor(ABC):
         """
 
     def _send(self,
-              message:Union[str, dict[str, str]],
-              comm:dict[str, Any],
+              message:Union[str, Dict[str, str]],
+              comm:Dict[str, Any],
               output_name:Optional[str] = None) -> None:
         """Sends message the the comm(unicators). Optionally specify the output_name
         to set a output channel to publish to.

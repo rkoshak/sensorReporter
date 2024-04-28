@@ -17,7 +17,7 @@
 Classes:
     - LocalConnection: allows sensors to call local actuators.
 """
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Any, Dict
 from core.connection import Connection
 from core.utils import is_toggle_cmd
 
@@ -43,7 +43,7 @@ class LocalConnection(Connection):
 
     def __init__(self,
                  msg_processor:Callable[[str], None],
-                 conn_cfg:dict[str, Any]) -> None:
+                 conn_cfg:Dict[str, Any]) -> None:
         """ Initializes a local connection. Supports a few simple comparisons
             which can cause the incoming message to be translated to ON/OFF.
 
@@ -85,7 +85,7 @@ class LocalConnection(Connection):
 
     def publish(self,
                 message:str,
-                comm_conn:dict[str, Any],
+                comm_conn:Dict[str, Any],
                 output_name:Optional[str] = None) -> None:
         """ Send the message or, if defined, translate the message to ON or OFF.
 
@@ -135,7 +135,7 @@ class LocalConnection(Connection):
             self.log.debug("There is no handler registered for %s", destination)
 
     def register(self,
-                 comm_conn:dict[str, Any],
+                 comm_conn:Dict[str, Any],
                  handler:Optional[Callable[[str], None]]) -> None:
         """ Set up the passed in handler to be called for any message on the
             destination.

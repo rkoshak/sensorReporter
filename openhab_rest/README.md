@@ -149,7 +149,7 @@ By default the openHAB server has created a certificate which is unknown to sens
 To connect anyway use `TLSinsecure: yes`.
 This will skip the certificate validation, i.e. sensor_reporter will not recognize if the server changes and a man in the middle attack would be possible.
 
-To enable certificate validation self signed certificates must be created and installed in openHAB and sensor_reporter. 
+To enable certificate validation, self-signed certificates must be created and installed in openHAB and sensor_reporter:
 1. Create certificates: [this](https://blog.devgenius.io/how-to-generate-self-signed-ssl-certificates-b85562830ab) webside explains this for Linux and Mac
 2. Install the server certificate in openHAB following this [guide](https://gist.github.com/DanielDecker/5ab62a55fd9e53d0bfd3d7ffec1a4916)
 3. Configure the path to the root certificate in openHAB with `CAcert:`
