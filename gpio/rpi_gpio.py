@@ -20,14 +20,16 @@ Classes:
 from time import sleep
 from distutils.util import strtobool
 from logging import Logger
-from typing import Any, Optional, Union, Dict
+from typing import Any, Optional, Union, Dict, TYPE_CHECKING
 import datetime
 import yaml
 import lgpio            # https://abyz.me.uk/lg/py_lgpio.html
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core import utils
-from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 # connection dict constants
 OUT_SWITCH = "Switch"
@@ -58,7 +60,7 @@ class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
     def __init__(self,
-                 publishers:Dict[str, connection.Connection],
+                 publishers:Dict[str, 'connection.Connection'],
                  dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the connection to the GPIO pin and if "EventDetection"
             if defined and valid, will subscribe for events. If missing, than it
@@ -296,7 +298,7 @@ class RpiGpioActuator(Actuator):
     """
 
     def __init__(self,
-                 connections:Dict[str, connection.Connection],
+                 connections:Dict[str, 'connection.Connection'],
                  dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the GPIO subsystem and sets the pin to the InitialState.
             If InitialState is not provided in params it defaults to lgpio.HIGH.

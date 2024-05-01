@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Contains the PollManager class, the class that drives the sensor_reporter.
+""" Contains the PollManager class, the class that drives the sensor_reporter.
 
 Classes: PollManager
 """
@@ -20,26 +20,33 @@ import time
 from threading import Thread
 import traceback
 import logging
+from typing import Dict, List, Callable, TYPE_CHECKING
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection, actuator, sensor
 
 class PollManager:
-    """Manages spawing Processes to call a sensor's check method each configured
-    polling period. Calling stop will end the polling loop and clean up all the
-    resources from the connections, sensors and actuators. When calling report,
-    the most recent reading of the sensor is published/republished.
+    """ Manages spawning Processes to call a sensor's check method each configured
+        polling period. Calling stop will end the polling loop and clean up all the
+        resources from the connections, sensors and actuators. When calling report,
+        the most recent reading of the sensor is published/republished.
     """
 
-    def __init__(self, connections, sensors, actuators):
-        """Prepares the manager to start the polling loop. """
+    def __init__(self,
+                 connections:Dict[str, 'connection.Connection'],
+                 sensors:Dict[str, 'sensor.Sensor'],
+                 actuators:List['actuator.Actuator']) -> None:
+        """ Prepares the manager to start the polling loop. """
         self.log = logging.getLogger(type(self).__name__)
         self.connections = connections
         self.sensors = sensors
         self.actuators = actuators
         self.stop_poll = False
-        self.threads = {}
+        self.threads:Dict[str, Thread] = {}
 
-    def start(self):
-        """Kicks off the polling loop. This method will not return until stop()
-        is called from a separate thread.
+    def start(self) -> None:
+        """ Kicks off the polling loop. This method will not return until stop()
+            is called from a separate thread.
         """
         self.log.info("Starting polling loop")
 
@@ -53,7 +60,7 @@ class PollManager:
                                      key)
                 else:
                     # Wrap the call so we can catch and report exceptions.
-                    def runner(target, key):
+                    def runner(target:Callable[[], None], key:str) -> None:
                         try:
                             target()
                         # TODO create a special exception to catch
@@ -70,10 +77,10 @@ class PollManager:
             # to grow.
             time.sleep(0.5)
 
-    def stop(self):
-        """Sets a flag to stop the polling loop. Cancels any outstanding
-        processes and waits for them to fail, then cleans and disconnects all
-        the sensors, actuators, and connections.
+    def stop(self) -> None:
+        """ Sets a flag to stop the polling loop. Cancels any outstanding
+            processes and waits for them to fail, then cleans and disconnects all
+            the sensors, actuators, and connections.
         """
         # Stop the polling loop
         # TODO add an Event object that we can use to interrupt sleeps in sensors
@@ -96,8 +103,8 @@ class PollManager:
         for conn in self.connections.values():
             conn.prepare_disconnect()
 
-    def report(self):
-        """Calls publish_state on all the sensors and actuators."""
+    def report(self) -> None:
+        """ Calls publish_state on all the sensors and actuators. """
         for sen in self.sensors.values():
             sen.publish_state()
 

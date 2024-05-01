@@ -19,10 +19,11 @@ Classes: Sensor
 
 from abc import ABC
 import logging
-from typing import Any, Union, Optional, Dict
-# workaround circular import sensor <=> utils, import only file but not the method/object
+from typing import Any, Union, Optional, Dict, TYPE_CHECKING
 from core import utils
-from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 
 class Sensor(ABC):
@@ -31,7 +32,7 @@ class Sensor(ABC):
     """
 
     def __init__(self,
-                 publishers:Dict[str, connection.Connection],
+                 publishers:Dict[str, 'connection.Connection'],
                  dev_cfg:Dict[str, Any]) -> None:
         """
         Sets all the passed in arguments as data members. If params("Poll")
@@ -59,7 +60,7 @@ class Sensor(ABC):
         self.name = str(dev_cfg.get('Name'))
         self.poll = float(dev_cfg.get("Poll", -1))
 
-        self.last_poll = None
+        self.last_poll:Optional[float] = None
         utils.set_log_level(dev_cfg, self.log)
 
 

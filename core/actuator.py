@@ -17,10 +17,12 @@
 Classes: Actuator
 """
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, Dict
+from typing import Any, Callable, Optional, Dict, TYPE_CHECKING
 import logging
 from core import utils
-from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 class Actuator(ABC):
     """ Class from which all actuator capabilities must inherit. It assumes there
@@ -30,7 +32,7 @@ class Actuator(ABC):
     """
 
     def __init__(self,
-                 connections:Dict[str, connection.Connection],
+                 connections:Dict[str, 'connection.Connection'],
                  dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the Actuator by storing the passed in arguments as data
             members and registers to subscribe to params("Topic").
