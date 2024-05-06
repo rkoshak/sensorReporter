@@ -90,7 +90,7 @@ Connections:
 ```
 
 ##### Sensor related Parameters
-Can be defined within the `ConnectionOnDisconnect:` parameter.
+Can be defined within the `ConnectionOnReconnect:` parameter.
 
 | Parameter          | Required | Restrictions | Purpose                                                                                                               |
 |--------------------|----------|--------------|---------------------------------------------------------------------------------------------------------------        |
@@ -101,7 +101,7 @@ Can be defined within the `ConnectionOnDisconnect:` parameter.
 Connections:
     <connection_name>:
         # sensor topic config omitted
-        ConnectionOnDisconnect:
+        ConnectionOnReconnect:
             SendReadings: < yes / no >
             NumberOfReadings: < whole number >
 ```
