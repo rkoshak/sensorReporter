@@ -130,7 +130,7 @@ DEFAULT_USER=$(id -un -- $USER_ID)
 
 if [ "$UNINSTALL" ]; then
 	### uninstall mode ###
-	# remove python virtual env (several folders and on cfg file)
+	# remove python virtual env (several folders and one cfg file)
 	echo "=== removing Python virtual environment ==="
 	rm -rf $UNINSTALL_PY_VENV
 	
@@ -196,6 +196,9 @@ else
 		else
 			cp sensor_reporter.service "$SERVICE_FILE_PATH"
 		fi
+	else
+	   # if service not used, we use the default_user for file and folder ownership
+       SR_USER="$DEFAULT_USER"
 	fi	
 	
 	if [ "$CREATE_LOG_DIR" ] && [ "$CREATE_LOG_DIR" = 'y' ]; then
@@ -203,10 +206,6 @@ else
 		echo "=== creating logging directory ==="
 		mkdir "$LOG_DIR"
 		
-		if [ "$INST_SERVICE" ] && [ "$INST_SERVICE" != 'y' ]; then
-			# if service not used, we create the LOG_DIR for the default user
-			SR_USER="$DEFAULT_USER"
-		fi
 		# change owner and add write permission for groupe
 		chown "$SR_USER":"$DEFAULT_USER" "$LOG_DIR"
 		chmod g+w "$LOG_DIR"
@@ -218,6 +217,10 @@ else
 		chown "$SR_USER":"$DEFAULT_USER" "$LOG_FILE"
 		chmod g+w "$LOG_FILE"
 	fi
+	
+	# set owner and permision for sensor_reporter root folder so temp files e.g. by lgpio can be written
+	chown "$SR_USER":"$DEFAULT_USER" "$PWD"
+	chmod ug+rw "$PWD"
 	
 	# create python virtual envionment
 	# allow access to system packages
