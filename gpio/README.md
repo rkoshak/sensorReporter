@@ -138,6 +138,7 @@ Additionally, the sensor can detect toggle events and report the time of the eve
 
 Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
+The user will also need read/write access to the sensorReporter root folder, the setup.sh will set these permissions.
 
 ```bash
 cd /srv/sensorReporter
@@ -273,6 +274,7 @@ A received command will be sent back on all configured connections to the config
 
 Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
+The user will also need read/write access to the sensorReporter root folder, the setup.sh will set these permissions.
 
 ```bash
 cd /srv/sensorReporter
@@ -396,6 +398,7 @@ A received command will be sent back on all configured connections to the config
 
 Depends on `lgpio` Python library.
 The user running sensor_reporter must be in the `gpio` group to have GPIO access.
+The user will also need read/write access to the sensorReporter root folder, the setup.sh will set these permissions.
 
 ```bash
 cd /srv/sensorReporter
