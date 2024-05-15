@@ -19,6 +19,7 @@ Classes: MqttConnection
 import socket
 import traceback
 from time import sleep
+from typing import Callable, Optional, Any, Tuple, Dict
 import paho.mqtt.client as mqtt
 from core.connection import Connection
 
@@ -27,25 +28,27 @@ ONLINE = "ONLINE"
 OFFLINE = "OFFLINE"
 
 class MqttConnection(Connection):
-    """Connects to and enables subscription and publishing to MQTT."""
+    """ Connects to and enables subscription and publishing to MQTT."""
 
-    def __init__(self, msg_processor, conn_cfg):
-        """Establishes the MQTT connection and starts the MQTT thread. Exepcts
-        the following parameters in params:
-        - "Host": hostname or IP address of the MQTT broker
-        - "Port": port for the MQTT broker
-        - "Client": client ID to register with the MQTT broker, must be unique
-        - "RootTopic": root topic that will be the vase of the topic hierarchy
-        this connection subscribes and publishes to.
-        - "TLS": optional parameters to determine if the connection should be
-        encrypted using TLS.
-        - "CAcert": Optional path to the CA cert file.
-        If not set, default is ./certs/ca.crt
-        - "TLSinsecure": Optional parameter to disable check of hostname in the
-        certificate. Default is False.
-        - "User": MQTT broker login user name
-        - "Password": MQTT broker login password
-        - "Keepalive": MQTT keepalive parameter
+    def __init__(self,
+                 msg_processor:Callable[[str], None],
+                 conn_cfg:Dict[str, Any]) -> None:
+        """ Establishes the MQTT connection and starts the MQTT thread.
+            Expects the following parameters in params:
+            - "Host": hostname or IP address of the MQTT broker
+            - "Port": port for the MQTT broker
+            - "Client": client ID to register with the MQTT broker, must be unique
+            - "RootTopic": root topic that will be the vase of the topic hierarchy
+                        this connection subscribes and publishes to.
+            - "TLS": optional parameters to determine if the connection should be
+                    encrypted using TLS.
+            - "CAcert": Optional path to the CA cert file.
+                        If not set, default is ./certs/ca.crt
+            - "TLSinsecure": Optional parameter to disable check of hostname in the
+                            certificate. Default is False.
+            - "User": MQTT broker login user name
+            - "Password": MQTT broker login password
+            - "Keepalive": MQTT keepalive parameter
 
         If the connection fails, it will keep retrying every five seconds until
         the connection is successful.
@@ -107,9 +110,11 @@ class MqttConnection(Connection):
         self.register(self.refresh_comm, msg_processor)
 
         self.client.loop_start()
-        self._publish_mqtt(ONLINE, self.lwt, True)
 
-    def _connect(self):
+        # ONLINE state for lwtt and the base class will be set
+        # after fully connected in on_connect()
+
+    def _connect(self) -> None:
         while not self.connected:
             try:
                 self.client.connect(self.host, port=self.port,
@@ -123,9 +128,13 @@ class MqttConnection(Connection):
                 self.connected = False
 
         self.log.info("Connection to MQTT is successful")
+        super().conn_is_connecting()
 
-    def publish(self, message, comm_conn, output_name=None):
-        """Publishes message to destination, logging if there is an error.
+    def publish(self,
+                message:str,
+                comm_conn:Dict[str, Any],
+                output_name:Optional[str] = None) -> None:
+        """ Publishes message to destination, logging if there is an error.
 
         Arguments:
         - message:     the message to process / publish
@@ -151,7 +160,10 @@ class MqttConnection(Connection):
 
         self._publish_mqtt(message, destination, retain)
 
-    def _publish_mqtt(self, message, topic, retain):
+    def _publish_mqtt(self,
+                      message:str,
+                      topic:str,
+                      retain:bool) -> None:
         try:
             if not self.connected:
                 self.log.warning(
@@ -160,7 +172,7 @@ class MqttConnection(Connection):
                 return
             full_topic = "{}/{}".format(self.root_topic, topic)
             rval = self.client.publish(
-                full_topic, message, retain=retain, qos=0)
+                        full_topic, message, retain=retain, qos=0)
             if rval[0] == mqtt.MQTT_ERR_NO_CONN:
                 self.log.error(
                     "Error puiblishing update %s to %s", message, full_topic)
@@ -173,17 +185,19 @@ class MqttConnection(Connection):
                 "Unexpected error publishing MQTT message: %s", traceback.format_exc()
             )
 
-    def disconnect(self):
-        """Closes the connection to the MQTT broker."""
+    def disconnect(self) -> None:
+        """ Closes the connection to the MQTT broker."""
         self.log.info("Disconnecting from MQTT")
         self._publish_mqtt(OFFLINE, self.lwt, True)
         self.client.loop_stop()
         self.client.disconnect()
 
-    def register(self, comm_conn, handler):
-        """Registers a handler to be called on messages received on topic
-        appended to the root_topic. Handler is expected to take one argument,
-        the message.
+    def register(self,
+                 comm_conn:Dict[str, Any],
+                 handler:Optional[Callable[[str], None]]) -> None:
+        """ Registers a handler to be called on messages received on topic
+            appended to the root_topic. Handler is expected to take one argument,
+            the message.
         """
         #handler can be None if a sensor registers it's outputs
         if handler:
@@ -191,7 +205,9 @@ class MqttConnection(Connection):
             full_topic = "{}/{}".format(self.root_topic, destination)
             self.log.info("Registering for messages on '%s'", full_topic)
 
-            def on_message(client, userdata, msg):
+            def on_message(client:mqtt.Client,
+                           userdata:Any,
+                           msg:mqtt.MQTTMessage) -> None:
                 message = msg.payload.decode("utf-8")
 
                 self.log.debug(
@@ -202,13 +218,22 @@ class MqttConnection(Connection):
                 )
                 handler(message)
 
-            self.registered[full_topic] = on_message
+            # We use self.registered here only to store the topic to re-subscribe later.
+            # The handler in .register is not used,
+            # we only set it to satisfy the Python type checker
+            self.registered[full_topic] = handler
             self.client.subscribe(full_topic, qos=0)
             self.client.message_callback_add(full_topic, on_message)
 
-    def on_connect(self, client, userdata, flags, retcode):
-        """Called when the client connects to the broker, resubscribe to the
-        sensorReporter topic.
+    def on_connect(self,
+                   client:mqtt.Client,
+                   userdata:Any,
+                   flags:Dict[str, int],
+                   retcode:int) -> None:
+        """ Called when the client connects to the broker, resubscribe to the
+            sensorReporter topic.
+            Gets automatically called from self.client after connection
+            got fully established (on first connect and on reconnect)
         """
         refresh = "{}/{}".format(self.root_topic, REFRESH)
         self.log.info(
@@ -225,6 +250,8 @@ class MqttConnection(Connection):
 
         # Publish the ONLINE message to the LWT
         self._publish_mqtt(ONLINE, self.lwt, True)
+        # send messages which got collected while connection was offline
+        super().conn_went_online()
 
         # Resubscribe on connection
         for reg in self.registered:
@@ -234,9 +261,12 @@ class MqttConnection(Connection):
         # causes sensors to republish their states
         self.msg_processor("MQTT connected")
 
-    def on_disconnect(self, client, userdata, retcode):
-        """Called when the client disconnects from the broker. If the reason was
-        not because disconnect() was called, try to reconnect.
+    def on_disconnect(self,
+                      client:mqtt.Client,
+                      userdata:Any,
+                      retcode:int) -> None:
+        """ Called when the client disconnects from the broker. If the reason was
+            not because disconnect() was called, try to reconnect.
         """
         self.log.info(
             "Disconnected from MQTT broker with client %s, userdata " "%s, and code %s",
@@ -246,6 +276,7 @@ class MqttConnection(Connection):
         )
 
         self.connected = False
+        super().conn_went_offline()
         if retcode != 0:
             self.log.error(
                 "Unexpected disconnect code %s: %s reconnecting",
@@ -254,8 +285,11 @@ class MqttConnection(Connection):
             )
             self._connect()
 
-    def on_publish(self, client, userdata, retcode):
-        """Called when a message is published. """
+    def on_publish(self,
+                   client:mqtt.Client,
+                   userdata:Any,
+                   retcode:int) -> None:
+        """ Called when a message is published. """
         self.log.debug(
             "on_publish: Successfully published message %s, %s, %s",
             client,
@@ -263,8 +297,12 @@ class MqttConnection(Connection):
             retcode,
         )
 
-    def on_subscribe(self, client, userdata, retcode, qos):
-        """Called when a topic is subscribed to. """
+    def on_subscribe(self,
+                     client:mqtt.Client,
+                     userdata:Any,
+                     retcode:int,
+                     qos:Tuple[int]) -> None:
+        """ Called when a topic is subscribed to. """
         self.log.debug(
             "on_subscribe: Successfully subscribed %s, %s, %s, %s",
             client,

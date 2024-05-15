@@ -12,14 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 """Contains the homie connection class.
 
 Classes: HomieConnection
 """
+from typing import Callable, Optional, Any, Dict, List, cast
 from homie_spec import Node, Property, Device
 from homie_spec.properties import Datatype
+import paho.mqtt.client as mqtt
 from mqtt.mqtt_conn import MqttConnection, REFRESH
-from core.utils import ChanType, ChanConst, OUT, IN 
+from core.utils import ChanType, ChanConst, OUT, IN
 
 OUT_STATE = "state"
 IN_CMD_SET = "set"
@@ -27,7 +30,7 @@ IN_CMD = "cmd"
 PARA_CMD_SRC = "CommandSrc"
 
 class HomieConnection(MqttConnection):
-    """Connects to and enables subscription and publishing to MQTT via Homie convention.
+    """ Connects to and enables subscription and publishing to MQTT via Homie convention.
 
     Developer note: Each sensor and actuator (device) must register its inputs and outputs,
     otherwise it can not be used with the HomieConnection.
@@ -41,9 +44,11 @@ class HomieConnection(MqttConnection):
     self._register(self.comm, None)
      """
 
-    def __init__(self, msg_processor, conn_cfg):
-        """Establishes the MQTT connection and starts the MQTT thread.
-        will anounce the registerd devices to the homie standart
+    def __init__(self,
+                 msg_processor:Callable[[str], None],
+                 conn_cfg:Dict[str, Any]) -> None:
+        """ Establishes the MQTT connection and starts the MQTT thread.
+            will announce the registered devices to the homie standard
         """
         self.device_id = conn_cfg["DeviceID"].lower()
         self.name = self.device_id + "-sensor_reporter"
@@ -64,7 +69,7 @@ class HomieConnection(MqttConnection):
         super().__init__(msg_processor, conn_cfg)
 
         #get all topic of this device known by the mqtt server
-        self.topics_to_delete = []
+        self.topics_to_delete:List[str] = []
         device_topic = f"{self.root_topic}/#"
         self.client.subscribe(device_topic, qos=0)
         self.client.message_callback_add(device_topic, self.collect_existing_topics)
@@ -78,14 +83,17 @@ class HomieConnection(MqttConnection):
                 typeOf="conn",
                 properties={
                     'status' : Property(name="connection status", datatype=Datatype.STRING,
-                                   get=None),
+                                   get=dummy_getter),
                     REFRESH : Property(name="refresh sensor readings", datatype=Datatype.STRING,
-                                       settable=True, get=None)
+                                       settable=True, get=dummy_getter)
                     })
         self.device.nodes["conn"] = conn_prop
 
-    def publish(self, message, comm_conn, output_name=None):
-        """Publishes message to destination, logging if there is an error.
+    def publish(self,
+                message:str,
+                comm_conn:Dict[str, Any],
+                output_name:Optional[str] = None) -> None:
+        """ Publishes message to destination, logging if there is an error.
 
         Arguments:
         - message:     the message to process / publish
@@ -116,10 +124,12 @@ class HomieConnection(MqttConnection):
             destination = comm_conn['Name'] + "/" + OUT_STATE
             self._publish_mqtt(message, destination.lower(), retain)
 
-    def register(self, comm_conn, handler):
-        """Registers actuators and sensorswith the connection.
-        Actuators have to provide a handler to be called on messages received.
-        If no handler is provided the registration of a sensor is assumed.
+    def register(self,
+                 comm_conn:Dict[str, Any],
+                 handler:Optional[Callable[[str], None]]) -> None:
+        """ Registers actuators and sensors with the connection.
+            Actuators have to provide a handler to be called on messages received.
+            If no handler is provided the registration of a sensor is assumed.
 
         homie expects following device config:
         Connections:
@@ -146,24 +156,34 @@ class HomieConnection(MqttConnection):
         super().register(comm_conn, handler)
 
         #search for device properties:
-        props = {}
+        props:Dict[str, Property] = {}
         if IN in comm_conn:
-            self.register_properties(props, comm_conn[IN], IN_CMD, n_name)
+            props[IN_CMD] = self.get_property(comm_conn[IN], IN_CMD, n_name)
         if OUT in comm_conn:
-            self.register_properties(props, comm_conn[OUT], OUT_STATE, n_name)
+            props[OUT_STATE] = self.get_property(comm_conn[OUT], OUT_STATE, n_name)
 
         if IN not in comm_conn and OUT not in comm_conn:
             for (output, local_comm) in comm_conn.items():
                 if isinstance(local_comm, dict):
-                    self.register_properties(props, local_comm[OUT], output, n_name)
+                    props[output] = self.get_property(local_comm[OUT], output, n_name)
 
         self.device.nodes[n_name] = Node(name=n_name,
-                                                 typeOf=comm_conn.get('Type',''),
-                                                 properties= props)
+                                        typeOf=comm_conn.get('Type',''),
+                                        properties= props)
 
     @staticmethod
-    def register_properties(props:dict, comm_props:dict, channel:str, node_name:str):
-        """will grap all homie relevant properties from the comm dict
+    def get_property(comm_props:Dict[str, Any],
+                     channel:str,
+                     node_name:str) -> Property:
+        """ Create homie property from parameters
+            Reads the input/output properties from comm_props
+            and creates a 'Property' with channel name and device name
+            Parameters:
+                - comm_props     : the sub-dictionary from connections
+                                   created by utils.configure_device_channel
+                - channel        : The name of the channel (e. g. Temperature)
+                - node_name      : The name of the sensor/actuator
+            Returns homie Property containing given settings
         """
         homie_types = {
             ChanType.STRING : Datatype.STRING,
@@ -175,36 +195,42 @@ class HomieConnection(MqttConnection):
             }
         channel = channel.lower()
 
-        p_type = homie_types.get(comm_props.get(ChanConst.DATATYPE), Datatype.STRING)
+        # We know 'comm_props.get(ChanConst.DATATYPE)' will return a ChanType
+        # to satisfy the Python type checker we 'cast' the data type
+        p_type = homie_types.get(cast(ChanType, comm_props.get(ChanConst.DATATYPE)),
+                                 Datatype.STRING)
         p_name = comm_props.get(ChanConst.NAME, channel)
         p_unit = comm_props.get(ChanConst.UNIT)
         p_retained = comm_props.get('Retain')
         p_settable = comm_props.get(ChanConst.SETTABLE)
         p_format = comm_props.get(ChanConst.FORMAT)
 
-        props[channel] = Property(name=node_name + ' / ' + p_name, datatype=p_type,
-                                 settable = p_settable, get=None,
-                                 unit = p_unit, retained=p_retained, formatOf=p_format)
+        return Property(name=node_name + ' / ' + p_name, datatype=p_type,
+                        settable = p_settable, get=dummy_getter,
+                        unit = p_unit, retained=p_retained, formatOf=p_format)
 
     #pylint: disable=unused-argument
-    def collect_existing_topics(self, client, userdata, msg):
-        """read out existing topics for this connection and
-        collect them in a list
+    def collect_existing_topics(self,
+                                client:mqtt.Client,
+                                userdata:Any,
+                                msg:mqtt.MQTTMessage) -> None:
+        """ read out existing topics for this connection and
+            collect them in a list
         """
         if msg.retain and msg.topic not in self.topics_to_delete:
             self.topics_to_delete.append(msg.topic)
             #self.log.debug(f"collected topic: {msg.topic}")
     #pylint: enable=unused-argument
 
-    def publish_device_properties(self):
-        """Method is intended for connections with auto discover of sensors
-        and actuators. Such a connection can place the necessary code for auto
-        discover inside this method. It is called after all connections, sensors
-        and actuators are created and running.
+    def publish_device_properties(self) -> None:
+        """ Method is intended for connections with auto discover of sensors
+            and actuators. Such a connection can place the necessary code for auto
+            discover inside this method. It is called after all connections, sensors
+            and actuators are created and running.
         """
         state_topic = "$state"
         prop_topic = "$properties"
-        #remove and unsubscribe from device messages, was only used to get exisitng topics
+        #remove and unsubscribe from device messages, was only used to get existing topics
         device_topic = f"{self.root_topic}/#"
         self.client.message_callback_remove(device_topic)
         self.client.unsubscribe(device_topic)
@@ -220,7 +246,7 @@ class HomieConnection(MqttConnection):
                     if property_path in self.topics_to_delete:
                         self.topics_to_delete.remove(property_path)
 
-            #omit $state = ready message so unsuded topics can get deleted
+            #omit $state = ready message so unused topics can get deleted
             if not (msg.topic.endswith(state_topic) and msg.payload == 'ready'):
                 #remove root topic since publish_mqtt will add it again
                 self._publish_mqtt(msg.payload,
@@ -235,12 +261,22 @@ class HomieConnection(MqttConnection):
 
         self._publish_mqtt('ready', state_topic, True)
 
-        node_keys = ", ".join(self.device.nodes.keys())
+        node_keys = ""
+        # 'self.device.nodes' could be None
+        if isinstance(self.device.nodes, dict):
+            node_keys = ", ".join(self.device.nodes.keys())
         self.log.info("Made following devices available for homie auto discover: %s", node_keys)
 
-    def disconnect(self):
-        """publish homie connection state &
-        close the connection to the MQTT broker.
+    def disconnect(self) -> None:
+        """ publish homie connection state &
+            close the connection to the MQTT broker.
         """
         self._publish_mqtt('disconnected', '$state', True)
         super().disconnect()
+
+def dummy_getter() -> str:
+    """ We don't need a getter for some properties,
+        but the homie spec expects one in any case.
+        So we return an empty string.
+    """
+    return 'dummy_getter'

@@ -1,27 +1,52 @@
-"""Utility functions of general use.
+""" Utility functions of general use.
+
+Enumerations:
+    - ChanConst    : Constants used by configure_device_channel and homie_conn
+    - ChanType     : Datatypes supported by configure_device_channel
 
 Functions:
-    - set_log_level: Sets the logging level on the passed in logger to the level
-    equivalent to the passed "Level" property in params.
-    - issage: returns False if the passed in ag contains unsafe characters to use
-    on the command line.
+    - set_log_level                        : Sets the logging level on the passed in logger
+                                             to the level equivalent to the
+                                             passed "Level" property in params.
+    - issafe                               : returns False if the passed in arg
+                                             contains unsafe characters to use
+                                             on the command line.
+    - parse_values                         : Parses the values parameter of a device
+    - get_msg_from_value                   : Get device state for reach connection
+    - get_sequential_params                : Creates values-list from sequentially named parameters
+    - get_dict_of_sequential_param__output : Create dict of sequentially named parameters
+    - is_toggle_cmd                        : Returns true it the input a toggle command
+    - spread_default_parameters            : Populates DEFAULT section to every device config
+    - verify_connections_layout            : Checks the Connections section in the yml config
+    - configure_device_channel             : Setup devices input/outputs to work with auto-discovery
+
+Classes:
+    - Debounce    : Offers methods to debounce received messages
+    - ColorHSV    : Stores Color value in HSV format and offers conversion to RGBW
 """
 import logging
 import datetime
 import colorsys
 from enum import Enum, auto
-from typing import Any, Union, Optional
-# workaround circular import sensor <=> utils, import only file but not the method/object
-from core import sensor
+from typing import Any, Optional, Dict, List, TYPE_CHECKING
+from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import sensor
 
 DEFAULT_SECTION = "DEFAULT"
-#Constans for auto discover connections:
+# Constants for auto discover connections:
 OUT = "$out"
 IN = "$in"
 
+# connection sub directory constants
+CONF_ON_DISCONNECT = 'ConnectionOnDisconnect'
+CONF_ON_RECONNECT = 'ConnectionOnReconnect'
+CONF_SCHEDULER = 'ConnectionEnabledSchedule'
+
 class ChanConst():
-    """Constants used by configure_device_channel and homie_conn
-    to define channel properties
+    """ Constants used by configure_device_channel and homie_conn
+        to define channel properties
     """
     DATATYPE = "Type"
     NAME = "FullName"
@@ -30,7 +55,7 @@ class ChanConst():
     FORMAT = "FormatOf"
 
 class ChanType(Enum):
-    """Datatypes supported by configure_device_channel
+    """ Datatypes supported by configure_device_channel
     """
     INTEGER = auto()
     FLOAT = auto()
@@ -39,12 +64,12 @@ class ChanType(Enum):
     ENUM = auto()
     COLOR = auto()
 
-def set_log_level(params:dict[str, Any],
+def set_log_level(params:Dict[str, Any],
                   logger:logging.Logger) -> None:
-    """Expects a params with a Level property. If there is no property the
-    default level of INFO is used. Supports all the standard Python logging
-    levels. Sets the level of the passed in logger based on the params Level
-    property.
+    """ Expects a params with a Level property. If there is no property the
+        default level of INFO is used. Supports all the standard Python logging
+        levels. Sets the level of the passed in logger based on the params Level
+        property.
     """
     level = params.get("Level")
 
@@ -60,18 +85,18 @@ def set_log_level(params:dict[str, Any],
     if level:
         logger.setLevel(levels.get(level, logging.NOTSET))
 
-def issafe(arg):
-    """Returns False if arg contains ';' or '|'."""
+def issafe(arg:str) -> bool:
+    """ Returns False if arg contains ';' or '|'. """
     return arg.find(';') == -1 and arg.find('|') == -1
 
-def parse_values(caller:sensor.Sensor,
-                 connections:dict[str, Any],
-                 defaults:list[str]) -> dict[str, list[str]]:
-    """Parses the Values parameter which should be either
-    a two string values formated as a list or
-    a dictionary with connection sections containing
-    a string list of two items
-    Used to override ON/OFF type messages.
+def parse_values(caller:'sensor.Sensor',
+                 connections:Dict[str, Any],
+                 defaults:List[str]) -> Dict[str, List[str]]:
+    """ Parses the Values parameter which should be either
+        a two string values formated as a list or
+        a dictionary with connection sections containing
+        a string list of two items
+        Used to override ON/OFF type messages.
 
     Expects:
     - caller: the object of the calling device,
@@ -84,7 +109,7 @@ def parse_values(caller:sensor.Sensor,
 
     Returns: a dict containing the configured value pairs for each connection
     """
-    values:Union[list[str],dict[str,list[str]]] = caller.dev_cfg.get('Values', defaults)
+    values = caller.dev_cfg.get('Values', defaults)
     # warn if format is not supported
     if not isinstance(values, (list, dict)):
         values = defaults
@@ -92,7 +117,7 @@ def parse_values(caller:sensor.Sensor,
                            " Expected dictionary of connection names containing a list."
                            " Using default values instead: %s", caller.name, defaults)
 
-    value_dict:dict[str, list[str]] = {}
+    value_dict:Dict[str, List[str]] = {}
     if isinstance(values, dict):
         value_dict = values
 
@@ -133,11 +158,11 @@ def parse_values(caller:sensor.Sensor,
     # at this point value_dict contains only valid connections and lists of strings
     return value_dict
 
-def get_msg_from_values(values:dict[str, list[str]],
-                        state_on:bool) -> dict[str, str]:
-    """For sensors which implement custom values to send on state change,
-    this function will generate the msg dict to push to self._send()
-    so every connection will get the corresponding values
+def get_msg_from_values(values:Dict[str, List[str]],
+                        state_on:bool) -> Dict[str, str]:
+    """ For sensors which implement custom values to send on state change,
+        this function will generate the msg dict to push to self._send()
+        so every connection will get the corresponding values
 
     Expects:
     - values: the value_dict which was returned by parse_values
@@ -156,8 +181,10 @@ def get_msg_from_values(values:dict[str, list[str]],
 
     return result
 
-def get_sequential_params(dev_cfg, name):
-    """creates a list of values from sequentially named parameters.
+def get_sequential_params(dev_cfg:Dict[str, Any],
+                          name:str) -> List[str]:
+    """ Creates a list of values from sequentially named parameters.
+        Used to create a dictionary in get_dict_of_sequential_param__output.
 
     Arguments:
     - dev_cfg: device configuration
@@ -174,9 +201,11 @@ def get_sequential_params(dev_cfg, name):
             done = True
     return values
 
-def get_dict_of_sequential_param__output(dev_cfg, name, output_name):
-    """Returns a dict of sequentially named parameters and
-    Output names generated acordingly
+def get_dict_of_sequential_param__output(dev_cfg:Dict[str, Any],
+                                         name:str,
+                                         output_name:str) -> Dict[str, Any]:
+    """ Returns a dict of sequentially named parameters and
+        Output names generated accordingly
 
     Arguments:
     - dev_cfg: device configuration
@@ -191,8 +220,8 @@ def get_dict_of_sequential_param__output(dev_cfg, name, output_name):
     return dict(zip(one, two))
 
 def is_toggle_cmd(msg:str) -> bool:
-    """Returns true it the input (msg) is equal
-    to the string "TOGGLE" or is a ISO 8601 formatted date time
+    """ Returns true it the input (msg) is equal
+        to the string "TOGGLE" or is a ISO 8601 formatted date time
     """
     is_toggle = msg == "TOGGLE"
     # datetime from sensor_reporter RpiGpioSensor (e.g. 2021-10-24T16:23:41.500792)
@@ -201,11 +230,12 @@ def is_toggle_cmd(msg:str) -> bool:
     is_dt_timezone = len(msg) == 31 and msg[10] == "T"
     return is_toggle or is_dt or is_dt_timezone
 
-def spread_default_parameters(config, dev_cfg):
-    """takes parameters from the DEFAULT section
-    and spread them to the dev_cfg if not present already
+def spread_default_parameters(config:Dict[str, Any],
+                              dev_cfg:Dict[str, Any]) -> None:
+    """ Takes parameters from the DEFAULT section
+        and spread them to the dev_cfg if not present already
 
-    config: the compleat configuration
+    config: the complete configuration
     dev_cfg: the device specific configuration
     """
     def_cfg = config.get('DEFAULT')
@@ -216,10 +246,10 @@ def spread_default_parameters(config, dev_cfg):
         if key not in dev_cfg:
             dev_cfg[key] = value
 
-def verify_connections_layout(comm:dict[str, Any],
+def verify_connections_layout(comm:Dict[str, Any],
                               log:logging.Logger,
                               name:str,
-                              outputs:Optional[list[str]] = None) -> None:
+                              outputs:Optional[List[str]] = None) -> None:
     """
     Use this method at the end of the sensor initialization
     before calling configure_device_channel().
@@ -235,23 +265,43 @@ def verify_connections_layout(comm:dict[str, Any],
              Expects the output_names used by a sensor as list e. g.:
              outputs = [output_name1, output_name2]
     """
-    for conn in comm.values():
-        #loop thru all connections
-        if isinstance(conn, dict):
-            for (key, value) in conn.items():
-                #loop thru sub items of the connections
-                #if sub item is a dict we found a output channel
-                if isinstance(value, dict):
-                    if isinstance(outputs, list):
-                        if not key in outputs:
-                            log.warning("%s has unknown outputs '%s' in Connections."
-                                        ' Valid outputs are: %s', name, key, outputs)
-                    else:
-                        #handle case where outputs is not specified
-                        log.warning("%s has unexpected outputs '%s' in Connections."
-                                    ' No outputs are allowed', name, key)
+    # In case outputs has the wrong data type
+    if not isinstance(outputs, list):
+        outputs = None
+    # exclude sub-dictionaries used to configure the connection
+    conn_conf = [CONF_ON_DISCONNECT, CONF_ON_RECONNECT, CONF_SCHEDULER]
 
-def configure_device_channel(comm:dict[str, Any], *,
+    for conn in comm.values():
+        if not isinstance(conn, dict):
+            continue
+        # loop thru all connections
+        for (key, value) in conn.items():
+            # loop thru sub items of the connections
+            # if sub item is a dict we found a output channel
+            # exclude sub-directories used to configure the connection
+            if not isinstance(value, dict):
+                continue
+            if key in conn_conf:
+                # Check data-type of VAL_TARGET_STATE = 'TargetState' expected 'str'
+                target_val = value.get(connection.VAL_TARGET_STATE, '')
+                if not isinstance(target_val, str):
+                    log.warning("%s found non string value for '%s'."
+                                " Expected string, use ' ' in config",
+                                name, connection.VAL_TARGET_STATE)
+                # continue if key in conn_conf, no matter if warning was printed
+                continue
+            if outputs is None:
+                # handle case where outputs is not specified
+                log.warning("%s has unexpected outputs '%s' in Connections."
+                            ' No outputs are allowed', name, key)
+                continue
+            # check if sub-dictionary is specified as outputs
+            if not key in outputs:
+                log.warning("%s has unknown outputs '%s' in Connections."
+                            ' Valid outputs are: %s', name, key, outputs)
+
+
+def configure_device_channel(comm:Dict[str, Any], *,
                             is_output:bool,
                             output_name:Optional[str] = None,
                             datatype:ChanType = ChanType.STRING,
@@ -259,7 +309,7 @@ def configure_device_channel(comm:dict[str, Any], *,
                             name:Optional[str] = None,
                             restrictions:Optional[str] = None) -> None:
     """
-    Use this method at the end of the sensor/actuator initialisation,
+    Use this method at the end of the sensor/actuator initialization,
     it sets default values inside the connections section
     so that a connector which supports auto-discover, e. g. homie_conn,
     can register the device correctly.
@@ -343,13 +393,13 @@ def configure_device_channel(comm:dict[str, Any], *,
                 sub[ChanConst.SETTABLE] = True
 
 class Debounce():
-    """ Checks the time difference between two  sequential events
+    """ Checks the time difference between two sequential events
         and checks if the debounce time is already over
     """
 
-    def __init__(self, dev_cfg:dict[str, Any],
+    def __init__(self, dev_cfg:Dict[str, Any],
                  default_debounce_time:float) -> None:
-        """Init and read device configuration
+        """ Init and read device configuration
 
             Parameters:
             - "dev_cfg"                  : 'dev_cfg' instance of the calling sensor / actuator
@@ -399,7 +449,7 @@ class ColorHSV():
     C_VAL = 'Value'
 
     def __init__(self,
-                 RGBW_dict:dict[str, int],
+                 RGBW_dict:Dict[str, int],
                  use_white_channel:bool) -> None:
         ''' Initializes colors to a given value (range 0 to 100)
             Parameters:
@@ -443,7 +493,7 @@ class ColorHSV():
         return self._hsv == other_obj.hsv_dict
 
     @property
-    def rgbw_dict(self) -> dict[str, int]:
+    def rgbw_dict(self) -> Dict[str, int]:
         ''' Get or set color as RGBW dictionary
             RGBW_dict = {
                 C_RED   : red_value,
@@ -478,7 +528,7 @@ class ColorHSV():
 
     @rgbw_dict.setter
     def rgbw_dict(self,
-                  rgbw_dict:dict[str, int]) -> None:
+                  rgbw_dict:Dict[str, int]) -> None:
         # Build HSV color CSV array
         if rgbw_dict.get(self.C_WHITE, 0) == 0:
             # If white is not set use RGB values
@@ -504,7 +554,7 @@ class ColorHSV():
         self._hsv[self.C_VAL] = int(hsv_array[2])
 
     @property
-    def hsv_dict(self) -> dict[str, int]:
+    def hsv_dict(self) -> Dict[str, int]:
         ''' Get the internal HSV dictionary
         '''
         return self._hsv

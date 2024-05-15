@@ -1,0 +1,11 @@
+[pip]
+# the type checker
+mypy
+# required for sensor_reporter.py (load YAML file)
+types-PyYAML
+# required for mqtt/mqtt_conn.py
+types-paho-mqtt
+# required for openhab_rest/rest_conn.py
+types-requests
+# required for energymeter
+types-pyserial

@@ -20,14 +20,16 @@ Classes:
 from time import sleep
 from distutils.util import strtobool
 from logging import Logger
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Dict, TYPE_CHECKING
 import datetime
 import yaml
 import lgpio            # https://abyz.me.uk/lg/py_lgpio.html
 from core.sensor import Sensor
 from core.actuator import Actuator
 from core import utils
-from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 # connection dict constants
 OUT_SWITCH = "Switch"
@@ -58,8 +60,8 @@ class RpiGpioSensor(Sensor):
     """Publishes the current state of a configured GPIO pin."""
 
     def __init__(self,
-                 publishers:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 publishers:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the connection to the GPIO pin and if "EventDetection"
             if defined and valid, will subscribe for events. If missing, than it
             requires the "Poll" parameter be defined and > 0. By default it will
@@ -100,7 +102,7 @@ class RpiGpioSensor(Sensor):
         # Set up event detection.
         try:
             event_detection:str = dev_cfg["EventDetection"]
-            event_map:dict[str, int] = {"RISING": lgpio.RISING_EDGE,
+            event_map:Dict[str, int] = {"RISING": lgpio.RISING_EDGE,
                                         "FALLING": lgpio.FALLING_EDGE,
                                         "BOTH": lgpio.BOTH_EDGES}
             if event_detection not in event_map:
@@ -226,7 +228,7 @@ class RpiGpioSensor(Sensor):
 class ButtonPressCfg():
     """ Stores all button related parameters """
     def __init__(self,
-                 dev_cfg:dict[str, Any],
+                 dev_cfg:Dict[str, Any],
                  caller:RpiGpioSensor) -> None:
         """ Read optional button press  related parameters from the config
 
@@ -296,8 +298,8 @@ class RpiGpioActuator(Actuator):
     """
 
     def __init__(self,
-                 connections:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 connections:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the GPIO subsystem and sets the pin to the InitialState.
             If InitialState is not provided in params it defaults to lgpio.HIGH.
             If "SimulateButton" is defined on any message will result in the pin

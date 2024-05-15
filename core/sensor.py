@@ -19,10 +19,11 @@ Classes: Sensor
 
 from abc import ABC
 import logging
-from typing import Any, Union, Optional
-# workaround circular import sensor <=> utils, import only file but not the method/object
+from typing import Any, Union, Optional, Dict, TYPE_CHECKING
 from core import utils
-from core import connection
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 
 class Sensor(ABC):
@@ -31,8 +32,8 @@ class Sensor(ABC):
     """
 
     def __init__(self,
-                 publishers:dict[str, connection.Connection],
-                 dev_cfg:dict[str, Any]) -> None:
+                 publishers:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """
         Sets all the passed in arguments as data members. If params("Poll")
         exists self.poll will be set to that. If not it is initialized to -1.
@@ -53,23 +54,23 @@ class Sensor(ABC):
         """
         self.log = logging.getLogger(type(self).__name__)
         self.publishers = publishers
-        self.comm:dict[str, Any] = dev_cfg['Connections']
+        self.comm:Dict[str, Any] = dev_cfg['Connections']
         self.dev_cfg = dev_cfg
         #Sensor Name is specified in sensor_reporter.py > creat_device()
         self.name = str(dev_cfg.get('Name'))
         self.poll = float(dev_cfg.get("Poll", -1))
 
-        self.last_poll = None
+        self.last_poll:Optional[float] = None
         utils.set_log_level(dev_cfg, self.log)
 
 
     def _register(self,
-                  comm:dict[str, Any]) -> None:
+                  comm:Dict[str, Any]) -> None:
         """Protected method to register the sensor outputs to a connection
         which supports auto discover
         """
         for (conn, comm_conn) in comm.items():
-            self.publishers[conn].register(comm_conn, None)
+            self.publishers[conn].prepare_register(comm_conn, None)
 
     def check_state(self) -> None:
         """Called to check the latest state of sensor and publish it. If not
@@ -83,8 +84,8 @@ class Sensor(ABC):
         """
 
     def _send(self,
-              message:Union[str, dict[str, str]],
-              comm:dict[str, Any],
+              message:Union[str, Dict[str, str]],
+              comm:Dict[str, Any],
               output_name:Optional[str] = None) -> None:
         """Sends message the the comm(unicators). Optionally specify the output_name
         to set a output channel to publish to.
@@ -112,7 +113,7 @@ class Sensor(ABC):
             if isinstance(message, dict):
                 msg = message.get(conn, message[utils.DEFAULT_SECTION])
 
-            self.publishers[conn].publish(msg, comm[conn], output_name)
+            self.publishers[conn].prepare_publish(msg, comm[conn], output_name)
 
     def cleanup(self) -> None:
         """Called when shutting down the sensor, give it a chance to clean up
