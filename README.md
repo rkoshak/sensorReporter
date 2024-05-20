@@ -21,7 +21,6 @@ Go into the subfolders for details in each subfolder's README.
 | [`exec.exec_actuator.ExecActuator`](exec/README.md#execexec_actuatorexecactuator)                         | Actuator                      | On command, executes the configured command line command.                                                 |
 | [`exec.exec_sensor.ExecSensor`](exec/README.md#execexec_sensorexecsensor)                                 | Polling Sensor                | Executes the configured command line and publishes the result.                                            |
 | [`gpio.dht_sensor.DhtSensor`](gpio/README.md#gpiodht_sensordhtsensor)                                     | Polling Sensor                | Publishes temperature and humidity readings from DHT11, DHT22, and AM2302 sensors connected to GPIO pins. |
-| [`gpio.ds18x20_sensor.Ds18x20Sensor`](gpio/README.md#gpiods18x20_sensords18x20sensor)                     | Polling Sensor                | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.         |
 | [`gpio.rpi_gpio.RpiGpioSensor`](gpio/README.md#gpiorpi_gpiorpigpiosensor)                                 | Polling or Background Sensor  | Publsihes ON/OFF messages based on the state of a GPIO pin.                                               |
 | [`gpio.rpi_gpio.RpiGpioActuator`](gpio/README.md#gpiorpi_gpiorpigpioactuator)                             | Actuator                      | Sets a GPIO pin to a given state on command.                                                              |
 | [`gpio.gpio_led.GpioColorLED`](gpio/README.md#gpiogpio_ledgpiocolorled)                                   | Actuator                      | Commands 3 to 4 GPIO pins to control a RGB or RGBW LED                                                    |
@@ -32,6 +31,7 @@ Go into the subfolders for details in each subfolder's README.
 | [`mqtt.homie_conn.HomieConnection`](mqtt/README.md#homie-connection)                                      | Connection                    | Subscribe and publish sensors and actuators to a MQTT server via Homie convention.                        |
 | [`network.arp_sensor.ArpSensor`](network/README.md#networkarp_sensorarpsensor)                            | Polling Sensor                | Periodically gets and parses the ARP table for given mac addresses.                                       |
 | [`network.dash_sensor.DashSensor`](network/README.md#networkdash_sensordashsensor)                        | Background Sensor             | Watches for Amazon Dash Button ARP packets.                                                               |
+| [`one_wire.ds18x20_sensor.Ds18x20Sensor`](one_wire/README.md#one_wireds18x20_sensords18x20sensor)         | Polling Sensor                | Publishes temperature reading from DS18S20 and DS18B20 1-Wire bus sensors connected to GPIO pins.         |
 | [`openhab_rest.rest_conn.OpenhabREST`](openhab_rest/README.md#openhab-rest-connection)                    | Connection                    | Subscribes and publishes to openHAB's REST API. Subscription is through openHAB's SSE feed.               |
 | [`roku.roku_addr.RokuAddressSensor`](roku/README.md#roku-address-sensor-deprecated)                       | Polling Sensor                | Periodically requests the addresses of all the Rokus on the subnet.                                       |
 | [`ic2.relay.EightRelayHAT`](i2c/README.md#i2crelayeightrelayhat)                                          | Actuator                      | Sets a relay to a given state on command. Supports 8-Relays-HAT via i2c                                   |
@@ -181,6 +181,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Breaking Changes
 
+- Moved Ds18x20Sensor to folder one_wire, so the Class path has changed - May 2024
 - RpiGpioSensor, RpiGpioActuator and GpioColorLED pins can only be configured using Broadcom pin numbering (GPIO numbers) - April 2024
 - The configuration file is now in YAML syntax instead of a ini file - October 2022
 - Sending a `kill -1` now causes sensor_reporter to reload it's configuration instead of exiting

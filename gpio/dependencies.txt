@@ -9,6 +9,3 @@ gpio
 lgpio
 # required by DhtSensor
 adafruit-circuitpython-dht
-[raspi-config]
-# required by Ds18x20Sensor
-do_onewire
