@@ -36,9 +36,7 @@ sudo ./install_dependencies.sh i2c
 | `ToggleDebounce` |          | decimal number                  | The interval in seconds during which repeated toggle commands are ignored (default 0.15 seconds)                                                                                                                                                                              |
 | `InitialState`   |          | ON or OFF                       | Optional, when set to ON the pin's state is initialized to HIGH. Ignores InvertOut (default OFF)                                                                                                                                                                              |
 | `SimulateButton` |          | Boolean                         | When `True` simulates a button press by setting the pin to HIGH for half a second and then back to LOW. In case of `InitalState` ON it will toggle the other way around.                                                                                                      |
-
-
-
+| `InvertOut`      |          | Boolean                         | Inverts the output when set to `True`. If inverted, sending `ON` to the actuator will switch the relay off and `OFF` will switch the relay on (default False).                                                                                                                |
 
 ### Outputs / Inputs
 
