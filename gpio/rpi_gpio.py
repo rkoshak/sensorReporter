@@ -116,6 +116,8 @@ class RpiGpioSensor(Sensor):
                           "with interval %s", self.poll)
             event_detection = "NONE"
 
+        # Store callback handle for cleanup
+        self.cb_handle:Optional[lgpio.callback] = None
         try:
             if event_detection == "NONE":
                 lgpio.gpio_claim_input(self.chip_handle, self.pin, self.pud)
@@ -123,8 +125,8 @@ class RpiGpioSensor(Sensor):
                 # setup event detection
                 lgpio.gpio_claim_alert(self.chip_handle, self.pin,
                                        event_map[event_detection], self.pud)
-                lgpio.callback(self.chip_handle, self.pin,
-                               event_map[event_detection], self.gpio_event_cbf)
+                self.cb_handle = lgpio.callback(self.chip_handle, self.pin,
+                                                event_map[event_detection], self.gpio_event_cbf)
         except (lgpio.error, TypeError) as err:
             self.log.error("%s could not setup GPIO chip %d, pin %d. "
                            "Make sure the pin number is correct. Error Message: %s",
@@ -222,6 +224,8 @@ class RpiGpioSensor(Sensor):
         """ Disconnects from the GPIO subsystem."""
         self.log.debug("%s cleaning up GPIO inputs, invoked via Pin %d",
                        self.name, self.pin)
+        if self.cb_handle:
+            self.cb_handle.cancel()
         lgpio.gpio_free(self.chip_handle, self.pin)
         lgpio.gpiochip_close(self.chip_handle)
 
