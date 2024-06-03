@@ -23,33 +23,28 @@ from types import SimpleNamespace
 from threading import Thread
 from time import sleep
 from copy import deepcopy
-import colorsys
+from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
 import struct
 import yaml
 import board
 import busio
 import adafruit_pca9685
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, configure_device_channel, ChanType, Debounce
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
-# Constants
-C_RED = "Red"
-C_GREEN = "Green"
-C_BLUE = "Blue"
-C_WHITE = "White"
-C_RGBW_ARRAY = [C_RED, C_GREEN, C_BLUE, C_WHITE]
-C_HUE = 'Hue'
-C_SAT = 'Saturation'
-C_VAL = 'Value'
-
-def scale_color_val(value):
+def scale_color_val(value:int) -> int:
     """ scale input value (range 0 to 100)
         to fit PWM HAT duty cycle (range 0x0 to 0xffff)
     """
     val = abs(value) / 100
     return int(val * 0xffff)
 
-def take_radial_step(current_angle, target_angle, step):
+def take_radial_step(current_angle:int,
+                     target_angle:int,
+                     step:int) -> int:
     ''' Takes 3 decimal inputs and adds or subtracts
         'step' from 'current_angle' to get closer to 'target_angle'.
         Parameter current and target are in degree 0 to 360
@@ -71,178 +66,14 @@ def take_radial_step(current_angle, target_angle, step):
         new -= 360
     return new
 
-class ColorHSV():
-    ''' Stores HSV color values. Hue can range from 0 (= off) to 360 (= full brightness),
-        Saturation and Value can range from 0 (= off) to 100 (= full brightness).
-        Allows read access to individual values and a dictionary of all RGBW values.
-        Exposed property to set and get color in HSV format
-        e. g. green with full brightness =  '120,100,100'
-    '''
-    def __init__(self, RGBW_dict, use_white_channel):
-        ''' Initializes colors to a given value (range 0 to 100)
-            Parameters:
-                * RGBW_dict             Dictionary of color : value pairs that define
-                                        the initial value for the colors.
-                                        RGBW_dict = {
-                                            C_RED   : red_value,
-                                            C_GREEN : green_value,
-                                            C_BLUE  : blue_value,
-                                            C_WHITE : white_value
-                                            }
-                                        Range: 0 (= off) to 100 (= full brightness)
-                * use_white_channel     Boolean, if true the 'color_hsv_str' property assumes
-                                        a white LED is present.
-                                        So HSV color 0,0,100 (no saturation) will be
-                                        converted to RGBW {red: 0, green: 0, blue:0, white:100}
-                                        If false: HSV color 0,0,100 will result in RGBW
-                                        {red: 100, green: 100, blue:100, white:0}
-        '''
-        self._hsv = {
-            C_HUE : 0,
-            C_SAT : 0,
-            C_VAL : 0
-            }
-        self.use_white_ch = use_white_channel
-
-        if RGBW_dict.get(C_WHITE, 0) != 0:
-            RGBW_dict[C_RED] = 0
-            RGBW_dict[C_GREEN]= 0
-            RGBW_dict[C_BLUE] = 0
-
-        self.rgbw_dict = RGBW_dict
-
-    def __eq__(self, other_obj):
-        ''' own implementation of compare equality to simplify code using this class
-        '''
-        if not isinstance(other_obj, ColorHSV):
-            # only compare to ColorHSV class
-            return NotImplemented
-        return self._hsv == other_obj.hsv_dict
-
-    @property
-    def rgbw_dict(self):
-        ''' Get or set color as RGBW dictionary
-            RGBW_dict = {
-                C_RED   : red_value,
-                C_GREEN : green_value,
-                C_BLUE  : blue_value,
-                C_WHITE : white_value
-                        }
-            If colors are not present in the dictionary when writing
-            to this property the value is assumed to be 0
-        '''
-        # create empty RGBW dict
-        rgbw_dict = {}
-        for key in C_RGBW_ARRAY:
-            rgbw_dict[key] = 0
-
-        # Check if saturation (hsv_array[1]) equals 0 then set RGB = 0 w = value (hsv_array)
-        if self._hsv[C_SAT] == 0 and self.use_white_ch:
-            # set white channel to saturation
-            rgbw_dict[C_WHITE] = self._hsv[C_VAL]
-        else:
-            # Convert HSV color to RGB color tuple
-            color_rgb = colorsys.hsv_to_rgb(self._hsv[C_HUE]/360,
-                                            self._hsv[C_SAT]/100, self._hsv[C_VAL]/100)
-            # Set white channel to 0
-            color_rgbw = color_rgb + (0,)
-            # store converted values
-            for (key, val) in zip(C_RGBW_ARRAY, color_rgbw):
-                rgbw_dict[key] = round(val * 100)
-
-        return rgbw_dict
-
-    @rgbw_dict.setter
-    def rgbw_dict(self, rgbw_dict):
-        # Build HSV color CSV array
-        if rgbw_dict.get(C_WHITE, 0) == 0:
-            # If white is not set use RGB values
-            # Normalize RGB values and calculate HSV color
-            hsv_tuple = colorsys.rgb_to_hsv(rgbw_dict.get(C_RED, 0)/100,
-                                            rgbw_dict.get(C_GREEN, 0)/100,
-                                            rgbw_dict.get(C_BLUE, 0)/100)
-            # scale hsv_tuple and build array
-            hsv_array = [hsv_tuple[0] * 360,
-                         hsv_tuple[1] * 100,
-                         hsv_tuple[2] * 100]
-            if hsv_array[1] == 0:
-                # Note: HSV 0,0,x seems to be out of range for openHAB item
-                # and HSV 1,0,0 doesn't work for homie connection using 2,0,x instead
-                hsv_array[0] = 2
-        else:
-            # Build HSV color array for case white color is set
-            # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
-            hsv_array = [2,0,rgbw_dict[C_WHITE]]
-        # store result as integer to get rid of floating point numbers
-        self._hsv[C_HUE] = int(hsv_array[0])
-        self._hsv[C_SAT] = int(hsv_array[1])
-        self._hsv[C_VAL] = int(hsv_array[2])
-
-    @property
-    def hsv_dict(self):
-        ''' Get the internal HSV dictionary
-        '''
-        return self._hsv
-
-    @property
-    def color_hsv_str(self):
-        ''' Get or set the color in HSV format
-            as comma separated value string without spaces: hue,saturation,value
-            E. g. pure red in full brightness = '0,100,100'
-        '''
-        # build hsv_color_str
-        hsv_color_str = ( f'{int(self._hsv[C_HUE])},'
-                          f'{int(self._hsv[C_SAT])},'
-                          f'{int(self._hsv[C_VAL])}' )
-
-        return hsv_color_str
-
-    @color_hsv_str.setter
-    def color_hsv_str(self, hsv_str):
-        hsv_array = []
-        # We expect a string with 3 values: hue,saturation,value
-        # Split and convert them to integer
-        for val in hsv_str.split(","):
-            hsv_array.append(int(val))
-
-        self._hsv[C_HUE] = hsv_array[0]
-        self._hsv[C_SAT] = hsv_array[1]
-        self._hsv[C_VAL] = hsv_array[2]
-
-    def get_hsv(self, param):
-        ''' Returns the selected 'parameter' as an integer (range 0 to 100/360).
-            Raises an error if the specified parameter is not in the internal HSV color dictionary.
-            Parameter:
-                * param    String, one of "Hue", "Saturation", "Value"
-        '''
-        if param in self._hsv:
-            return self._hsv[param]
-        raise ValueError(f"Function 'get_hsv()' parameter 'param' has unknown value: {param}")
-
-    def set_hsv(self, param, value):
-        ''' Sets the selected 'param' as in integer (range 0 to 100/360).
-            Raises an error if the specified param is not in the internal HSV color dictionary.
-            Parameter:
-                * param    String, one of "Hue", "Saturation", "Value"
-        '''
-        if param in self._hsv:
-            if param == C_HUE and (value < 0 or value > 360):
-                raise ValueError(f"Function 'set_hsv()' parameter 'value' \
-                                out of range should be 0 to 360 is: {value}")
-            if param != C_HUE and (value < 0 or value > 100):
-                raise ValueError(f"Function 'set_hsv()' parameter 'value' \
-                                out of range should be 0 to 100 is: {value}")
-            self._hsv[param] = value
-        else:
-            raise ValueError(f"Function 'set_hsv()' parameter 'param' has unknown value: {param}")
-
-
 class _SmoothDimmer():
     """ Handles smooth value changes and dimming commands
         to dim an actuator in a new thread
     """
 
-    def __init__(self, caller, callback_set_pwm):
+    def __init__(self,
+                 caller:'PwmHatColorLED',
+                 callback_set_pwm:Callable[[utils.ColorHSV], None]) -> None:
         """ Initialize dimmer class, reads parameter from the caller's config
 
         Parameters:
@@ -272,12 +103,13 @@ class _SmoothDimmer():
         self.smooth_change = SimpleNamespace(interval = None, in_progress = False)
         self.smooth_change.interval = float(caller.dev_cfg.get("SmoothChangeInterval", 0.05))
 
-        self._thread = None
+        self._thread:Optional[Thread] = None
         self._stop_thread = False
 
-    def apply_value_change(self, value):
+    def apply_value_change(self,
+                           value:utils.ColorHSV) -> None:
         """ Changes the PWM to the specified value.
-            If 'SmoothChangeInterval' is configured to > 0 the value is changed shoothly
+            If 'SmoothChangeInterval' is configured to > 0 the value is changed smoothly
         """
         if self.smooth_change.interval:
             self._stop_thread = True
@@ -287,7 +119,7 @@ class _SmoothDimmer():
             # if interval == 0 set PWM directly
             self.set_pwm(value)
 
-    def start_dimming(self):
+    def start_dimming(self) -> None:
         """ Handle manual dimming
 
             Start related thread to start dimming after configured
@@ -299,14 +131,14 @@ class _SmoothDimmer():
             self.dimming.state_before = deepcopy(self.caller.state.current)
             # set value to 0 if current state > 0
             new_color = deepcopy(self.caller.state.current)
-            if new_color.get_hsv(C_VAL):
-                new_color.set_hsv(C_VAL, 0)
+            if new_color.get_hsv(utils.ColorHSV.C_VAL):
+                new_color.set_hsv(utils.ColorHSV.C_VAL, 0)
             else:
-                new_color.set_hsv(C_VAL, 100)
+                new_color.set_hsv(utils.ColorHSV.C_VAL, 100)
             # start manual dimming with start_delay
             self._start_thread(self.dimming.delay, self.dimming.interval, new_color)
 
-    def stop_dimming(self):
+    def stop_dimming(self) -> bool:
         """ Stops dimming thread if invoked by start_dimming()
 
             Returns new current_state if dimming has occurred otherwise 'None'.
@@ -333,7 +165,10 @@ class _SmoothDimmer():
                                           " PWM value not published", self.caller.name)
         return False
 
-    def _start_thread(self, start_delay, interval_time, value):
+    def _start_thread(self,
+                      start_delay:float,
+                      interval_time:float,
+                      value:utils.ColorHSV) -> None:
         """ Create a new thread to change the PWM in small steps,
             stop existing thread if present
 
@@ -350,7 +185,10 @@ class _SmoothDimmer():
         #                 start_delay            interval_time  target_value
         self._thread.start()
 
-    def _smooth_dimmer(self, start_delay, interval_time, target_value):
+    def _smooth_dimmer(self,
+                       start_delay:float,
+                       interval_time:float,
+                       target_value:utils.ColorHSV) -> None:
         """ Change PWM-HAT smoothly to the target_value
 
         This method is used to create a thread for smoothly changing the PWM when:
@@ -365,7 +203,7 @@ class _SmoothDimmer():
         """
         # Manual dimming starts with a delay to ensure
         # that regular toggle commands still get through.
-        waited = 0
+        waited = 0.0
         while waited < start_delay and not self._stop_thread:
             # sleep in 100ms steps to make the start_delay interruptible
             sleep(0.1)
@@ -379,11 +217,12 @@ class _SmoothDimmer():
         while current_value != target_value and not self._stop_thread:
             sleep(interval_time)
             for (param, target) in target_value.hsv_dict.items():
-                if param == C_HUE:
-                    curr_hue = current_value.get_hsv(C_HUE)
-                    target_hue = target_value.get_hsv(C_HUE)
+                if param == utils.ColorHSV.C_HUE:
+                    curr_hue = current_value.get_hsv(utils.ColorHSV.C_HUE)
+                    target_hue = target_value.get_hsv(utils.ColorHSV.C_HUE)
                     # handle HUE shortcut e. g. value = 300, target = 4 => CCW
-                    current_value.set_hsv(C_HUE, take_radial_step(curr_hue, target_hue, 5))
+                    current_value.set_hsv(utils.ColorHSV.C_HUE,
+                                          take_radial_step(curr_hue, target_hue, 5))
                 elif abs(current_value.get_hsv(param) - target) < 5:
                     current_value.set_hsv(param, target)
                 else:
@@ -393,11 +232,11 @@ class _SmoothDimmer():
                         current_value.set_hsv(param, current_value.get_hsv(param) - 5)
             self.set_pwm(current_value)
 
-            if start_delay and current_value.get_hsv(C_VAL) == 0 \
-            and target_value.get_hsv(C_VAL) == 0:
+            if start_delay and current_value.get_hsv(utils.ColorHSV.C_VAL) == 0 \
+            and target_value.get_hsv(utils.ColorHSV.C_VAL) == 0:
                 # if start_delay > 0 assume manual dimming,
                 # set brightness to 100 for bidirectional dimming
-                target_value.set_hsv(C_VAL, 100)
+                target_value.set_hsv(utils.ColorHSV.C_VAL, 100)
 
         self.smooth_change.in_progress = False
 
@@ -409,7 +248,9 @@ class PwmHatColorLED(Actuator):
         https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/overview
     """
 
-    def __init__(self, connections, dev_cfg):
+    def __init__(self,
+                 connections:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """ Initializes the PWM HAT.
             Initializes the PWM duty cycle to the configured value.
 
@@ -439,7 +280,7 @@ class PwmHatColorLED(Actuator):
         # Get channel No. in device config
         dev_cfg_ch = dev_cfg["Channels"]
         self.channel = {}
-        for color in C_RGBW_ARRAY:
+        for color in utils.ColorHSV.C_RGBW_ARRAY:
             # valid channel are 0-15, use -1 for undefined
             self.channel[color] = dev_cfg_ch.get(color, -1)
 
@@ -451,11 +292,11 @@ class PwmHatColorLED(Actuator):
             #        this property might have the datatype bool, but we need a dict to proceed
             dev_cfg_init_state = {}
         self.state = SimpleNamespace(current=None, last=None)
-        white_channel_in_use = self.channel[C_WHITE] != -1
-        self.state.current = ColorHSV(dev_cfg_init_state, white_channel_in_use)
+        white_channel_in_use = self.channel[utils.ColorHSV.C_WHITE] != -1
+        self.state.current = utils.ColorHSV(dev_cfg_init_state, white_channel_in_use)
         # init last state with configured color and full brightness for toggle command
         self.state.last = deepcopy(self.state.current)
-        self.state.last.set_hsv(C_VAL, 100)
+        self.state.last.set_hsv(utils.ColorHSV.C_VAL, 100)
 
         # If output should be inverted, add -100 to all brightness_rgbw values
         self.invert = -100 if dev_cfg.get("InvertOut", True) else 0
@@ -492,13 +333,13 @@ class PwmHatColorLED(Actuator):
                                                        dev_cfg_init_state.get(key, 0))
 
         # define callback method for smooth dimmer thread
-        def set_pwm_value(value):
+        def set_pwm_value(value:utils.ColorHSV) -> None:
             for (key, set_point) in value.rgbw_dict.items():
                 if key in self.pwm:
                     self.pwm[key].duty_cycle = scale_color_val(self.invert + set_point)
         # read settings for the dimmer options, create instance of _SmoothDimmer
         self.dimmer = _SmoothDimmer(caller = self, callback_set_pwm = set_pwm_value)
-        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
+        self.debounce = utils.Debounce(dev_cfg, default_debounce_time = 0.15)
 
         self.log.info("Configured PWM-HAT %s: Channels: %s",
                       self.name, self.channel)
@@ -510,20 +351,23 @@ class PwmHatColorLED(Actuator):
 
         if len(self.pwm) == 1:
             # if only one channel is defined register as integer input (dimmer)
-            configure_device_channel(self.comm, is_output=False,
-                                 name="set duty cycle", datatype=ChanType.INTEGER,
-                                 unit="%", restrictions="0:100")
+            utils.configure_device_channel(self.comm, is_output=False,
+                                           name="set duty cycle",
+                                           datatype=utils.ChanType.INTEGER,
+                                           unit="%", restrictions="0:100")
         else:
             # Register as HSV color datatyp so the received messages are same for
             # homie and openHAB-REST-API
-            configure_device_channel(self.comm, is_output=False,
-                                     name="set color LED", datatype=ChanType.COLOR,
-                                     restrictions="hsv")
+            utils.configure_device_channel(self.comm, is_output=False,
+                                           name="set color LED",
+                                           datatype=utils.ChanType.COLOR,
+                                           restrictions="hsv")
         # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
-    def on_message(self, msg):
+    def on_message(self,
+                   msg:str) -> None:
         """ Called when the actuator receives a message.
             Changes LED PWM duty cycle according to the message.
             Expects comma separated values formated as HSV color: 'h,s,v'
@@ -538,15 +382,15 @@ class PwmHatColorLED(Actuator):
         elif msg.isdigit():
             # msg contains digits convert it from string to int
             # store it as HSV value (brightness)
-            new_color.set_hsv(C_VAL, int(msg))
+            new_color.set_hsv(utils.ColorHSV.C_VAL, int(msg))
         elif msg == "ON":
             # handle openHab item sending ON
             # set HSV value (brightness) to 100
-            new_color.set_hsv(C_VAL, 100)
+            new_color.set_hsv(utils.ColorHSV.C_VAL, 100)
         elif msg == "OFF":
             # handle openHab item sending OFF
             # set HSV value (brightness) to 0
-            new_color.set_hsv(C_VAL, 0)
+            new_color.set_hsv(utils.ColorHSV.C_VAL, 0)
         elif msg == "DIM":
             self.dimmer.start_dimming()
             return
@@ -558,7 +402,7 @@ class PwmHatColorLED(Actuator):
                 self.publish_actuator_state()
 
             return
-        elif is_toggle_cmd(msg):
+        elif utils.is_toggle_cmd(msg):
             if self.debounce.is_within_debounce_time():
                 # Filter close Toggle commands to ensure no double switching
                 self.log.info("%s PWM-HAT channel %s received toggle command %s"
@@ -566,10 +410,10 @@ class PwmHatColorLED(Actuator):
                              self.name, self.channel, msg)
                 return
             # invert current state on toggle command
-            if self.state.current.get_hsv(C_VAL) > 0:
+            if self.state.current.get_hsv(utils.ColorHSV.C_VAL) > 0:
                 # remember last value for  brightness for later
                 self.state.last = deepcopy(self.state.current)
-                new_color.set_hsv(C_VAL, 0)
+                new_color.set_hsv(utils.ColorHSV.C_VAL, 0)
             else:
                 new_color = self.state.last
 
@@ -594,17 +438,17 @@ class PwmHatColorLED(Actuator):
         self.state.current = new_color
         self.publish_actuator_state()
 
-    def publish_actuator_state(self):
+    def publish_actuator_state(self) -> None:
         """ Publishes the current state of the actuator."""
         if len(self.pwm) == 1:
             # if only one channel is defined publish only brightness state
             # to be compatible with openHab dimmer item
-            self._publish(str(self.state.current.get_hsv(C_VAL)), self.comm)
+            self._publish(str(self.state.current.get_hsv(utils.ColorHSV.C_VAL)), self.comm)
             return
         self._publish(self.state.current.color_hsv_str, self.comm)
 
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """ Cleanup Adafruit_pca9685 """
         self.log.debug("Cleaning up PWM HAT, invoked via Actuator %s", self.name)
         self.pwm_hat.deinit()

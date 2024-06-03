@@ -198,6 +198,7 @@ This current version is a nearly complete rewrite of the previous version with a
 
 ## Other changes
 
+- Several connectors now support a disconnect/reconnect action for sensors/actuators
 - RpiGpioActuator and GpioColorLED now uses lgpio library
 - RpiGpioSensor now uses lgpio library (fixes edge detection not working on kernel 6.6)
 - Logs out to standard out in addition to Syslog or log files.

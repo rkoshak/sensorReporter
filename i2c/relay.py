@@ -18,13 +18,16 @@ Classes:
 """
 from time import sleep
 from distutils.util import strtobool
-import datetime
+from typing import Any, Optional, Dict, TYPE_CHECKING
 import yaml
 import lib8relay
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, configure_device_channel, ChanType, Debounce
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
-def onoff_to_str(output):
+def onoff_to_str(output:int) -> str:
     """Converts 1 to "ON" and 1 to "OFF"
 
     Parameter: - "output": the switch constant (ON or OFF)
@@ -41,7 +44,9 @@ class EightRelayHAT(Actuator):
     toggling.
     """
 
-    def __init__(self, connections, dev_cfg):
+    def __init__(self,
+                 connections:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """Initializes the I2C subsystem and sets the relay to the InitialState.
         If InitialState is not povided in params it defaults to OFF.
         If "SimulateButton" is defined on any message will result in the relay being set to
@@ -61,6 +66,7 @@ class EightRelayHAT(Actuator):
         super().__init__(connections, dev_cfg)
 
         self.stack = dev_cfg.get("Stack", 0)
+        self.invert:bool = dev_cfg.get("InvertOut", False)
 
         # relays on the HAT v5.3 are scrambled up, map them correctly
         # there is no relay 0 but array indexing starts at zero, first index is a filler
@@ -83,31 +89,37 @@ class EightRelayHAT(Actuator):
         self.sim_button = dev_cfg.get("SimulateButton", False)
 
         # default debounce time 0.15 seconds
-        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
+        self.debounce = utils.Debounce(dev_cfg, default_debounce_time = 0.15)
 
         # remember the current output state
         if self.sim_button:
             self.current_state = None
         else:
-            self.current_state = self.init_state
+            if self.invert:
+                self.current_state = not self.init_state
+            else:
+                self.current_state = self.init_state
 
-        self.log.info("Configured EightRelayHAT %s: Stack %d, Relay %d (%s) with SimulateButton %s",
+        self.log.info("Configured EightRelayHAT %s: Stack %d, Relay %d (%s)"
+                      " with SimulateButton %s and InvertOutput %s",
                       self.name, self.stack, self.relay,
-                      onoff_to_str(self.init_state), self.sim_button)
+                      onoff_to_str(self.current_state), self.sim_button, self.invert)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
         # publish initial state back to remote connections
         self.publish_actuator_state()
 
-        configure_device_channel(self.comm, is_output=False,
-                                 name="set relay", datatype=ChanType.ENUM,
+        utils.configure_device_channel(self.comm, is_output=False,
+                                 name="set relay",
+                                 datatype=utils.ChanType.ENUM,
                                  restrictions="ON,OFF,TOGGLE")
         # The actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
-    def on_message(self, msg):
+    def on_message(self,
+                   msg:str) -> None:
         """Called when the actuator receives a message. If SimulateButton is not enabled
         sets the relay ON of OFF corresponding to the message.
         """
@@ -121,7 +133,7 @@ class EightRelayHAT(Actuator):
                                   " which is equal to current output state. Ignoring command!",
                                   self.name, msg)
                     return
-            elif is_toggle_cmd(msg):
+            elif utils.is_toggle_cmd(msg):
                 if self.debounce.is_within_debounce_time():
                     # filter close toggle commands to make sure no double switching occurs
                     self.log.info("%s received toggle command %s"
@@ -131,8 +143,9 @@ class EightRelayHAT(Actuator):
 
                 msg = "TOGGLE"
 
-        self.log.info("%s received command %s, SimulateButton = %s, Stack = %d, Relay = %d",
-                      self.name, msg, self.sim_button, self.stack, self.relay)
+        self.log.info("%s received command %s, SimulateButton = %s,"
+                      " Invert = %s, Stack = %d, Relay = %d",
+                      self.name, msg, self.sim_button, self.invert, self.stack, self.relay)
 
         # SimulateButton on then off.
         if self.sim_button:
@@ -163,7 +176,9 @@ class EightRelayHAT(Actuator):
             if out is None:
                 self.log.error("%s bad command %s", self.name, msg)
             else:
-                self.current_state = out
+                self.current_state = bool(out)
+                if self.invert:
+                    out = int(not out)
 
                 self.log.info("%s set stack %d relay %d to %s",
                               self.name, self.stack, self.relay,
@@ -173,7 +188,7 @@ class EightRelayHAT(Actuator):
                 # publish own state back to remote connections
                 self.publish_actuator_state()
 
-    def publish_actuator_state(self):
+    def publish_actuator_state(self) -> None:
         """Publishes the current state of the actuator."""
         msg = "ON" if self.current_state else "OFF"
         self._publish(msg, self.comm)

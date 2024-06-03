@@ -21,10 +21,15 @@ Classes:
 from types import SimpleNamespace
 from threading import Thread
 from time import sleep
+from logging import  Logger
+from typing import Any, Callable, Dict, Optional, cast, TYPE_CHECKING
 import smbus2       # https://smbus2.readthedocs.io/en/latest/
 import yaml
 from core.actuator import Actuator
-from core.utils import is_toggle_cmd, configure_device_channel, ChanType, Debounce
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 # Constans for 2-CH_TRIAC_HAT Register addresses
 # https://www.waveshare.com/wiki/2-CH_TRIAC_HAT
@@ -50,7 +55,7 @@ class _I2cDriver():
             - set_duty_cycle
             - set_power_grid_frequency
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.bus = smbus2.SMBus(1)   # 0 = /dev/i2c-0 (port I2C0), 1 = /dev/i2c-1 (port I2C1)
         # the triac uses bus address 0x47, the HAT is hardcoded to this address
         self.addr = 0x47
@@ -60,7 +65,9 @@ class _I2cDriver():
         #set mode to "Voltage adjustment"
         self._bus_write(REG_MODE, 1)
 
-    def _bus_write(self, reg, data):
+    def _bus_write(self,
+                   reg:int,
+                   data:int) -> None:
         """ The triac HAT expects the date to be written in the following structure:
          +----------+---------------+-----------+----------+
          | I2C addr | register addr | high byte | low byte |
@@ -78,7 +85,10 @@ class _I2cDriver():
         self.bus.write_word_data(self.addr, reg, (data << 8))
 
 
-    def set_duty_cycle(self, log, channel, duty_cycle_pct):
+    def set_duty_cycle(self,
+                       log:Logger,
+                       channel:int,
+                       duty_cycle_pct:int) -> None:
         """Changes the PWM duty cycle & enabled / disables the specified channel on demand
 
         Parameters:
@@ -117,7 +127,7 @@ class _I2cDriver():
 
         # only write channel register on change
         if channels_last_state != self.enabled_channels:
-            # Before enabling or disabeling the selected channel set angel to zero
+            # Before enabling or disabling the selected channel set angel to zero
             # otherwise PWM will turn on fully for a short time, when enabling
             if channel == 1:
                 self._bus_write(REG_CHANNEL1_ANGLE, 0)
@@ -127,7 +137,7 @@ class _I2cDriver():
 
             log.debug("Triac driver updated enabled_channels to %d", self.enabled_channels)
             self._bus_write(REG_CHANNEL_ENABLE, self.enabled_channels)
-            # wait 50ms so the HAT can proecess the command
+            # wait 50ms so the HAT can process the command
             sleep(0.05)
 
         # the triac expects values from 0 to 179,
@@ -143,7 +153,9 @@ class _I2cDriver():
         log.debug("Triac driver dimming channel %d to PWM %d%%",
                            channel, duty_cycle_pct)
 
-    def set_power_grid_frequency(self, log, frequency):
+    def set_power_grid_frequency(self,
+                                 log:Logger,
+                                 frequency:int) -> None:
         """Tells the triac the mains frequency, to set the PWM accordingly
 
         Parameters:
@@ -152,18 +164,18 @@ class _I2cDriver():
         """
         if frequency in [50, 60]:
             self._bus_write(REG_GRID_FREQUENCY, frequency)
-            # wait 50ms so the HAT can proecess the command
+            # wait 50ms so the HAT can process the command
             sleep(0.05)
         else:
             log.warning("Unsupported mains frequency %s! Frequency not set", frequency)
 
 # create one instance of _I2cDriver() for later use
 try:
-    _driver_singleton = _I2cDriver()
+    _driver_singleton:Optional[_I2cDriver] = _I2cDriver()
 except OSError:
     # catch triac Hat not set up for i2c
     _driver_singleton = None
-def i2c_driver():
+def i2c_driver() -> Optional[_I2cDriver]:
     """ Use the singleton pattern to make sure only one instance for _I2cDriver()
         is created even with multiple TriacDimmer
         https://code.activestate.com/recipes/52558/#c7
@@ -176,8 +188,10 @@ class _SmoothDimmer():
         to dim an actuator in a new thread
     """
 
-    def __init__(self, caller, callback_set_pwm):
-        """ Initialises dimmer relevant var's
+    def __init__(self,
+                 caller:'TriacDimmer',
+                 callback_set_pwm:Callable[[int], None]) -> None:
+        """ Initializes dimmer relevant var's
 
         Parameters:
             - "caller"                  : 'self' instance of the calling class
@@ -205,10 +219,11 @@ class _SmoothDimmer():
         self.smooth_change = SimpleNamespace(interval = None, in_progress = False)
         self.smooth_change.interval = float(caller.dev_cfg.get("SmoothChangeInterval", 0.05))
 
-        self._thread = None
+        self._thread:Optional[Thread] = None
         self._stop_thread = False
 
-    def apply_value_change(self, value):
+    def apply_value_change(self,
+                           value:int) -> None:
         """ Changes the PWM to the specified value.
             If 'SmoothChangeInterval' is configured to > 0 the value is changed shoothly
         """
@@ -220,7 +235,7 @@ class _SmoothDimmer():
             # if interval == 0 set PWM directly
             self.set_pwm(value)
 
-    def start_dimming(self):
+    def start_dimming(self) -> None:
         """ Handle manual dimming
 
             Start related thread to start dimming after configured
@@ -237,7 +252,7 @@ class _SmoothDimmer():
             # start manual dimming with start_delay
             self._start_thread(self.dimming.delay, self.dimming.interval, value)
 
-    def stop_dimming(self):
+    def stop_dimming(self) -> Optional[int]:
         """ Stops dimming thread if invoked by start_dimming()
 
             Returns new current_state if dimming has occurred otherwise 'None'.
@@ -258,13 +273,16 @@ class _SmoothDimmer():
                     if self.dimming.state_before != self.caller.state.current:
                         # Return 'self.caller.state.current' to the caller,
                         # otherwise the new state will not be visible in the calling class
-                        return self.caller.state.current
+                        return cast(int, self.caller.state.current)
                 else:
                     self.caller.log.debug("%s triac smooth dimmer thread still active,"
                                           " PWM value not published", self.caller.name)
         return None
 
-    def _start_thread(self, start_delay, interval_time, value):
+    def _start_thread(self,
+                      start_delay:float,
+                      interval_time:float,
+                      value:int) -> None:
         """ Create a new thread to change the PWM in small steps,
             stop existing thread if present
 
@@ -281,24 +299,27 @@ class _SmoothDimmer():
         #                 start_delay            interval_time  target_value
         self._thread.start()
 
-    def _smooth_dimmer(self, start_delay, interval_time, target_value):
+    def _smooth_dimmer(self,
+                       start_delay:float,
+                       interval_time:float,
+                       target_value:int) -> None:
         """ Change triac PWM smoothly to the target_value
 
-        This method is used to create a thread for smoothly changeing the PWM when:
-        * changeing to defined setpoint (start_delay = 0)
+        This method is used to create a thread for smoothly changing the PWM when:
+        * changing to defined setpoint (start_delay = 0)
         * when manual dimming (start_delay > 0)
 
         Parameter:
-            - "start_delay":     Delay in seconds befor starting the dimming
+            - "start_delay":     Delay in seconds before starting the dimming
                                 (0 = off, 0.1 steps)
-            - "interval_time":   Time in seconds beween PWM steps
+            - "interval_time":   Time in seconds between PWM steps
             - "target_value":    The PWM percentage to dim to
         """
         # Manual dimming starts with a delay to ensure
         # that regular toggle commands still get through.
-        waited = 0
+        waited = 0.0
         while waited < start_delay and not self._stop_thread:
-            # sleep in 100ms steps to make the start_delay interruptable
+            # sleep in 100ms steps to make the start_delay interruptible
             sleep(0.1)
             waited += 0.1
         current_value = self.caller.state.current
@@ -330,7 +351,9 @@ class TriacDimmer(Actuator):
     https://www.waveshare.com/wiki/2-CH_TRIAC_HAT
     """
 
-    def __init__(self, connections, dev_cfg):
+    def __init__(self,
+                 connections:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """ Initialises the I2C subsystem and sets the triac to the InitialState.
             If InitialState is not provided in params it defaults to 0%.
 
@@ -357,14 +380,14 @@ class TriacDimmer(Actuator):
         self.state = SimpleNamespace(current=None, last=None)
         inital_state =  int(dev_cfg.get("InitialState", 0))
 
-        try:
-            self.driver = i2c_driver()
+        self.driver = i2c_driver()
+        if self.driver:
             self.driver.set_power_grid_frequency(self.log, self.freq)
             self.driver.set_duty_cycle(self.log, self.channel, inital_state)
-        except AttributeError:
+        else:
             self.log.error("%s could not setup TriacDimmer. "
                            "Ensure that the Triac HAT is correctly installed. "
-                           "Switch and jumpers on the HAT should be in position 'B'!",
+                           "Switch and jumpers on the HAT should be in position 'i2c'!",
                            self.name)
 
         # remember the current output state, set last laste for toggle command
@@ -375,13 +398,16 @@ class TriacDimmer(Actuator):
             self.state.last = inital_state
 
         # define callback method for smooth dimmer thread
-        def set_pwm_value(value):
-            self.driver.set_duty_cycle(self.log, self.channel, value)
+        def set_pwm_value(value:int) -> None:
+            if self.driver:
+                self.driver.set_duty_cycle(self.log, self.channel, value)
+            else:
+                self.log.error("%s couldn't set target value, driver not initialized", self.name)
         # read settings for the dimmer options, create instance of _SmoothDimmer
         self.dimmer = _SmoothDimmer(caller = self, callback_set_pwm = set_pwm_value)
-        self.debounce = Debounce(dev_cfg, default_debounce_time = 0.15)
+        self.debounce = utils.Debounce(dev_cfg, default_debounce_time = 0.15)
 
-        self.log.info("Configued TriacDimmer %s: channel %d, mains frequency %dHz, PWM %s%%",
+        self.log.info("Configured TriacDimmer %s: channel %d, mains frequency %dHz, PWM %s%%",
                       self.name, self.channel, self.freq, inital_state)
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
@@ -389,14 +415,16 @@ class TriacDimmer(Actuator):
         # publish inital state back to remote connections
         self.publish_actuator_state()
 
-        configure_device_channel(self.comm, is_output=False,
-                                 name="set duty cycle", datatype=ChanType.INTEGER,
+        utils.configure_device_channel(self.comm, is_output=False,
+                                 name="set duty cycle",
+                                 datatype=utils.ChanType.INTEGER,
                                  unit="%", restrictions="0:100")
         # The actuator gets registered twice, at core-actuator and here.
         # Currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
-    def on_message(self, msg):
+    def on_message(self,
+                   msg:str) -> None:
         """Called when the actuator receives a message.
         Sets the triac according to the message value
         """
@@ -425,7 +453,7 @@ class TriacDimmer(Actuator):
                 self.publish_actuator_state()
 
             return
-        elif is_toggle_cmd(msg):
+        elif utils.is_toggle_cmd(msg):
             if self.debounce.is_within_debounce_time():
                 # filter close toggle commands to make sure no double switching occures
                 self.log.info("%s triac channel %d received toggle command %s"
@@ -462,7 +490,7 @@ class TriacDimmer(Actuator):
         self.publish_actuator_state()
 
 
-    def publish_actuator_state(self):
+    def publish_actuator_state(self) -> None:
         """Publishes the current state of the actuator."""
         # openHab only likes string messages, so convert the int
         msg = str(self.state.current)
