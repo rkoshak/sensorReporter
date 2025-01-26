@@ -49,15 +49,15 @@ Requires sensor_reporter to be run as root.
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `bt.btle_sensor.BtleSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`Poll` | X | A number in seconds, greater than `Timeout` | How often to poll for broadcasts
-`Timeout` | X | A number in seconds | How long to listen for BTLE packets during a single poll.
-`AddressX` | X | BT MAC address format (i.e XX:XX:XX:XX:XX:XX), letters should be lower case  | The MAC address of a device to listen for boadcasts from. X must be a number starting from 1 and each subsequent address must be sequential in numbering.
-`Values` | | list of strings or dictionary | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.
+| Parameter     | Required | Restrictions                                  | Purpose                                                                                                                                                    |
+|---------------|----------|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `bt.btle_sensor.BtleSensor`                   |                                                                                                                                                            |
+| `Connections` | X        | dictionary of connectors                      | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.       |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR                   | When provided, sets the logging level for the sensor.                                                                                                      |
+| `Poll`        | X        | A number in seconds, greater than `Timeout`   | How often to poll for broadcasts.                                                                                                                          |
+| `Timeout`     | X        | A number in seconds                           | How long to listen for BTLE packets during a single poll.                                                                                                  |
+| `AddressX`    | X        | BT MAC address format (i.e A1:B2:C3:E4:F5:67) | The MAC address of a device to listen for broadcasts from. X must be a number starting from 1 and each subsequent address must be sequential in numbering. |
+| `Values`      |          | list of strings or dictionary                 | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.                                                   |
 
 #### Values parameter
 With this parameter the default state messages for all output can be overwrite.
