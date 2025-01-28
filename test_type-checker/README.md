@@ -10,7 +10,7 @@ The Python module `mypy` is required as the following type definition packages: 
 
 ```bash
 cd /srv/sensorReporter
-sudo ./install_dependencies.sh test-typeshed
+sudo ./install_dependencies.sh test_type-checker
 ```
 
 Most checks are disabled by default.
