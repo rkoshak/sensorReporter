@@ -39,13 +39,13 @@ When no packet is received for a device of interest, the OFF value is published.
 
 This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets.
 It depends also on the packages `libglib2.0-dev` and `bluetooth`.
+Network capabilities must be granted to the bluepy-helper executable, so it can access the Bluetooth hardware.
 
 ```bash
 cd /srv/sensorReporter
 sudo ./install_dependencies.sh bt
+sudo setcap 'cap_net_admin+ep' $(find -name bluepy-helper)
 ```
-
-Requires sensor_reporter to be run as root.
 
 ### Parameters
 
@@ -195,13 +195,13 @@ A Background Sensor that listens for and parses BTLE packets from Govee H5075 te
 ### Dependencies
 
 This sensor is uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
+Network capabilities must be granted to the python3 executable, so it can access the Bluetooth hardware.
 
 ```bash
 cd /srv/sensorReporter
 sudo ./install_dependencies.sh bt
+sudo setcap 'cap_net_raw,cap_net_admin+ep' $(readlink -f $(find -name python3))
 ```
-
-sensor_reporter must be run as root.
 
 ### Parameters
 
