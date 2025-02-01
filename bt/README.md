@@ -7,7 +7,7 @@ This module contains three bluetooth sensors:
 
 ## Find address for Bluetooth device
 
-If the device address is unknown, choose the way to determine it depending on the type of Bluetooth.
+If the device address is unknown, select the method to determine it depending on the Bluetooth type.
 
 ### Regular Bluetooth device
 
@@ -194,7 +194,7 @@ A Background Sensor that listens for and parses BTLE packets from Govee H5075 te
 
 ### Dependencies
 
-This sensor is uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
+This sensor uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
 Network capabilities must be granted to the python3 executable, so it can access the Bluetooth hardware.
 
 ```bash
