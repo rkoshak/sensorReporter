@@ -44,8 +44,8 @@ class AHT20Sensor(Sensor):
             self.temp_readings = [None] * 5
 
         # Decimals for temperature and humidity
-        self.temp_decimals = dev_cfg.get("TempDecimals", 1)
-        self.hum_decimals = dev_cfg.get("HumDecimals", 1)
+        self.temp_decimals = dev_cfg.get("TempDecimals", 3)
+        self.hum_decimals = dev_cfg.get("HumDecimals", 3)
 
         bad_values = [val for val in [self.temp_decimals, self.hum_decimals] if val < 0]
 
