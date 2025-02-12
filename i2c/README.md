@@ -312,16 +312,16 @@ This sensor requires the following libaries:
 
 ### Parameters
 
-| Parameter     | Required           | Restrictions                            | Purpose                                                                                                                                                     |
-|---------------|--------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Class`       | X                  | `i2c.aht20.AHT20Sensor` |                                                                                                                                                             |
-| `Connections` | X                  | Dictionary of connectors                | Defines where to publish the sensor status for each connection.                                                                                             |
-| `Level`       |                    | `DEBUG`, `INFO`, `WARNING`, `ERROR`     | Override the global log level and use another one for this sensor.                                                                                          |
-| `Poll`        | X                  | Positive number                         | Refresh interval for the sensor in seconds.                                                                                                                 |
-| `TempUnit`    |                    | `F` or `C`                              | Temperature unit to use, defaults to `C`.                                                                                                                   |
-| `Smoothing`   |                    | Boolean                                 | If `True`, publishes the average of the last five readings instead of each individual reading.                                                              |
-| `TempDecimals`         |          | Whole number >= 0            | Rounds the temperature output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual.|
-| `HumDecimals`         |          | Whole number >= 0            | Rounds the humidity output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual.|
+| Parameter     | Required | Restrictions                        | Purpose                                                                                                                                                                               |
+|---------------|----------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `i2c.aht20.AHT20Sensor`             |                                                                                                                                                                                       |
+| `Connections` | X        | Dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                                                       |
+| `Level`       |          | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                                                    |
+| `Poll`        | X        | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                                           |
+| `TempUnit`    |          | `F` or `C`                          | Temperature unit to use, defaults to `C`.                                                                                                                                             |
+| `Smoothing`   |          | Boolean                             | If `True`, publishes the average of the last five readings instead of each individual reading.                                                                                        |
+| `TempDecimals`|          | Whole number >= 0                   | Rounds the temperature output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual. |
+| `HumDecimals` |          | Whole number >= 0                   | Rounds the humidity output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual.    |
 
 
 ### Outputs
