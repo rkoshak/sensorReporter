@@ -12,34 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Contains an ExecActuator, an Actuator that executes a command when receiving
-a message.
+""" Contains an ExecActuator, an Actuator that executes a command when receiving
+    a message.
 
-Classes: ExecActuator
+    Classes: ExecActuator
 """
 
 import subprocess
+from typing import Any, Dict, TYPE_CHECKING
 import yaml
 from core.actuator import Actuator
-from core.utils import issafe, configure_device_channel
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 class ExecActuator(Actuator):
-    """Actuator that calls a configred command line script using the passed in
-    message as arguments. The result of the command is published to another
-    destination.
+    """ Actuator that calls a configured command line script using the passed in
+        message as arguments. The result of the command is published to another
+        destination.
     """
 
-    def __init__(self, connections, dev_cfg):
-        """Sets up the actuator to call the command scripts. Expects the
-        following parameters.
-        - "Command": the command line to execute
-        - "Connections": holds the dictionarys with the configured connections
-           for each actuator. Will subscribe to the specified Topic, messages to this topic are
-           turned into command line arguments; if "NA" it's treated as no arguments.
-           The command result is published to the specified return topic;
-           ERROR is published if the command returned a non-zero return code.
-        - "Timeout": The number of seconds to let the command run before timing
-        out.
+    def __init__(self,
+                 connections:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
+        """ Sets up the actuator to call the command scripts. Expects the
+            following parameters.
+            - "Command": the command line to execute
+            - "Connections": holds the dictionary's with the configured connections
+               for each actuator. Will subscribe to the specified Topic, messages to this topic are
+               turned into command line arguments; if "NA" it's treated as no arguments.
+               The command result is published to the specified return topic;
+               ERROR is published if the command returned a non-zero return code.
+            - "Timeout": The number of seconds to let the command run before timing out.
         """
         super().__init__(connections, dev_cfg)
 
@@ -51,25 +56,26 @@ class ExecActuator(Actuator):
         self.log.debug("%s has following configured connections: \n%s",
                        self.name, yaml.dump(self.comm))
 
-        configure_device_channel(self.comm, is_output=False,
-                                 name="terminal command input")
-        configure_device_channel(self.comm, is_output=True,
-                                 name="terminal command result")
+        utils.configure_device_channel(self.comm, is_output=False,
+                                       name="terminal command input")
+        utils.configure_device_channel(self.comm, is_output=True,
+                                       name="terminal command result")
         #the actuator gets registered twice, at core-actuator and here
         # currently this is the only way to pass the device_channel_config to homie_conn
         self._register(self.comm, None)
 
-    def on_message(self, msg):
-        """When a message is received on the "Command" destination this method
-        is called. Executes the command and publishes the result. Any argument
-        that contains ';', '|', or '//' are ignored.
+    def on_message(self,
+                   msg:str) -> None:
+        """ When a message is received on the "Command" destination this method
+            is called. Executes the command and publishes the result. Any argument
+            that contains ';', '|', or '//' are ignored.
         """
         self.log.info("%s received command: %s", self.name, msg)
 
-        cmd_args = [arg for arg in self.command.split(' ') if issafe(arg)]
+        cmd_args = [arg for arg in self.command.split(' ') if utils.issafe(arg)]
 
         if msg and msg != "NA":
-            for arg in [arg for arg in msg.split(' ') if issafe(arg)]:
+            for arg in [arg for arg in msg.split(' ') if utils.issafe(arg)]:
                 cmd_args.append(arg)
 
         self.log.info("%s executed command with the following arguments: %s", self.name, cmd_args)
