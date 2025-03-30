@@ -294,3 +294,58 @@ ActuatorWhiteLED:
         openHAB:
             Item: eg_w_white_pwm
 ```
+
+## `i2c.aht20.AHT20Sensor`
+
+The `AHT20Sensor` is a polling sensor that reads temperature and humidity from an **AHT20** sensor connected to the Raspberry Pi’s standard **I2C** port (`GPIO 2` for SDA, `GPIO 3` for SCL). 
+
+The sensor operates at a **fixed I2C address (0x38)**, which means multiple AHT20 sensors **cannot** be used on the same I2C bus. 
+
+This implementation has been tested with **Adafruit's [AHT20 breakout board](https://www.adafruit.com/product/4566)**.
+
+### Dependencies
+
+This sensor requires the following libaries:
+
+* adafruit-blinka 
+* adafruit-circuitpython-ahtx0
+
+### Parameters
+
+| Parameter     | Required | Restrictions                        | Purpose                                                                                                                                                                               |
+|---------------|----------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `i2c.aht20.AHT20Sensor`             |                                                                                                                                                                                       |
+| `Connections` | X        | Dictionary of connectors            | Defines where to publish the sensor status for each connection.                                                                                                                       |
+| `Level`       |          | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Override the global log level and use another one for this sensor.                                                                                                                    |
+| `Poll`        | X        | Positive number                     | Refresh interval for the sensor in seconds.                                                                                                                                           |
+| `TempUnit`    |          | `F` or `C`                          | Temperature unit to use, defaults to `C`.                                                                                                                                             |
+| `Smoothing`   |          | Boolean                             | If `True`, publishes the average of the last five readings instead of each individual reading.                                                                                        |
+| `TempDecimals`|          | Whole number >= 0                   | Rounds the temperature output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual. |
+| `HumDecimals` |          | Whole number >= 0                   | Rounds the humidity output to the given number of decimals using round_half_up logic. Defaults to 3, refelcting the 'resolution ratio' specified in the sensor's technical manual.    |
+
+
+### Outputs
+
+Outputs a json string containing the (rounded) values for temperature and relative humidity including the temperature unit. Example:
+
+```json
+{
+    "temperature": 12.5,
+    "temperature_unit": "C",
+    "humidity": 65.9
+}
+```
+
+### Configuration Example
+
+```yaml
+# Logging and connection configuration omitted
+
+SensorAHT20:
+    Class: i2c.aht20.AHT20Sensor
+    Connections:
+        MQTT:
+            StateDest: temp_hum
+    Poll: 10
+    TempDecimals: 2
+```
