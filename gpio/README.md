@@ -29,8 +29,8 @@ sudo ./install_dependencies.sh gpio
 | `Poll`        | X        | Positive number               | Refresh interval for the sensor in seconds.                                                                                                                                                |
 | `Sensor`      | X        | `DHT11`, `DHT22`, or `AM2302` | The type of the sensor.                                                                                                                                                                    |
 | `Pin`         | X        |                               | GPIO data pin in BMC numbering.                                                                                                                                                            |
-| `TempUnit`    |          | `F` or `C`                    | Temperature unit to use, defaults to `C`.                                                                                                                                                  |
-| `Smoothing`   |          | Boolean                       | If `True`, publishes the average of the last five readings instead of each individual reading.                                                                                             |
+| `TempUnit`    |          | `F` or `C`                    | Temperature unit to use: (F)ahrenheit or (C)elsius, defaults to `C`.                                                                                                                       |
+| `Smoothing`   |          | Boolean, positive integer     | If `True` or value >= 2 publishes the average of the last readings instead of each individual reading. Larger values result in slower converging readings. True = 3. Default is `False`.   |
 
 ### Outputs
 

@@ -11,30 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Contains the Heartbeat sensor.
+""" Contains the Heartbeat sensor.
 
-Classes: Heartbeat
+    Classes: Heartbeat
 """
 import datetime
+from typing import Any, Dict, TYPE_CHECKING
 import yaml
 from core.sensor import Sensor
-from core.utils import verify_connections_layout, configure_device_channel, ChanType
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 OUT_NUM = "FormatNumber"
 OUT_STRING = "FormatString"
 
 class Heartbeat(Sensor):
-    """Polling sensor that publishes the current time in number of milliseconds
-    since it was started and a string in DD:HH:MM:SS format.
+    """ Polling sensor that publishes the current time in number of milliseconds
+        since it was started and a string in DD:HH:MM:SS format.
     """
 
-    def __init__(self, publishers, dev_cfg):
-        """Expects the following parameters:
-        - "Poll": cannot be < 1
+    def __init__(self,
+                 publishers:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
+        """ Expects the following parameters:
+            - "Poll": cannot be < 1
 
-        Raises:
-        - KeyError - if an expected parameter doesn't exist
-        - ValueError - if poll is < 0.
+            Raises:
+            - KeyError - if an expected parameter doesn't exist
+            - ValueError - if poll is < 0.
         """
         super().__init__(publishers, dev_cfg)
 
@@ -43,22 +49,23 @@ class Heartbeat(Sensor):
         if self.poll < 1:
             raise ValueError("Heartbeat requires a poll >= 1")
 
-        verify_connections_layout(self.comm, self.log, self.name, [OUT_NUM, OUT_STRING])
-        self.log.info("Configuing Heartbeat %s: interval %s",
+        utils.verify_connections_layout(self.comm, self.log, self.name, [OUT_NUM, OUT_STRING])
+        self.log.info("Configuring Heartbeat %s: interval %s",
                       self.name, self.poll)
         self.log.debug("%s will report to following connections:\n%s",
                        self.name, yaml.dump(self.comm))
 
         #configure_output for homie etc. after debug output, so self.comm is clean
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM,
-                                 datatype=ChanType.INTEGER, name="uptime in milliseconds")
-        configure_device_channel(self.comm, is_output=True, output_name=OUT_STRING,
-                                 name="uptime in days, hours:min:sec")
+        utils.configure_device_channel(self.comm, is_output=True, output_name=OUT_NUM,
+                                       datatype=utils.ChanType.INTEGER,
+                                       name="uptime in milliseconds")
+        utils.configure_device_channel(self.comm, is_output=True, output_name=OUT_STRING,
+                                       name="uptime in days, hours:min:sec")
         self._register(self.comm)
 
-    def publish_state(self):
-        """Calculates the current up time and publishes it as msec and string
-        formats.
+    def publish_state(self) -> None:
+        """ Calculates the current up time and publishes it as msec and string
+            formats.
         """
 
         uptime = datetime.datetime.now() - self.start_time

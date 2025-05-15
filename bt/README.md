@@ -7,7 +7,7 @@ This module contains three bluetooth sensors:
 
 ## Find address for Bluetooth device
 
-If the device address is unknown, choose the way to determine it depending on the type of Bluetooth.
+If the device address is unknown, select the method to determine it depending on the Bluetooth type.
 
 ### Regular Bluetooth device
 
@@ -26,38 +26,38 @@ Make sure the Bluetooth device is active (switched on), then run:
 ```
 sudo hcitool lescan
 ```
-The output will be a address / name pairs for each BTLE message recieved.
+The output will be a address / name pairs for each BTLE message received.
 After discovering the desired address hit `ctrl + c` to stop the output.
 
 ## `bt.btle_sensor.BtleSensor`
 
 A Polling Sensor that listens for BTLE broadcasts from devices with a given BT address for a short time on each poll.
-When a packet for a device of interest is received during that period, the ON value is pblished to the destination assocaited with the device address.
+When a packet for a device of interest is received during that period, the ON value is published to the destination associated with the device address.
 When no packet is received for a device of interest, the OFF value is published.
 
 ### Dependencies
 
 This sensor uses [`bluepy`](https://github.com/IanHarvey/bluepy) to receive and parse the BTLE packets.
 It depends also on the packages `libglib2.0-dev` and `bluetooth`.
+Network capabilities must be granted to the bluepy-helper executable, so it can access the Bluetooth hardware.
 
 ```bash
 cd /srv/sensorReporter
 sudo ./install_dependencies.sh bt
+sudo setcap 'cap_net_admin+ep' $(find -name bluepy-helper)
 ```
-
-Requires sensor_reporter to be run as root.
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `bt.btle_sensor.BtleSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`Poll` | X | A number in seconds, greater than `Timeout` | How often to poll for broadcasts
-`Timeout` | X | A number in seconds | How long to listen for BTLE packets during a single poll.
-`AddressX` | X | BT MAC address format (i.e XX:XX:XX:XX:XX:XX), letters should be lower case  | The MAC address of a device to listen for boadcasts from. X must be a number starting from 1 and each subsequent address must be sequential in numbering.
-`Values` | | list of strings or dictionary | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.
+| Parameter     | Required | Restrictions                                  | Purpose                                                                                                                                                    |
+|---------------|----------|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `bt.btle_sensor.BtleSensor`                   |                                                                                                                                                            |
+| `Connections` | X        | dictionary of connectors                      | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.       |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR                   | When provided, sets the logging level for the sensor.                                                                                                      |
+| `Poll`        | X        | A number in seconds, greater than `Timeout`   | How often to poll for broadcasts.                                                                                                                          |
+| `Timeout`     | X        | A number in seconds                           | How long to listen for BTLE packets during a single poll.                                                                                                  |
+| `AddressX`    | X        | BT MAC address format (i.e A1:B2:C3:E4:F5:67) | The MAC address of a device to listen for broadcasts from. X must be a number starting from 1 and each subsequent address must be sequential in numbering. |
+| `Values`      |          | list of strings or dictionary                 | Values to replace the default state message for all outputs (default is ON, OFF). For details see below.                                                   |
 
 #### Values parameter
 With this parameter the default state messages for all output can be overwrite.
@@ -69,7 +69,7 @@ Values:
     - 'ON'
     - 'OFF'
 ```
-The fist string will be send if the configured addess is detected, the second if not.
+The fist string will be send if the configured address is detected, the second if not.
 
 If separate state messages for each connection are desired, configure a dictionary of connection names containing the string item list:
 
@@ -90,7 +90,7 @@ When using with the openHAB connection configure a switch/string item.
 
 Output | Purpose
 -|-
-`DestinationX` | Where to send send the precence state (default send ON wheb the divice is present and OFF when not). `X` is a number starting with 1 and incrementing to list more than one device.
+`DestinationX` | Where to send send the presence state (default send ON when the device is present and OFF when not). `X` is a number starting with 1 and incrementing to list more than one device.
 
 ### Example Config
 
@@ -143,17 +143,15 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh bt
 ```
 
-sensor_reporter must be run as root.
-
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `bt.btscan_sensor.SimpleBtSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`Poll` | X | A number in seconds, greater than 25 | How often to poll for devices, blocks for 25 seconds.
-`AddressX` | X | BT MAC address format (i.e XX:XX:XX:XX:XX:XX), letters should be lower case  | The MAC address of a device to scan for it's presence. `X` is a number starting with 1 and incrementing to list more than one device.
+| Parameter     | Required | Restrictions                                  | Purpose                                                                                                                                              |
+|---------------|----------|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `bt.btscan_sensor.SimpleBtSensor`             |                                                                                                                                                      |
+| `Connections` | X        | dictionary of connectors                      | Defines where to publish the sensor status for each connection. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR                   | When provided, sets the logging level for the sensor.                                                                                                |
+| `Poll`        | X        | A number in seconds, greater than 25          | How often to poll for devices, blocks for 25 seconds.                                                                                                |
+| `AddressX`    | X        | BT MAC address format (i.e A1:B2:C3:E4:F5:67) | The MAC address of a device to scan for it's presence. `X` is a number starting with 1 and incrementing to list more than one device.                |
 
 ### Output
 The SimpleBtSensor can have 1 or many outputs depending on how many addresses are defined. These can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
@@ -161,7 +159,7 @@ When using with the openHAB connection configure a switch/string item.
 
 Output | Purpose
 -|-
-`DestinationX` | Where to send send ON then the divice is present and OFF when not. `X` is a number starting with 1 and incrementing to list more than one device.
+`DestinationX` | Where to send send ON then the device is present and OFF when not. `X` is a number starting with 1 and incrementing to list more than one device.
 
 ### Example Config
 
@@ -196,26 +194,26 @@ A Background Sensor that listens for and parses BTLE packets from Govee H5075 te
 
 ### Dependencies
 
-This sensor is uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
+This sensor uses the [bleson library](https://github.com/TheCellule/python-bleson) to listen for and parse the packets.
+Network capabilities must be granted to the python3 executable, so it can access the Bluetooth hardware.
 
 ```bash
 cd /srv/sensorReporter
 sudo ./install_dependencies.sh bt
+sudo setcap 'cap_net_raw,cap_net_admin+ep' $(readlink -f $(find -name python3))
 ```
-
-sensor_reporter must be run as root.
 
 ### Parameters
 
-Parameter | Required | Restrictions | Purpose
--|-|-|-
-`Class` | X | `bt.govee_sensor.GoveeSensor` |
-`Connections` | X | dictionary of connectors | Defines where to publish the sensor status for each connection. This sensor has 5 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details.
-`Level` | | DEBUG, INFO, WARNING, ERROR | When provided, sets the logging level for the sensor.
-`TempUnit` | | `F` or `C` | The temperature units. Default is `C`
-`Address` | X | BT MAC address format (i.e XX:XX:XX:XX:XX:XX), letters should be lower case  | The MAC address of the Govee H5075 sensor. Should start with "a4:c1:38".
+| Parameter     | Required | Restrictions                                  | Purpose                                                                                                                                                                                    |
+|---------------|----------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `bt.govee_sensor.GoveeSensor`                 |                                                                                                                                                                                            |
+| `Connections` | X        | dictionary of connectors                      | Defines where to publish the sensor status for each connection. This sensor has 5 outputs, see below. Look at connection readme's for 'Actuator / sensor relevant parameters' for details. |
+| `Level`       |          | DEBUG, INFO, WARNING, ERROR                   | When provided, sets the logging level for the sensor.                                                                                                                                      |
+| `TempUnit`    |          | `F` or `C`                                    | The temperature units. Default is `C`                                                                                                                                                      |
+| `Address`     | X        | BT MAC address format (i.e a4:c1:38:e4:f5:67) | The MAC address of the Govee H5075 sensor. Should start with "a4:c1:38".                                                                                                                   |
 
-If the address is unknown use the exemple config and check the sensor_reporter log for debug messages with the UUID `GV5072_`
+If the address is unknown use the example config and check the sensor_reporter log for debug messages with the UUID `GV5072_`
 
 ### Outputs
 The GoveeSensor has 5 outputs which can be configured within the 'Connections' section (Look at connection readme's for 'Actuator / sensor relevant parameters' for details).
@@ -225,7 +223,7 @@ Output | Purpose
 `Temperature` | Where to publish the temperature.
 `Humidity` | Where to publish the humidity.
 `Battery` | Where to publish the battery charge (integer between 0 and 100)
-`RSSI` | Where to publish the signal strength (integer betweeo 0 and -100)
+`RSSI` | Where to publish the signal strength (integer between 0 and -100)
 `DeviceName` | Where to publish the self reported name. Usually GVH5072_XXXX
 
 ### Example Config

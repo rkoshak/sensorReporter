@@ -36,6 +36,7 @@ LOG_FILE="$LOG_DIR/sensorReporter.log"
 CMD_UNINSTALL_STR='--uninstall'
 CMD_YES_STR='--yes'
 UNINSTALL_PY_VENV='bin lib include pyvenv.cfg'
+SERVICE_REQUIRES='Requires='
 SERVICE_WD='WorkingDirectory='
 SERVICE_EXEC='ExecStart='
 SERVICE_PYPATH='/bin/python'
@@ -75,10 +76,10 @@ if [[ $* == *"$CMD_YES_STR"* ]]; then
 	YES_TO_ALL=1
 fi
 if [ "$UNINSTALL" ]; then
-	echo "Script runs in uninstall mod!"
+	echo "Script runs in uninstall mode!"
     echo "The Python virutal envionment, the logging folder, the sensorReporter user and the service will be removed."
     if [ ! "$YES_TO_ALL" ]; then
-    	echo -n "Continue? (y/n): "
+    	echo -n "Continue? (y/N): "
 		read -r LINE
 		if [ "$LINE" != 'y' ]; then
 			exit 1
@@ -97,7 +98,7 @@ if [ ! "$UNINSTALL" ]; then
 	if [ "$YES_TO_ALL" ]; then
 		INST_SERVICE=y
 	else
-		echo -n "Install $APP_NAME service? (y/n): "
+		echo -n "Install $APP_NAME service? (y/N): "
 		read -r INST_SERVICE
 	fi
 	
@@ -105,7 +106,7 @@ if [ ! "$UNINSTALL" ]; then
 	if [ "$YES_TO_ALL" ]; then
 		CREATE_LOG_DIR=y
 	else
-		echo -n "Create logging directory '$LOG_DIR'? (y/n): "
+		echo -n "Create logging directory '$LOG_DIR'? (y/N): "
 		read -r CREATE_LOG_DIR
 	fi
 	
@@ -145,7 +146,7 @@ if [ "$UNINSTALL" ]; then
 		systemctl disable sensor_reporter.service
 		rm "$SERVICE_FILE_PATH"
 	fi
-	
+
 	# remove user
 	echo "=== removing $SR_USER user ==="
 	deluser "$SR_USER"
@@ -167,7 +168,7 @@ else
 		echo "Err: $PWD/$DEP_SCRIPT not found or not executable!"
 		exit 1
 	fi
-	
+
 	if [ "$INST_SERVICE" ] && [ "$INST_SERVICE" = 'y' ]; then
 		# create USER
 		echo "=== creating $SR_USER user ==="
@@ -186,12 +187,27 @@ else
 			PWD_SED=$(printf "%q" "$PWD")
 			# search for the service working directory and update it, then write to new file 
 			sed "s~$SERVICE_WD.*~$SERVICE_WD$PWD_SED~" sensor_reporter.service > sensor_reporter_edit.service
-			
+
 			# Special characters are not allowed in the service file, since sed will unescape the input we need to double escape the PWD
 			# systemd-escape will replace '/' with '-' first undo this and then add escape every '\'
 			PWD_EXEC=$(systemd-escape "$PWD" | sed -e 's~-~/~g' -e 's~\\~\\\\~g')
 			# serach for the EXEC path and update the first part (the part until the first white space)
 			sed -i "s~$SERVICE_EXEC\S*~$SERVICE_EXEC$PWD_EXEC$SERVICE_PYPATH~" sensor_reporter_edit.service
+			SERVICE_FILE_MODIFIED=1
+		fi
+
+		# Current kernels have no networking.service, replace it with NetworkManager.service if available
+		NETWORK_MANAGER_FOUND=$(systemctl list-unit-files | grep NetworkManager.service)
+		if [ "$NETWORK_MANAGER_FOUND" ]; then
+			if [ ! "$SERVICE_FILE_MODIFIED" ]; then
+				cp sensor_reporter.service sensor_reporter_edit.service
+			fi
+			# Replace line in unit file starting with 'Requires='
+			sed -i "s~$SERVICE_REQUIRES\S*~Requires=NetworkManager.service~" sensor_reporter_edit.service
+			SERVICE_FILE_MODIFIED=1
+		fi
+
+		if [ "$SERVICE_FILE_MODIFIED" ]; then
 			cp sensor_reporter_edit.service "$SERVICE_FILE_PATH"
 		else
 			cp sensor_reporter.service "$SERVICE_FILE_PATH"
@@ -200,7 +216,7 @@ else
 	   # if service not used, we use the default_user for file and folder ownership
        SR_USER="$DEFAULT_USER"
 	fi	
-	
+
 	if [ "$CREATE_LOG_DIR" ] && [ "$CREATE_LOG_DIR" = 'y' ]; then
 		# create logDir
 		echo "=== creating logging directory ==="
@@ -217,23 +233,23 @@ else
 		chown "$SR_USER":"$DEFAULT_USER" "$LOG_FILE"
 		chmod g+w "$LOG_FILE"
 	fi
-	
+
 	# set owner and permision for sensor_reporter root folder so temp files e.g. by lgpio can be written
 	chown "$SR_USER":"$DEFAULT_USER" "$PWD"
 	chmod ug+rw "$PWD"
-	
+
 	# create python virtual envionment
 	# allow access to system packages
 	# don't run as root
 	echo "=== creating Python virtual environment ==="
 	su -c "python3 -m venv --system-site-packages ." "$DEFAULT_USER"
-	
+
 	# install plug-in dependencies
 	if [ "$PATH_LIST" ]; then
 		echo "=== installing optional dependencies ==="
 		"$PWD/$DEP_SCRIPT" "$PATH_LIST"
 	fi
-	
+
 	echo ""
 	echo "Setup done! Now create a configuration yml-file and start sensorReporter with:"
 	echo -e "$USAGE_SENSOR_REPORTER"

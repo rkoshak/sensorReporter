@@ -20,26 +20,31 @@ Classes:
     - BtRssiSensor: Looks for a device by address and it it sees it enough times
     publishes ON.
 """
+from typing import Any, Optional, Dict, TYPE_CHECKING
 import yaml
 import bluetooth
 import bluetooth._bluetooth as bt
 from core.sensor import Sensor
-from core.utils import get_dict_of_sequential_param__output, verify_connections_layout, \
-                        configure_device_channel
+from core import utils
+if TYPE_CHECKING:
+    # Fix circular imports needed for the type checker
+    from core import connection
 
 class SimpleBtSensor(Sensor):
     """Implements a simple scanner that looks for the name of a BT devices given
     their MAC addresses.
     """
 
-    def __init__(self, publishers, dev_cfg):
+    def __init__(self,
+                 publishers:Dict[str, 'connection.Connection'],
+                 dev_cfg:Dict[str, Any]) -> None:
         """Parses the parameters and prepares to scan for the configured devices.
         dev_cfg:
             - Poll: must be greater than 25
             - AddressX: sequential list of MAC addresses to look for
             - DestinationX: sequential list of destinations to publish ON/OFF to
             when the corresponding Address is found or not. There must be the
-            same numer of Address and Destiantion fields.
+            same number of Address and Destination fields.
         Raises:
             - KeyError: when a required parameter doesn't exist
             - ValueError: when the list of Addresses and Destinations don't
@@ -47,8 +52,10 @@ class SimpleBtSensor(Sensor):
         """
         super().__init__(publishers, dev_cfg)
 
-        self.devices = get_dict_of_sequential_param__output(dev_cfg, "Address", "Destination")
-        verify_connections_layout(self.comm, self.log, self.name, list(self.devices.values()))
+        addr_dest = utils.get_dict_of_sequential_param__output(dev_cfg, "Address", "Destination")
+        # bluetooth returns MAC in lower case, make sure our keys are in lower case too
+        self.devices = {k.lower() : v for k, v in addr_dest.items()}
+        utils.verify_connections_layout(self.comm, self.log, self.name, list(self.devices.values()))
 
         self.states = dict.fromkeys(list(self.devices.keys()), None)
 
@@ -61,11 +68,11 @@ class SimpleBtSensor(Sensor):
 
         #configure_output for homie etc. after debug output, so self.comm is clean
         for (mac, destination) in self.devices.items():
-            configure_device_channel(self.comm, is_output=True, output_name=destination,
-                                     name=f"{mac} available")
+            utils.configure_device_channel(self.comm, is_output=True, output_name=destination,
+                                           name=f"{mac} available")
         self._register(self.comm)
 
-    def check_state(self):
+    def check_state(self) -> None:
         """Loops through the devices and tries to see if they are reachable over
         Bluetooth.
         """
@@ -78,7 +85,9 @@ class SimpleBtSensor(Sensor):
                 self.states[address] = value
                 self._send(value, self.comm, self.devices[address])
 
-    def publish_state(self):
+    def publish_state(self) -> None:
         """Publishes the last set of states for each device."""
         for address in self.devices:
-            self._send(self.states[address], self.comm, self.devices[address])
+            state = self.states[address]
+            if state is not None:
+                self._send(state, self.comm, self.devices[address])
