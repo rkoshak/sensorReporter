@@ -114,13 +114,19 @@ def init_logger(logger_cfg:Dict[str, Any]) -> None:
 
     formatter = logging.Formatter('%(asctime)s %(levelname)8s - [%(name)15.15s] %(message)s')
 
+    # STDOUT logging
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(formatter)
+    root_logger.addHandler(stdout_handler)
+
     handler:Union[logging.handlers.SysLogHandler, logging.handlers.RotatingFileHandler]
     # Syslog logger
     if logger_cfg.get("Syslog", True):
-        handler = logging.handlers.SysLogHandler('/dev/log',
+        handler = logging.handlers.SysLogHandler(address='/dev/log',
                                                  facility=logging.handlers.SysLogHandler.LOG_SYSLOG)
         handler.encodePriority(handler.LOG_SYSLOG, handler.LOG_INFO)
-        formatter = logging.Formatter('%(levelname)s - [%(name)s] %(message)s')
+        formatter = logging.Formatter('sensorReporter[%(process)s]: %(levelname)8s -'
+                                      ' [%(name)15s] %(message)s')
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
 
@@ -134,11 +140,6 @@ def init_logger(logger_cfg:Dict[str, Any]) -> None:
                                                        backupCount=num)
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
-
-        # STDOUT logging
-        stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setFormatter(formatter)
-        root_logger.addHandler(stdout_handler)
 
     logger.info("Setting logging level to %s",
                 logger_cfg.get("Level", "INFO"))
