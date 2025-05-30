@@ -114,6 +114,11 @@ def init_logger(logger_cfg:Dict[str, Any]) -> None:
 
     formatter = logging.Formatter('%(asctime)s %(levelname)8s - [%(name)15.15s] %(message)s')
 
+    # STDOUT logging
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(formatter)
+    root_logger.addHandler(stdout_handler)
+
     handler:Union[logging.handlers.SysLogHandler, logging.handlers.RotatingFileHandler]
     # Syslog logger
     if logger_cfg.get("Syslog", True):
@@ -134,11 +139,6 @@ def init_logger(logger_cfg:Dict[str, Any]) -> None:
                                                        backupCount=num)
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
-
-        # STDOUT logging
-        stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setFormatter(formatter)
-        root_logger.addHandler(stdout_handler)
 
     logger.info("Setting logging level to %s",
                 logger_cfg.get("Level", "INFO"))
