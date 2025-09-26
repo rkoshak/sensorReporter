@@ -73,7 +73,7 @@ class MqttConnection(Connection):
 
         #optional parameters
         tls = conn_cfg.get("TLS", False)
-        ca_cert = conn_cfg.get("CAcert", "./certs/ca.crt")
+        ca_cert = conn_cfg.get("CAcert", None)
         tls_insecure = conn_cfg.get("TLSinsecure", False)
 
         user = conn_cfg["User"]
@@ -86,7 +86,10 @@ class MqttConnection(Connection):
         self.client = mqtt.Client(client_id=client_name, clean_session=True)
         if tls:
             self.log.debug("TLS is true, CA cert is: {}".format(ca_cert))
-            self.client.tls_set(ca_cert)
+            if ca_cert:
+                self.client.tls_set(ca_cert)
+            else:
+                self.client.tls_set()
             self.log.debug("TLS insecure is {}".format(tls_insecure))
             self.client.tls_insecure_set(tls_insecure)
         self.client.on_connect = self.on_connect

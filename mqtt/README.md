@@ -33,7 +33,7 @@ sudo ./install_dependencies.sh mqtt
 | `Keepalive`   | X        | Seconds                         | How frequently to exchange keep alive messages with the broker. The smaller the number the faster the broker will detect this client has gone offline but the more network traffic will be consumed. |
 | `RootTopic`   | X        | Valid MQTT topic, no wild cards | Serves as the root topic for all the messages published. For example, if an RpiGpioSensor has a destination "back-door", the actual topic published to will be `<RootTopic>/back-door`.              |
 | `TLS`         |          | Boolean                         | If set to `True`, will use TLS encryption in the connection to the MQTT broker.                                                                                                                      |
-| `CAcert`      |          | String                          | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `./certs/ca.crt`.                                                                     |
+| `CAcert`      |          | String                          | Optional path to the Certificate Authority's certificate that signed the MQTT Broker's certificate. Default is `None`.                                                                     |
 | `TLSinsecure` |          | Boolean                         | Optional parameter to disable verification of the server hostname in the server certificate. Default is `False`.                                                                                   |
 
 There are two hard coded topics the Connection will use:
