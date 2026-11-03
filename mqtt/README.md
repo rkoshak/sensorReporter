@@ -151,6 +151,73 @@ SensorGovee:
             Retain: yes
     Level: INFO
 ```
+  
+## Homeassistant discovery
+
+A connection to communicate via MQTT using Home Assistant discovery.
+It is built on `ha_mqtt_discoverable`.
+It publishes discovery configuration payloads for the sensors and actuators configured with the `HADiscovery` key.
+All entities are linked to a device named after the `Connection["DeviceID"]` key, when available, or derived from the `Connection["Client"]` key.
+
+Supported Home Assistant entity components with links to their respective documentation:
+
+* [sensor](https://www.home-assistant.io/integrations/sensor/)
+* [binary_sensor](https://www.home-assistant.io/integrations/binary_sensor/)
+* [switch](https://www.home-assistant.io/integrations/switch/)
+* [light](https://www.home-assistant.io/integrations/light/)
+* [number](https://www.home-assistant.io/integrations/number/)
+* [select](https://www.home-assistant.io/integrations/select/)
+* [button](https://www.home-assistant.io/integrations/button/)
+* [cover](https://www.home-assistant.io/integrations/cover/)
+
+The `HADiscovery` dictionary accepts standard Home Assistant discovery keys such as `name`, `component`, `device_class`, `unit_of_measurement`, and `value_template`.
+One of `name` or `component` is required.
+If the `component` key is not set the default is `sensor`.
+See the [MQTT discovery documentation](https://www.home-assistant.io/integrations/mqtt/) and the [sensor device class reference](https://www.home-assistant.io/integrations/sensor/#device-class) for all the available values.
+
+Setting `HADiscovery: False` publishes empty payloads to the previously published configuration topics, removing the entities and device from Home Assistant.
+
+Sensors removed from `sensor_reporter.yml` or for which the `HADiscovery` key is removed are deleted from Home Assistant by sending an empty payload to the sensor configuration topic.
+
+The MQTT client is fully inherited from the MQTT connection, all of the settings of that connection still apply.
+
+Example of a Home Assistant connection configuration:
+
+```yaml
+Logging:
+    Syslog: yes
+    Level: INFO
+
+Connection1:
+    Class: mqtt.hass_conn.HassConnection
+    Name: MQTT
+    Client: test
+    User: user
+    Password: password
+    Host: localhost
+    Port: 1883
+    Keepalive: 10
+    RootTopic: sensor_reporter
+    TLS: no
+    DeviceID: sensor_reporter_test # optional
+    HADiscovery: True  # optional, default: True. Set to false to remove device from Home Assistant
+    HAPrefix: homeassistant-disc  # optional, default: homeassistant
+    Level: DEBUG
+
+SensorGovee:
+    Class: govee.govee_sensor.GoveeSensor
+    Connections:
+        MQTT:
+            StateDest: govee
+            Retain: yes
+            HADiscovery:                                # Home Assistant discovery specific section
+                name: Temp sensor                       # required if component is not present, name displayed in the UI
+                component: sensor                       # required if name is not present, default is sensor
+                device_class: temperature
+                unit_of_measurement: "°C"
+                value_template: "{{ value_json.temp }}" # optional, can be used to extract data from a json string
+    Level: INFO
+```
 
 ## Homie Connection
 

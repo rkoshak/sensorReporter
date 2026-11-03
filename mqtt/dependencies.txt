@@ -3,3 +3,5 @@
 paho-mqtt>=1.6.1,<2.0.0
 # required by homie
 homie-spec
+# required by HA discovery
+ha_mqtt_discoverable

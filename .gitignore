@@ -9,3 +9,5 @@ lib
 lib64
 pyvenv.cfg
 share
+.ha_entities.json
+.vscode/launch.json
