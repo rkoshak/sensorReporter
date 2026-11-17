@@ -10,6 +10,7 @@ User=sensorReporter
 Type=simple
 ExecStart=/srv/sensorReporter/bin/python sensor_reporter.py sensor_reporter.yml
 ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=null
 
 [Install]
 WantedBy=multi-user.target
