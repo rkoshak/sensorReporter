@@ -43,6 +43,7 @@ IN = "$in"
 CONF_ON_DISCONNECT = 'ConnectionOnDisconnect'
 CONF_ON_RECONNECT = 'ConnectionOnReconnect'
 CONF_SCHEDULER = 'ConnectionEnabledSchedule'
+CONF_HA_DISCOVERY = 'HADiscovery'
 
 class ChanConst():
     """ Constants used by configure_device_channel and homie_conn
@@ -269,7 +270,7 @@ def verify_connections_layout(comm:Dict[str, Any],
     if not isinstance(outputs, list):
         outputs = None
     # exclude sub-dictionaries used to configure the connection
-    conn_conf = [CONF_ON_DISCONNECT, CONF_ON_RECONNECT, CONF_SCHEDULER]
+    conn_conf = [CONF_ON_DISCONNECT, CONF_ON_RECONNECT, CONF_SCHEDULER, CONF_HA_DISCOVERY]
 
     for conn in comm.values():
         if not isinstance(conn, dict):
