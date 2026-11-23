@@ -1,7 +1,8 @@
 # MQTT
 
-This module contains the MQTT and the Homie connection, the later supports auto discover.
+This module contains the MQTT, Homeassistant and the Homie connection, the latter supports auto discover.
 * [MQTT-Connection](#mqtt-connection)
+* [Homeassistant discovery](#homeassistant-discovery)
 * [Homie-Connection](#homie-connection)
 
 
@@ -18,7 +19,7 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh mqtt
 ```
 
-### Parameters
+### MQTT Parameters
 
 | Parameter     | Required | Restrictions                    | Purpose                                                                                                                                                                                              |
 |---------------|----------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -123,7 +124,7 @@ Connections:
             NumberOfReadings: < whole number >
 ```
 
-### Example Config
+### MQTT Example Config
 
 ```yaml
 Logging:
@@ -170,18 +171,59 @@ Supported Home Assistant entity components with links to their respective docume
 * [button](https://www.home-assistant.io/integrations/button/)
 * [cover](https://www.home-assistant.io/integrations/cover/)
 
-The `HADiscovery` dictionary accepts standard Home Assistant discovery keys such as `name`, `component`, `device_class`, `unit_of_measurement`, and `value_template`.
-One of `name` or `component` is required.
-If the `component` key is not set the default is `sensor`.
-See the [MQTT discovery documentation](https://www.home-assistant.io/integrations/mqtt/) and the [sensor device class reference](https://www.home-assistant.io/integrations/sensor/#device-class) for all the available values.
-
-Setting `HADiscovery: False` publishes empty payloads to the previously published configuration topics, removing the entities and device from Home Assistant.
-
-Sensors removed from `sensor_reporter.yml` or for which the `HADiscovery` key is removed are deleted from Home Assistant by sending an empty payload to the sensor configuration topic.
-
 The MQTT client is fully inherited from the MQTT connection, all of the settings of that connection still apply.
 
-Example of a Home Assistant connection configuration:
+### Dependencies
+
+MQTT Communication is handled using the [phao-mqtt](https://pypi.org/project/paho-mqtt/) library.
+Home Assistant discovery is implemented via [ha_mqtt_discoverable](https://pypi.org/project/ha-mqtt-discoverable/).
+
+```bash
+cd /srv/sensorReporter
+sudo ./install_dependencies.sh mqtt
+```
+
+### Parameters
+
+|   Parameter   | Required | Restrictions                          | Purpose                                                                                                                                                                                              |
+|---------------|----------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Class`       | X        | `mqtt.hass_conn.HassConnection`       |                                                                                                                                                                                                      |
+|               |          | see MQTT Connection Parameters        | This Connector inherits all Parameters from the MQTT Connection, thus all required [MQTT Connection parameters](#mqtt-parameters) are also required for this connector.                                   |
+| `DeviceID`    |          | Unique to Home Assistant              |                                                                                                                                                                                                      |
+| `HADiscovery` |          | Boolean                               | When False publishes empty payloads to the previously published configuration topics, removing the entities and device from Home Assistant. (default: True)                                          |
+| `HAPrefix`    |          | String                                | default: homeassistant                                                                                                                                                                               |
+
+### Actuator / sensor relevant parameters
+
+To use an actuator or a sensor (a device) with a connection it has to define this in the device 'Connections:' parameter with a dictionary of connection names and connection related parameters (see Dictionary of connectors layout).
+The `HADiscovery` dictionary accepts standard Home Assistant discovery keys (see table below).
+See the [MQTT discovery documentation](https://www.home-assistant.io/integrations/mqtt/) and the [sensor device class reference](https://www.home-assistant.io/integrations/sensor/#device-class) for all the available values.
+Sensors removed from `sensor_reporter.yml` or for which the `HADiscovery` key is removed are deleted from Home Assistant by sending an empty payload to the sensor configuration topic.
+
+The Home Assistant connection uses following parameters:
+
+| Parameter             | Required | Restrictions       | Purpose                                                                                                                                                                                                            |
+|-----------------------|----------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`                | X*       |                    | name displayed in the Home Assistant UI                                                                                                                                                                            |
+| `component`           | X*       |                    | required if name is not present (default: sensor)                                                                                                                                                                  |
+| `device_class`        |          |                    | see [HA sensor device class reference](https://www.home-assistant.io/integrations/sensor/#device-class)                                                                                                            |
+| `unit_of_measurement` |          |                    | see [MQTT discovery documentation](https://www.home-assistant.io/integrations/mqtt/)                                                                                                                               |
+| `value_template`      |          |                    | can be used to extract data from a json string                                                                                                                                                                     |
+
+X*: One of `name` or `component` is required.
+
+#### Dictionary of connectors layout
+To configure a Home Assistant connection in a sensor / actuator use following layout:
+
+```yaml
+Connections:
+    <connection_name>:
+        HADiscovery:
+            name: <HA Display name>
+            <other HADiscovery related parameter, see table above>
+```
+
+### Home Assistant Example Config
 
 ```yaml
 Logging:
@@ -233,7 +275,7 @@ cd /srv/sensorReporter
 sudo ./install_dependencies.sh mqtt
 ```
 
-### Parameters
+### Homie Parameters
 
 |   Parameter   | Required | Restrictions                          | Purpose                                                                                                                                                                                              |
 |---------------|----------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -319,7 +361,7 @@ Connections:
             NumberOfReadings: < whole number >
 ```
 
-### Example Config
+### Homie Example Config
 
 ```yaml
 Logging:
