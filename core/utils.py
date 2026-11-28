@@ -45,6 +45,7 @@ CONF_ON_RECONNECT = 'ConnectionOnReconnect'
 CONF_SCHEDULER = 'ConnectionEnabledSchedule'
 CONF_HA_DISCOVERY = 'HADiscovery'
 
+
 class ChanConst():
     """ Constants used by configure_device_channel and homie_conn
         to define channel properties
@@ -54,6 +55,7 @@ class ChanConst():
     UNIT = "Unit"
     SETTABLE = "Settable"
     FORMAT = "FormatOf"
+
 
 class ChanType(Enum):
     """ Datatypes supported by configure_device_channel
@@ -65,8 +67,9 @@ class ChanType(Enum):
     ENUM = auto()
     COLOR = auto()
 
-def set_log_level(params:Dict[str, Any],
-                  logger:logging.Logger) -> None:
+
+def set_log_level(params: Dict[str, Any],
+                  logger: logging.Logger) -> None:
     """ Expects a params with a Level property. If there is no property the
         default level of INFO is used. Supports all the standard Python logging
         levels. Sets the level of the passed in logger based on the params Level
@@ -76,23 +79,25 @@ def set_log_level(params:Dict[str, Any],
 
     levels = {
         "CRITICAL": logging.CRITICAL,
-        "ERROR"   : logging.ERROR,
-        "WARNING" : logging.WARNING,
-        "INFO"    : logging.INFO,
-        "DEBUG"   : logging.DEBUG,
-        "NOTSET"  : logging.NOTSET
+        "ERROR":    logging.ERROR,
+        "WARNING":  logging.WARNING,
+        "INFO":     logging.INFO,
+        "DEBUG":    logging.DEBUG,
+        "NOTSET":   logging.NOTSET
     }
 
     if level:
         logger.setLevel(levels.get(level, logging.NOTSET))
 
-def issafe(arg:str) -> bool:
+
+def issafe(arg: str) -> bool:
     """ Returns False if arg contains ';' or '|'. """
     return arg.find(';') == -1 and arg.find('|') == -1
 
-def parse_values(caller:'sensor.Sensor',
-                 connections:Dict[str, Any],
-                 defaults:List[str]) -> Dict[str, List[str]]:
+
+def parse_values(caller: 'sensor.Sensor',
+                 connections: Dict[str, Any],
+                 defaults: List[str]) -> Dict[str, List[str]]:
     """ Parses the Values parameter which should be either
         a two string values formated as a list or
         a dictionary with connection sections containing
@@ -118,7 +123,7 @@ def parse_values(caller:'sensor.Sensor',
                            " Expected dictionary of connection names containing a list."
                            " Using default values instead: %s", caller.name, defaults)
 
-    value_dict:Dict[str, List[str]] = {}
+    value_dict: Dict[str, List[str]] = {}
     if isinstance(values, dict):
         value_dict = values
 
@@ -131,9 +136,9 @@ def parse_values(caller:'sensor.Sensor',
         # make sure connection names exist
         if conn not in connections and conn != DEFAULT_SECTION:
             caller.log.warning("%s Values parameter contains unknown connection!"
-                         " Probably the name of the connection %s"
-                         " is misspelled.",
-                         caller.name, conn)
+                               " Probably the name of the connection %s"
+                               " is misspelled.",
+                               caller.name, conn)
         if isinstance(values, list):
             # make sure only two items are present
             if len(values) == 2:
@@ -151,16 +156,17 @@ def parse_values(caller:'sensor.Sensor',
                 # warn if list is not 2 items long
                 value_dict[DEFAULT_SECTION] = defaults
                 caller.log.warning("%s Values are not in the expected form."
-                           " Expected dictionary of connection names containing a list"
-                           " with two items."
-                           " Using default values instead: %s",
-                           caller.name, defaults)
+                                   " Expected dictionary of connection names containing a list"
+                                   " with two items."
+                                   " Using default values instead: %s",
+                                   caller.name, defaults)
                 break
     # at this point value_dict contains only valid connections and lists of strings
     return value_dict
 
-def get_msg_from_values(values:Dict[str, List[str]],
-                        state_on:bool) -> Dict[str, str]:
+
+def get_msg_from_values(values: Dict[str, List[str]],
+                        state_on: bool) -> Dict[str, str]:
     """ For sensors which implement custom values to send on state change,
         this function will generate the msg dict to push to self._send()
         so every connection will get the corresponding values
@@ -173,7 +179,7 @@ def get_msg_from_values(values:Dict[str, List[str]],
 
     Returns: a dict with the state to publish for reach connection
     """
-    #invert state so 'True' = 1 will yield the first item of the list (index = 0)
+    # invert state so 'True' = 1 will yield the first item of the list (index = 0)
     state_on = not state_on
     result = {}
 
@@ -182,8 +188,9 @@ def get_msg_from_values(values:Dict[str, List[str]],
 
     return result
 
-def get_sequential_params(dev_cfg:Dict[str, Any],
-                          name:str) -> List[str]:
+
+def get_sequential_params(dev_cfg: Dict[str, Any],
+                          name: str) -> List[str]:
     """ Creates a list of values from sequentially named parameters.
         Used to create a dictionary in get_dict_of_sequential_param__output.
 
@@ -202,9 +209,10 @@ def get_sequential_params(dev_cfg:Dict[str, Any],
             done = True
     return values
 
-def get_dict_of_sequential_param__output(dev_cfg:Dict[str, Any],
-                                         name:str,
-                                         output_name:str) -> Dict[str, Any]:
+
+def get_dict_of_sequential_param__output(dev_cfg: Dict[str, Any],
+                                         name: str,
+                                         output_name: str) -> Dict[str, Any]:
     """ Returns a dict of sequentially named parameters and
         Output names generated accordingly
 
@@ -220,7 +228,8 @@ def get_dict_of_sequential_param__output(dev_cfg:Dict[str, Any],
 
     return dict(zip(one, two))
 
-def is_toggle_cmd(msg:str) -> bool:
+
+def is_toggle_cmd(msg: str) -> bool:
     """ Returns true it the input (msg) is equal
         to the string "TOGGLE" or is a ISO 8601 formatted date time
     """
@@ -231,8 +240,9 @@ def is_toggle_cmd(msg:str) -> bool:
     is_dt_timezone = len(msg) == 31 and msg[10] == "T"
     return is_toggle or is_dt or is_dt_timezone
 
-def spread_default_parameters(config:Dict[str, Any],
-                              dev_cfg:Dict[str, Any]) -> None:
+
+def spread_default_parameters(config: Dict[str, Any],
+                              dev_cfg: Dict[str, Any]) -> None:
     """ Takes parameters from the DEFAULT section
         and spread them to the dev_cfg if not present already
 
@@ -247,10 +257,11 @@ def spread_default_parameters(config:Dict[str, Any],
         if key not in dev_cfg:
             dev_cfg[key] = value
 
-def verify_connections_layout(comm:Dict[str, Any],
-                              log:logging.Logger,
-                              name:str,
-                              outputs:Optional[List[str]] = None) -> None:
+
+def verify_connections_layout(comm: Dict[str, Any],
+                              log: logging.Logger,
+                              name: str,
+                              outputs: Optional[List[str]] = None) -> None:
     """
     Use this method at the end of the sensor initialization
     before calling configure_device_channel().
@@ -297,18 +308,18 @@ def verify_connections_layout(comm:Dict[str, Any],
                             ' No outputs are allowed', name, key)
                 continue
             # check if sub-dictionary is specified as outputs
-            if not key in outputs:
+            if key not in outputs:
                 log.warning("%s has unknown outputs '%s' in Connections."
                             ' Valid outputs are: %s', name, key, outputs)
 
 
-def configure_device_channel(comm:Dict[str, Any], *,
-                            is_output:bool,
-                            output_name:Optional[str] = None,
-                            datatype:ChanType = ChanType.STRING,
-                            unit:Optional[str] = None,
-                            name:Optional[str] = None,
-                            restrictions:Optional[str] = None) -> None:
+def configure_device_channel(comm: Dict[str, Any], *,
+                             is_output: bool,
+                             output_name: Optional[str] = None,
+                             datatype: ChanType = ChanType.STRING,
+                             unit: Optional[str] = None,
+                             name: Optional[str] = None,
+                             restrictions: Optional[str] = None) -> None:
     """
     Use this method at the end of the sensor/actuator initialization,
     it sets default values inside the connections section
@@ -393,13 +404,14 @@ def configure_device_channel(comm:Dict[str, Any], *,
             if ChanConst.SETTABLE not in sub:
                 sub[ChanConst.SETTABLE] = True
 
+
 class Debounce():
     """ Checks the time difference between two sequential events
         and checks if the debounce time is already over
     """
 
-    def __init__(self, dev_cfg:Dict[str, Any],
-                 default_debounce_time:float) -> None:
+    def __init__(self, dev_cfg: Dict[str, Any],
+                 default_debounce_time: float) -> None:
         """ Init and read device configuration
 
             Parameters:
@@ -431,6 +443,7 @@ class Debounce():
             return True
         return False
 
+
 class ColorHSV():
     ''' Stores HSV color values. Hue can range from 0 (= off) to 360 (= full brightness),
         Saturation and Value can range from 0 (= off) to 100 (= full brightness).
@@ -450,8 +463,8 @@ class ColorHSV():
     C_VAL = 'Value'
 
     def __init__(self,
-                 RGBW_dict:Dict[str, int],
-                 use_white_channel:bool) -> None:
+                 RGBW_dict: Dict[str, int],
+                 use_white_channel: bool) -> None:
         ''' Initializes colors to a given value (range 0 to 100)
             Parameters:
                 * RGBW_dict             Dictionary of color : value pairs that define
@@ -471,21 +484,21 @@ class ColorHSV():
                                         {red: 100, green: 100, blue:100, white:0}
         '''
         self._hsv = {
-            self.C_HUE : 0,
-            self.C_SAT : 0,
-            self.C_VAL : 0
+            self.C_HUE: 0,
+            self.C_SAT: 0,
+            self.C_VAL: 0
             }
         self.use_white_ch = use_white_channel
 
         if RGBW_dict.get(self.C_WHITE, 0) != 0:
             RGBW_dict[self.C_RED] = 0
-            RGBW_dict[self.C_GREEN]= 0
+            RGBW_dict[self.C_GREEN] = 0
             RGBW_dict[self.C_BLUE] = 0
 
         self.rgbw_dict = RGBW_dict
 
     def __eq__(self,
-               other_obj:object) -> bool:
+               other_obj: object) -> bool:
         ''' own implementation of compare equality to simplify code using this class
         '''
         if not isinstance(other_obj, ColorHSV):
@@ -529,7 +542,7 @@ class ColorHSV():
 
     @rgbw_dict.setter
     def rgbw_dict(self,
-                  rgbw_dict:Dict[str, int]) -> None:
+                  rgbw_dict: Dict[str, int]) -> None:
         # Build HSV color CSV array
         if rgbw_dict.get(self.C_WHITE, 0) == 0:
             # If white is not set use RGB values
@@ -548,7 +561,7 @@ class ColorHSV():
         else:
             # Build HSV color array for case white color is set
             # Note: 0,0,x seems to be out of range for openHAB using 1,0,x instead
-            hsv_array = [2,0,rgbw_dict[self.C_WHITE]]
+            hsv_array = [2, 0, rgbw_dict[self.C_WHITE]]
         # store result as integer to get rid of floating point numbers
         self._hsv[self.C_HUE] = int(hsv_array[0])
         self._hsv[self.C_SAT] = int(hsv_array[1])
@@ -567,15 +580,15 @@ class ColorHSV():
             E. g. pure red in full brightness = '0,100,100'
         '''
         # build hsv_color_str
-        hsv_color_str = ( f'{int(self._hsv[self.C_HUE])},'
-                          f'{int(self._hsv[self.C_SAT])},'
-                          f'{int(self._hsv[self.C_VAL])}' )
+        hsv_color_str = (f'{int(self._hsv[self.C_HUE])},'
+                         f'{int(self._hsv[self.C_SAT])},'
+                         f'{int(self._hsv[self.C_VAL])}')
 
         return hsv_color_str
 
     @color_hsv_str.setter
     def color_hsv_str(self,
-                      hsv_str:str) -> None:
+                      hsv_str: str) -> None:
         hsv_array = []
         # We expect a string with 3 values: hue,saturation,value
         # Split and convert them to integer
@@ -587,7 +600,7 @@ class ColorHSV():
         self._hsv[self.C_VAL] = hsv_array[2]
 
     def get_hsv(self,
-                param:str) -> int:
+                param: str) -> int:
         ''' Returns the selected 'parameter' as an integer (range 0 to 100/360).
             Raises an error if the specified parameter is not in the internal HSV color dictionary.
             Parameter:
@@ -598,8 +611,8 @@ class ColorHSV():
         raise ValueError(f"Function 'get_hsv()' parameter 'param' has unknown value: {param}")
 
     def set_hsv(self,
-                param:str,
-                value:int) -> None:
+                param: str,
+                value: int) -> None:
         ''' Sets the selected 'param' as in integer (range 0 to 100/360).
             Raises an error if the specified param is not in the internal HSV color dictionary.
             Parameter:
